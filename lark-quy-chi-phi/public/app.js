@@ -22,7 +22,7 @@ const S = {
   /* Mã quyết toán gần nhất, để chị kế toán duyệt cả xâu khoản cùng một mã mà
    * không phải gõ lại mười lần. */
   maCuoi: '',
-  loc: { loai: '', tinhTrang: '', thang: '', tim: '' },
+  loc: { loai: '', tinhTrang: '', tu: '', den: '', tim: '' },
   chon: new Set(),
   tab: 'so',              // so | thieu | ung
 };
@@ -116,6 +116,17 @@ function thangCua(v) {
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
 }
 const homNay = () => new Date().toISOString().slice(0, 10);
+/* Ngày theo giờ máy ('YYYY-MM-DD'), cùng cách đọc với thangCua() để một khoản
+ * không rơi vào tháng này mà lại nằm ngoài khoảng ngày của chính tháng đó. */
+function ngayCua(v) {
+  if (!v) return '';
+  const d = v instanceof Date ? v : new Date(v);
+  if (isNaN(d.getTime())) return '';
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0')
+    + '-' + String(d.getDate()).padStart(2, '0');
+}
+const cuoiThang = (t) => t + '-' + String(new Date(Number(t.slice(0, 4)), Number(t.slice(5, 7)), 0).getDate()).padStart(2, '0');
+const khoangThang = (t) => ({ tu: t + '-01', den: cuoiThang(t) });
 
 /* ---------------- đọc dữ liệu ---------------- */
 async function taiLai(moi) {
@@ -228,7 +239,10 @@ function locChi() {
   return S.chi.filter((c) => {
     if (l.loai && c.loai !== l.loai) return false;
     if (l.tinhTrang && c.tinhTrang !== l.tinhTrang) return false;
-    if (l.thang && thangCua(c.ngayChi || c.ngayDeNghi) !== l.thang) return false;
+    if (l.tu) {
+      const d = ngayCua(c.ngayChi || c.ngayDeNghi);
+      if (!d || d < l.tu || d > (l.den || l.tu)) return false;
+    }
     if (S.tab === 'thieu' && !thieuChungTu(c)) return false;
     if (tim) {
       /* Gồm cả MÃ ĐƠN RT: đó là mã kế toán đối chiếu nhiều nhất, mà trước đây
@@ -259,9 +273,11 @@ function locChi() {
  * sheet. Xếp vào kỳ hiện tại thì tháng này tự dưng phình ra một khoản không ai
  * tiêu.
  */
-function tinhKy(thang) {
-  const truocKy = (v) => { const t = thangCua(v); return !t || t < thang; };
-  const trongKy = (v) => thangCua(v) === thang;
+function tinhKy(tu, den) {
+  /* Nhận cả một tháng ('2026-08') lẫn một khoảng ngày bất kỳ. */
+  if (!den) ({ tu, den } = khoangThang(tu));
+  const truocKy = (v) => { const d = ngayCua(v); return !d || d < tu; };
+  const trongKy = (v) => { const d = ngayCua(v); return !!d && d >= tu && d <= den; };
   const lanNap = S.nap.filter((n) => n.loai !== LAN_CHUYEN_TIEP);
   const cong = (ds) => ds.reduce((a, x) => a + (Number(x.tien) || 0), 0);
 
@@ -291,11 +307,31 @@ function kyAm() {
   return thangs.filter((t) => tinhKy(t).cuoiKy < 0);
 }
 
-/* Kỳ đang xem = tháng người dùng chọn ở bộ lọc, không chọn thì là tháng này.
+/* Kỳ đang xem = khoảng người dùng chọn ở bộ lọc, không chọn thì là tháng này.
  * Nhờ vậy chị kế toán lọc sang tháng 8 là cả dải số trên đầu nhảy theo — chốt
- * sổ tháng nào thì nhìn đúng tháng đó. */
-const kyDangXem = () => S.loc.thang || thangCua(new Date().toISOString());
-const tenKy = (t) => 'tháng ' + t.slice(5) + '/' + t.slice(0, 4);
+ * sổ tháng nào thì nhìn đúng tháng đó. Từ 03/11/2026 khoảng là từ ngày tới ngày
+ * (anh Hùng: "chọn mốc thời gian bắt đầu và kết thúc"), nên nhìn được cả một
+ * quý hay nửa tháng mà phép tính đầu kỳ + nạp − chi = cuối kỳ vẫn khớp. */
+const kyDangXem = () => (S.loc.tu
+  ? { tu: S.loc.tu, den: S.loc.den || S.loc.tu }
+  : khoangThang(thangCua(new Date().toISOString())));
+
+/* Tên kỳ gọi theo cách người ta nói: trọn tháng là "tháng 10/2026", trọn năm là
+ * "năm 2026", trọn mấy tháng liền là "tháng 08 – 10/2026"; còn lại ghi ngày. */
+function tenKy(k) {
+  if (typeof k === 'string') k = khoangThang(k);
+  const { tu, den } = k;
+  const y1 = tu.slice(0, 4), y2 = den.slice(0, 4), m1 = tu.slice(5, 7), m2 = den.slice(5, 7);
+  const dm = (d) => d.slice(8) + '/' + d.slice(5, 7);
+  if (tu.endsWith('-01') && den === cuoiThang(den.slice(0, 7))) {
+    if (y1 === y2 && m1 === m2) return 'tháng ' + m1 + '/' + y1;
+    if (y1 === y2 && m1 === '01' && m2 === '12') return 'năm ' + y1;
+    return 'tháng ' + m1 + (y1 === y2 ? '' : '/' + y1) + ' – ' + m2 + '/' + y2;
+  }
+  if (tu === den) return 'ngày ' + dm(tu) + '/' + y1;
+  return 'kỳ ' + dm(tu) + (y1 === y2 ? '' : '/' + y1) + ' – ' + dm(den) + '/' + y2;
+}
+const hoaDau = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
 /* ---------------- vẽ ---------------- */
 const TEN_VAI = { chuQuy: 'Người giữ quỹ', keToan: 'Kế toán', xem: 'Chỉ xem' };
@@ -336,12 +372,15 @@ function ve() {
 
 function veTong() {
   const ky = kyDangXem();
-  const k = tinhKy(ky);
-  const dangLocThang = !!S.loc.thang;
+  const k = tinhKy(ky.tu, ky.den);
+  const dangLocThang = !!S.loc.tu;
   const soThieu = S.chi.filter(thieuChungTu).length;
   const chuaQuyetToan = S.chi.filter((c) => c.tinhTrang === 'Đã chi').length;
   const traLai = S.chi.filter((c) => c.tinhTrang === CHO_CHINH).length;
-  const soKhoanKy = S.chi.filter((c) => thangCua(c.ngayChi || c.ngayDeNghi) === ky).length;
+  const soKhoanKy = S.chi.filter((c) => {
+    const d = ngayCua(c.ngayChi || c.ngayDeNghi);
+    return d && d >= ky.tu && d <= ky.den;
+  }).length;
 
   const oSo = (nhan, so, mo, phu) => '<div class="o' + (phu && phu.lop ? ' ' + phu.lop : '')
     + '"' + (phu && phu.bam ? ' ' + phu.bam : '') + '>'
@@ -367,9 +406,10 @@ function veTong() {
   const am = kyAm();
   const bao = am.length
     ? '<div class="bao-am"><b>Có ' + am.length + ' kỳ đóng sổ âm: '
-      + am.map(tenKy).join(' · ') + '.</b> Quỹ tạm ứng không âm được — gần như '
+      + am.map((t) => '<button class="lk-am" data-locthang="' + t + '">' + tenKy(t) + '</button>').join(' · ')
+      + '.</b> Quỹ tạm ứng không âm được — gần như '
       + 'chắc chắn có khoản chi bị gõ nhầm ngày thanh toán nên rơi sang tháng khác. '
-      + 'Bấm vào tháng đó ở bộ lọc để soi.</div>'
+      + 'Bấm vào tháng đó để soi.</div>'
     : '';
 
   return bao + '<section class="tong">'
@@ -397,48 +437,238 @@ function veTong() {
   + '</section>';
 }
 
-/* Trần 10 năm: một ngày gõ nhầm năm (2026 -> 1026) không được phép biến ô lọc
-   thành mười nghìn dòng, và không được làm vòng lặp dưới chạy mãi. */
-const TRAN_THANG = 120;
-
-/**
- * Danh sách tháng cho ô lọc: ĐỦ 12 THÁNG của mọi năm, từ tháng 1 của năm xưa
- * nhất trong sổ tới tháng 12 của năm nay (hoặc năm xa nhất có khoản ghi).
+/* ---------------------------------------------------------------------------
+ * LỊCH CHỌN KHOẢNG (thay ô chọn tháng, 03/11/2026)
+ * -------------------------------------------------------------------------
+ * Anh Hùng: "bộ lọc cần thông minh hơn, nhưng vẫn gọn như vậy, dạng lịch rồi
+ * chọn mốc thời gian bắt đầu và kết thúc; nếu không lọc thì là mọi tháng".
  *
- * Bản đầu chỉ lấy những tháng ĐÃ CÓ khoản chi, nên ngày 01/10/2026 anh Hùng
- * không chọn được tháng 10. Bản sau lấp liền mạch tới THÁNG NÀY, nhưng vẫn là
- * "tới tháng nào mới hiện tháng đó". Ngày 02/11/2026 anh Hùng chốt: bày đủ cả
- * năm, sang năm mới thì năm mới tự có đủ 12 tháng.
+ * Trên thanh vẫn chỉ là một viên như ô chọn cũ. Bấm vào mở bảng nổi:
+ *   - dải mốc nhanh (Mọi tháng · Tháng này · Tháng trước · Quý này · Năm nay);
+ *   - lịch ngày: bấm ngày đầu rồi ngày cuối, rê chuột là thấy khoảng sắp chọn;
+ *   - bấm tên tháng trên đầu lịch là sang lưới 12 tháng, mỗi ô ghi số đã chi,
+ *     chọn tháng đầu rồi tháng cuối. Kế toán chốt sổ theo tháng nên đường này
+ *     hay dùng nhất; bấm một tháng hai lần là đúng tháng đó.
+ * Ngày có khoản chi mang một chấm nhỏ, để thấy ngay khúc nào có tiêu.
  *
- * Tháng chưa tiêu đồng nào vẫn chọn được: tinhKy() tính được cho mọi tháng
- * (đầu kỳ + nạp − chi), không cần tháng đó có khoản chi.
- *
- * Trả về theo NĂM, năm mới nhất trước; trong một năm tháng 1 → 12.
+ * Chọn xong thì bộ lọc áp ngay, bảng nổi đóng theo hiệu ứng cùng lúc: cái gì mở
+ * có hiệu ứng thì đóng cũng có.
  */
-function dsThang() {
-  const moc = S.chi.map((c) => thangCua(c.ngayChi || c.ngayDeNghi))
-    .concat(S.nap.map((n) => thangCua(n.ngay)))
-    .filter(Boolean);
-  const nay = thangCua(new Date().toISOString());
-  const dau = Number(moc.reduce((a, b) => (a < b ? a : b), nay).slice(0, 4));
-  const cuoi = Number(moc.reduce((a, b) => (a > b ? a : b), nay).slice(0, 4));
+const LK = { xem: '', che: 'ngay', tam: null, dangDong: false };
+const THU = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+const SVG_TRAI = '<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M8.5 3L4.5 7l4 4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const SVG_PHAI = '<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M5.5 3l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const SVG_LICH = '<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><rect x="1.5" y="2.5" width="11" height="10" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M1.5 5.8h11M4.5 1v3M9.5 1v3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>';
 
-  const ds = [];
-  for (let y = cuoi; y >= dau && ds.length < TRAN_THANG; y--) {
-    for (let m = 1; m <= 12; m++) ds.push(y + '-' + String(m).padStart(2, '0'));
-  }
-  return ds;
+function cacMocNhanh() {
+  const nay = new Date();
+  const y = nay.getFullYear(), m = nay.getMonth();
+  const th = (yy, mm) => yy + '-' + String(mm + 1).padStart(2, '0');
+  const q = Math.floor(m / 3) * 3;
+  const truoc = new Date(y, m - 1, 1);
+  return [
+    { ten: 'Mọi tháng', tu: '', den: '' },
+    Object.assign({ ten: 'Tháng này' }, khoangThang(th(y, m))),
+    Object.assign({ ten: 'Tháng trước' }, khoangThang(th(truoc.getFullYear(), truoc.getMonth()))),
+    { ten: 'Quý này', tu: th(y, q) + '-01', den: cuoiThang(th(y, q + 2)) },
+    { ten: 'Năm nay', tu: y + '-01-01', den: y + '-12-31' },
+  ];
 }
 
-/* Ô chọn tháng: mỗi năm một nhóm, để mười hai dòng "Tháng ../2026" không lẫn
-   với mười hai dòng của năm khác. */
-function oThang(sel) {
-  const ds = dsThang();
-  const nam = [...new Set(ds.map((t) => t.slice(0, 4)))];
-  return '<option value="">Mọi tháng</option>' + nam.map((y) => '<optgroup label="Năm ' + y + '">'
-    + ds.filter((t) => t.startsWith(y)).map((t) => '<option value="' + t + '"'
-      + (t === sel ? ' selected' : '') + '>Tháng ' + t.slice(5) + '/' + y + '</option>').join('')
-    + '</optgroup>').join('');
+function veNutKy() {
+  const co = !!S.loc.tu;
+  return '<div class="lk-hop"><button type="button" class="lk-nut' + (co ? ' lk-co-loc' : '')
+    + '" id="lKy" aria-haspopup="true" aria-expanded="false">' + SVG_LICH
+    + '<span>' + (co ? hoaDau(tenKy(kyDangXem())).replace(/^Kỳ /, '') : 'Mọi tháng') + '</span></button></div>';
+}
+
+/* Tổng chi theo ngày và theo tháng, đếm một lần mỗi lần mở lịch. */
+function demChi() {
+  const ngay = new Set(), thang = {};
+  S.chi.forEach((c) => {
+    const d = ngayCua(c.ngayChi || c.ngayDeNghi);
+    if (!d) return;
+    ngay.add(d);
+    thang[d.slice(0, 7)] = (thang[d.slice(0, 7)] || 0) + (Number(c.tien) || 0);
+  });
+  return { ngay, thang };
+}
+const tienGon = (n) => (n >= 1e6 ? (Math.round(n / 1e5) / 10).toLocaleString('vi-VN') + ' tr'
+  : n >= 1e3 ? Math.round(n / 1e3) + 'k' : n ? String(n) : '');
+
+function veLich() {
+  const dem = demChi();
+  const tam = LK.tam;
+  /* Khoảng đang sáng: đang chọn dở thì là khoảng tạm, không thì là bộ lọc. */
+  const tu = tam ? tam.tu : S.loc.tu;
+  const den = tam ? (tam.den || tam.het) : (S.loc.den || S.loc.tu);
+  const nay = ngayCua(new Date());
+  const moc = cacMocNhanh().map((m) => {
+    const on = !tam && m.tu === S.loc.tu && m.den === (S.loc.den || '');
+    return '<button type="button" class="lk-moc' + (on ? ' lk-on' : '') + '" data-lkmoc="' + m.tu + '|' + m.den + '">' + m.ten + '</button>';
+  }).join('');
+
+  let dau, luoi;
+  if (LK.che === 'thang') {
+    const y = LK.xem.slice(0, 4);
+    dau = '<button type="button" class="lk-tieude" data-lkche="ngay">Năm ' + y + '</button>';
+    luoi = '<div class="lk-thang">' + Array.from({ length: 12 }, (_, i) => {
+      const t = y + '-' + String(i + 1).padStart(2, '0');
+      const a = t + '-01', b = cuoiThang(t);
+      const dauKhoang = tu && tu.slice(0, 7) === t, cuoiKhoang = tu && den.slice(0, 7) === t;
+      const trong = tu && a <= den && b >= tu;
+      return '<button type="button" class="lk-th' + (trong ? ' lk-giua' : '')
+        + (dauKhoang || cuoiKhoang ? ' lk-tu' : '') + (nay.slice(0, 7) === t ? ' lk-nay' : '')
+        + '" data-lkthang="' + t + '"><b>Th ' + (i + 1) + '</b><small>' + tienGon(dem.thang[t] || 0) + '</small></button>';
+    }).join('') + '</div>';
+  } else {
+    const [y, m] = LK.xem.split('-').map(Number);
+    const lech = (new Date(y, m - 1, 1).getDay() + 6) % 7;     // thứ Hai đứng đầu
+    const soNgay = new Date(y, m, 0).getDate();
+    dau = '<button type="button" class="lk-tieude" data-lkche="thang">Tháng ' + String(m).padStart(2, '0') + '/' + y + '</button>';
+    let o = THU.map((t) => '<span class="lk-thu">' + t + '</span>').join('');
+    for (let i = 0; i < lech; i++) o += '<span></span>';
+    for (let d = 1; d <= soNgay; d++) {
+      const k = LK.xem + '-' + String(d).padStart(2, '0');
+      const lop = ['lk-o'];
+      if (tu && k >= tu && k <= den) lop.push('lk-giua');
+      if (k === tu) lop.push('lk-tu');
+      if (k === den) lop.push('lk-den');
+      o += '<span class="' + lop.join(' ') + '"><button type="button" class="lk-ngay'
+        + (k === nay ? ' lk-nay' : '') + (dem.ngay.has(k) ? ' lk-co' : '') + '" data-lkngay="' + k + '">' + d + '</button></span>';
+    }
+    luoi = '<div class="lk-luoi">' + o + '</div>';
+  }
+
+  const chan = tam && !tam.den
+    ? (LK.che === 'thang' ? 'Chọn tháng kết thúc' : 'Chọn ngày kết thúc')
+    : tu ? hoaDau(tenKy({ tu, den })) : (LK.che === 'thang' ? 'Chọn tháng bắt đầu' : 'Chọn ngày bắt đầu');
+  return '<div class="lk-moc-dai">' + moc + '</div>'
+    + '<div class="lk-dau"><button type="button" class="lk-lui" data-lkdi="-1" aria-label="Trước">' + SVG_TRAI + '</button>'
+    + dau + '<button type="button" class="lk-lui" data-lkdi="1" aria-label="Sau">' + SVG_PHAI + '</button></div>'
+    + luoi + '<div class="lk-chan">' + esc(chan) + '</div>';
+}
+
+/* Bảng nổi gắn thẳng vào body, đặt `fixed` theo nút. Để trong thanh lọc thì
+ * trên điện thoại nó bị cắt: thanh lọc ở đó là một dải cuộn riêng. Nằm ngoài
+ * #man còn có lợi là ve() dựng lại trang không cuốn mất nó giữa lúc đang đóng. */
+function datChoLich() {
+  const pop = $('.lk-pop'), nut = $('#lKy');
+  if (!pop || !nut) return;
+  const r = nut.getBoundingClientRect();
+  const vw = document.documentElement.clientWidth || window.innerWidth;
+  /* Điện thoại: chừa đáy cho thanh tab kính và viên linh vật của hub (mục 24). */
+  const day = vw <= 640 ? 132 : 12;
+  const vh = window.innerHeight - day;
+  pop.style.maxHeight = (vh - 12) + 'px';
+  const w = pop.offsetWidth, h = pop.offsetHeight;
+  /* Không thò ra ngoài màn (thò là trang kéo ngang được); thiếu chỗ bên dưới
+   * thì lật lên trên nút. */
+  const trai = Math.max(12, Math.min(r.left, vw - w - 12));
+  let tren = r.bottom + 6;
+  if (tren + h > vh) tren = r.top - 6 - h >= 12 ? r.top - 6 - h : Math.max(12, vh - h);
+  pop.style.left = trai + 'px';
+  pop.style.top = tren + 'px';
+  pop.style.transformOrigin = (tren < r.top ? 'bottom ' : 'top ') + (trai + w / 2 < r.left + r.width / 2 ? 'right' : 'left');
+}
+
+function moLich() {
+  if (!$('#lKy') || $('.lk-pop')) return;
+  LK.tam = null; LK.che = 'ngay'; LK.dangDong = false;
+  LK.xem = (S.loc.den || S.loc.tu || ngayCua(new Date())).slice(0, 7);
+  const pop = document.createElement('div');
+  pop.className = 'lk-pop';
+  pop.setAttribute('aria-label', 'Chọn khoảng thời gian');
+  pop.innerHTML = veLich();
+  document.body.appendChild(pop);
+  $('#lKy').setAttribute('aria-expanded', 'true');
+  datChoLich();
+  requestAnimationFrame(() => pop.classList.add('mo'));
+}
+
+function veLaiLich() {
+  const pop = $('.lk-pop');
+  if (pop) { pop.innerHTML = veLich(); datChoLich(); }
+}
+
+function dongLich(sau) {
+  const pop = $('.lk-pop');
+  if (!pop || LK.dangDong) return;
+  LK.dangDong = true;
+  pop.classList.remove('mo');
+  pop.classList.add('dong');
+  const nut = $('#lKy');
+  if (nut) nut.setAttribute('aria-expanded', 'false');
+  const xong = () => { pop.remove(); LK.dangDong = false; LK.tam = null; if (sau) sau(); };
+  const giam = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (giam) return xong();
+  setTimeout(xong, 210);
+}
+
+/* Áp khoảng mới, rồi bỏ chọn những dòng vừa khuất (cùng lý do với doiLoc). */
+function datKy(k) {
+  S.loc.tu = k.tu || '';
+  S.loc.den = k.tu ? (k.den || k.tu) : '';
+  if (S.tab === 'ung' || S.tab === 'bao') S.tab = 'so';
+  const con = new Set(locChi().map((c) => c.id));
+  [...S.chon].forEach((id) => { if (!con.has(id)) S.chon.delete(id); });
+  ve();
+}
+
+/* Bấm mốc đầu rồi mốc cuối; bấm ngược chiều thì tự đảo. */
+function chonMoc(tu, den) {
+  /* tam.het: chỗ kết thúc của mốc đầu — ngày đó, hoặc ngày cuối của tháng đó. */
+  if (!LK.tam || LK.tam.den) { LK.tam = { tu, den: '', het: den }; return veLaiLich(); }
+  const a = LK.tam.tu < tu ? LK.tam.tu : tu;
+  const b = LK.tam.het > den ? LK.tam.het : den;
+  LK.tam = { tu: a, den: b };
+  veLaiLich();
+  datKy({ tu: a, den: b });
+  dongLich();
+}
+
+/* Rê chuột khi đang chọn dở: tô trước khoảng sẽ ra, khỏi phải đoán. */
+function soiKhoang(k) {
+  const pop = $('.lk-pop');
+  if (!pop || !LK.tam || LK.tam.den || LK.che !== 'ngay') return;
+  const a = LK.tam.tu < k ? LK.tam.tu : k, b = LK.tam.tu < k ? k : LK.tam.tu;
+  pop.querySelectorAll('[data-lkngay]').forEach((n) => {
+    const d = n.dataset.lkngay, o = n.parentNode;
+    o.classList.toggle('lk-giua', d >= a && d <= b);
+    o.classList.toggle('lk-tu', d === a);
+    o.classList.toggle('lk-den', d === b);
+  });
+}
+
+function bamLich(T) {
+  if (T.closest('#lKy')) return $('.lk-pop') ? dongLich() : moLich();
+  const pop = T.closest('.lk-pop');
+  if (!pop) { if ($('.lk-pop')) dongLich(); return false; }
+  const moc = T.closest('[data-lkmoc]');
+  if (moc) {
+    const [tu, den] = moc.dataset.lkmoc.split('|');
+    datKy({ tu, den });
+    return dongLich();
+  }
+  const che = T.closest('[data-lkche]');
+  if (che) { LK.che = che.dataset.lkche; LK.tam = null; return veLaiLich(); }
+  const di = T.closest('[data-lkdi]');
+  if (di) {
+    const [y, m] = LK.xem.split('-').map(Number);
+    const buoc = Number(di.dataset.lkdi) * (LK.che === 'thang' ? 12 : 1);
+    const d = new Date(y, m - 1 + buoc, 1);
+    LK.xem = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+    return veLaiLich();
+  }
+  const ngay = T.closest('[data-lkngay]');
+  if (ngay) return chonMoc(ngay.dataset.lkngay, ngay.dataset.lkngay);
+  const th = T.closest('[data-lkthang]');
+  if (th) {
+    const t = th.dataset.lkthang;
+    /* Tháng đã chọn làm mốc đầu thì "cuối" là ngày cuối tháng đó. */
+    return chonMoc(t + '-01', cuoiThang(t));
+  }
+  return true;
 }
 
 function veLoc() {
@@ -463,7 +693,7 @@ function veLoc() {
       '<div class="loc">'
       + '<input id="lTim" placeholder="Tìm nội dung, mã đơn RT, mã điều hành SG, mã quyết toán…" value="'
         + esc(S.loc.tim) + '">'
-      + '<select id="lThang">' + oThang(S.loc.thang) + '</select>'
+      + veNutKy()
       + '<select id="lLoai">' + opt(S.options.loaiChi, S.loc.loai, 'Mọi loại') + '</select>'
       + '<select id="lTT">' + opt(S.options.tinhTrang, S.loc.tinhTrang, 'Mọi tình trạng') + '</select>'
       + '</div>')
@@ -766,7 +996,7 @@ async function moChotKy() {
 function moTaLocDangXem() {
   const p = [];
   if (S.tab === 'thieu') p.push('Cần bổ sung chứng từ');
-  if (S.loc.thang) p.push('Tháng ' + S.loc.thang.slice(5) + '/' + S.loc.thang.slice(0, 4));
+  if (S.loc.tu) p.push(hoaDau(tenKy(kyDangXem())));
   if (S.loc.loai) p.push(S.loc.loai);
   if (S.loc.tinhTrang) p.push(S.loc.tinhTrang);
   if (String(S.loc.tim || '').trim()) p.push('tìm "' + String(S.loc.tim).trim() + '"');
@@ -1401,7 +1631,6 @@ function ganSuKien() {
     [...S.chon].forEach((id) => { if (!con.has(id)) S.chon.delete(id); });
     ve();
   };
-  g('#lThang', 'change', doiLoc((v) => { S.loc.thang = v; }));
   g('#lLoai', 'change', doiLoc((v) => { S.loc.loai = v; }));
   g('#lTT', 'change', doiLoc((v) => { S.loc.tinhTrang = v; }));
 }
@@ -1453,6 +1682,7 @@ function veLai() {
 
 document.addEventListener('click', async (e) => {
   const T = e.target;
+  if (bamLich(T) !== false) return;
 
   /* Xem chứng từ đứng TRƯỚC data-close: chip tệp nằm trong bảng lẫn trong form
    * khai chi, bắt sau là mở chứng từ xong đóng luôn form đang gõ dở. */
@@ -1534,6 +1764,9 @@ document.addEventListener('click', async (e) => {
 
   const tab = T.closest('[data-tab]');
   if (tab) { S.tab = tab.dataset.tab; S.chon.clear(); return ve(); }
+
+  const locthang = T.closest('[data-locthang]');
+  if (locthang) return datKy(khoangThang(locthang.dataset.locthang));
 
   const loctt = T.closest('[data-loctt]');
   if (loctt) {
@@ -1860,7 +2093,20 @@ document.addEventListener('keydown', (e) => {
   /* Lớp xem chứng từ nằm trên cùng nên Esc đóng nó trước — đóng cả form khai chi
    * bên dưới thì người ta mất công gõ lại chỉ vì liếc qua một cái hoá đơn. */
   if (e.key === 'Escape' && $('#xemTep').classList.contains('on')) return dongXemTep();
+  if (e.key === 'Escape' && $('.lk-pop')) return dongLich();
   if (e.key === 'Escape') dongModal();
+});
+
+/* Trang cuộn hay đổi khổ thì bảng nổi `fixed` lạc khỏi nút: đóng luôn, như
+ * danh sách xổ gốc của trình duyệt. Cuộn bên trong bảng thì không tính. */
+document.addEventListener('scroll', (e) => {
+  if ($('.lk-pop') && !(e.target.closest && e.target.closest('.lk-pop'))) dongLich();
+}, true);
+if (window.addEventListener) window.addEventListener('resize', () => { if ($('.lk-pop')) dongLich(); });
+
+document.addEventListener('mouseover', (e) => {
+  const n = e.target.closest && e.target.closest('[data-lkngay]');
+  if (n) soiKhoang(n.dataset.lkngay);
 });
 
 taiLai().catch((e) => {

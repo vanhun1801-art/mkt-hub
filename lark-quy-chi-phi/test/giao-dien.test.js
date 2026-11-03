@@ -259,42 +259,51 @@ function chay(meta) {
 
     const loc = ve('thanh lọc', () => ctx.veLoc());
 
-    /* ---- ô chọn tháng phải LUÔN có THÁNG NÀY ----
-     * Sổ mẫu có khoản chi từ 08/2026 tới 16/09/2026, không có khoản nào của
-     * tháng đang chạy — đúng cảnh sáng mùng 1 khi chưa ai kịp nhập gì. Bản
-     * trước dựng danh sách tháng từ những tháng ĐÃ CÓ khoản chi, nên tháng mới
-     * không hề xuất hiện: anh Hùng mở app ngày 01/10/2026 và không chọn được
-     * tháng 10 (ảnh chụp). Mà đầu tháng mới là lúc cần nhất — người giữ quỹ
-     * phải nhìn số dư đầu kỳ để mở sổ. */
+    /* ---- lịch chọn khoảng thay ô chọn tháng (03/11/2026) ----
+     * Không lọc thì là "Mọi tháng". Chọn mốc đầu rồi mốc cuối thì bảng chỉ còn
+     * khoản trong khoảng, và dải số đổi tên theo khoảng. */
     const nayVN = new Date().toISOString().slice(0, 7);
-    const ds = ctx.__goi('dsThang()');
-    ok('danh sách tháng có THÁNG NÀY dù chưa khoản nào', ds.includes(nayVN), ds.join(' '));
-    ok('ô chọn tháng in ra tháng này', String(loc).includes('value="' + nayVN + '"'),
+    ok('không lọc thì nút ghi "Mọi tháng"', String(loc).includes('id="lKy"') && String(loc).includes('Mọi tháng'),
       String(loc).slice(0, 300));
-    /* Đủ 12 tháng mỗi năm (anh Hùng chốt 02/11/2026): không còn kiểu tới tháng
-     * nào mới hiện tháng đó. Năm mới nhất đứng trước, trong năm tháng 1 → 12. */
-    const namNay = nayVN.slice(0, 4);
-    const thangNamNay = ds.filter((t) => t.startsWith(namNay));
-    ok('năm nay có đủ 12 tháng, cả tháng chưa tới',
-      thangNamNay.length === 12 && thangNamNay[0] === namNay + '-01'
-      && thangNamNay[11] === namNay + '-12', ds.join(' '));
-    ok('năm mới nhất đứng đầu danh sách', ds[0] === namNay + '-01', ds.join(' '));
-    ok('mỗi năm một nhóm trong ô chọn', String(loc).includes('<optgroup label="Năm ' + namNay + '">'),
-      String(loc).slice(0, 300));
+    ok('tên kỳ: trọn tháng', ctx.__goi('tenKy({ tu: "2026-08-01", den: "2026-08-31" })') === 'tháng 08/2026');
+    ok('tên kỳ: trọn năm', ctx.__goi('tenKy({ tu: "2026-01-01", den: "2026-12-31" })') === 'năm 2026');
+    ok('tên kỳ: mấy tháng liền', ctx.__goi('tenKy({ tu: "2026-08-01", den: "2026-10-31" })') === 'tháng 08 – 10/2026');
+    ok('tên kỳ: khoảng ngày', ctx.__goi('tenKy({ tu: "2026-09-05", den: "2026-09-20" })') === 'kỳ 05/09 – 20/09/2026');
+    ok('tên kỳ: một ngày', ctx.__goi('tenKy({ tu: "2026-09-12", den: "2026-09-12" })') === 'ngày 12/09/2026');
+    ok('tháng 2 năm nhuận có 29 ngày', ctx.__goi('cuoiThang("2028-02")') === '2028-02-29');
 
-    /* Liền mạch trong từng năm: một tháng không tiêu đồng nào vẫn là một kỳ có
-     * sổ, và tinhKy() tính được cho mọi tháng. */
-    const lien = ds.every((t, i) => {
-      if (i === ds.length - 1 || t.endsWith('-12')) return true;
-      const [y, m] = t.split('-').map(Number);
-      return ds[i + 1] === y + '-' + String(m + 1).padStart(2, '0');
-    });
-    ok('danh sách tháng liền mạch, không hụt tháng nào ở giữa', lien, ds.join(' '));
-    ok('vẫn tới được tháng xưa nhất của sổ', ds.includes('2026-08'), ds.join(' '));
+    /* Lọc theo khoảng ngày: chỉ còn khoản có ngày chi nằm trong khoảng, tính
+     * cả hai đầu mút. */
+    ctx.__goi('S.tab = "so"; S.loc.tu = "2026-09-12"; S.loc.den = "2026-09-12"');
+    const motNgay = ctx.__goi('locChi().map((c) => c.ngayChi || c.ngayDeNghi)');
+    ok('lọc một ngày chỉ còn khoản của ngày đó', motNgay.length > 0
+      && motNgay.every((d) => String(d).startsWith('2026-09-12')), JSON.stringify(motNgay));
+    ok('nút ghi đúng khoảng đang lọc', String(ctx.veLoc()).includes('Ngày 12/09/2026'));
+
+    /* Phép tính một kỳ vẫn khớp khi kỳ là một khoảng ngày lẻ: đầu kỳ của
+     * 12/09 phải bằng cuối kỳ của 01/08 – 11/09. */
+    const kTruoc = ctx.__goi('tinhKy("2026-08-01", "2026-09-11")');
+    const kNgay = ctx.__goi('tinhKy("2026-09-12", "2026-09-12")');
+    ok('cuối kỳ trước chính là đầu kỳ sau, kể cả khoảng ngày lẻ',
+      kTruoc.cuoiKy === kNgay.dauKy, kTruoc.cuoiKy + ' vs ' + kNgay.dauKy);
+    ok('tinhKy vẫn nhận một tháng như cũ',
+      JSON.stringify(ctx.__goi('tinhKy("2026-08")')) === JSON.stringify(ctx.__goi('tinhKy("2026-08-01", "2026-08-31")')));
+
+    /* Lịch vẽ được cả lưới ngày lẫn lưới tháng, có đủ mốc nhanh. */
+    ctx.__goi('LK.xem = "2026-09"; LK.che = "ngay"; LK.tam = null');
+    const lichNgay = String(ctx.veLich());
+    ok('lưới ngày có đủ 30 ngày của tháng 9', (lichNgay.match(/data-lkngay="2026-09-/g) || []).length === 30);
+    ok('ngày có khoản chi mang chấm', /lk-co" data-lkngay="2026-09-12"/.test(lichNgay), lichNgay.slice(0, 200));
+    ok('có đủ năm mốc nhanh', ['Mọi tháng', 'Tháng này', 'Tháng trước', 'Quý này', 'Năm nay']
+      .every((t) => lichNgay.includes('>' + t + '<')));
+    ctx.__goi('LK.che = "thang"');
+    const lichThang = String(ctx.veLich());
+    ok('lưới tháng có 12 tháng', (lichThang.match(/data-lkthang=/g) || []).length === 12);
+    ctx.__goi('S.loc.tu = ""; S.loc.den = ""; LK.che = "ngay"');
 
     /* Chọn tháng chưa có khoản nào thì dải số vẫn phải nói được số dư đầu kỳ —
      * đó chính là con số kế toán cần để mở sổ tháng mới. */
-    ctx.__goi('S.loc.thang = ' + JSON.stringify(nayVN));
+    ctx.__goi('S.loc.tu = ' + JSON.stringify(nayVN + '-01') + '; S.loc.den = cuoiThang(' + JSON.stringify(nayVN) + ')');
     const tongMoi = ve('dải tổng quan ở tháng chưa có khoản nào', () => ctx.veTong());
     const k = ctx.__goi('tinhKy(' + JSON.stringify(nayVN) + ')');
     ok('tháng trống vẫn mang số dư đầu kỳ của tháng trước',
@@ -302,7 +311,7 @@ function chay(meta) {
     ok('và dải số gọi đúng tên tháng đang xem',
       String(tongMoi).includes('tháng ' + nayVN.slice(5) + '/' + nayVN.slice(0, 4)),
       String(tongMoi).slice(0, 200));
-    ctx.__goi('S.loc.thang = ""');
+    ctx.__goi('S.loc.tu = ""; S.loc.den = ""');
     ctx.__goi('S.tab = "ung"');
     ve('bảng các lần ứng tiền', () => ctx.veUng());
     ctx.__goi('S.tab = "thieu"');
@@ -529,11 +538,11 @@ function chay(meta) {
   const tongMacDinh = String(kq.veTong());
   ok('không lọc thì ô đầu là "Còn trong quỹ"', /Còn trong quỹ/.test(tongMacDinh));
   ok('luôn có ô số dư đầu kỳ', /Số dư đầu tháng/.test(tongMacDinh), tongMacDinh.slice(0, 200));
-  kq.__goi('S.loc.thang = "2026-08"');
+  kq.__goi('S.loc.tu = "2026-08-01"; S.loc.den = "2026-08-31"');
   const tongThang8 = String(kq.veTong());
   ok('lọc tháng 8 thì ô đầu thành tồn cuối kỳ', /Tồn cuối tháng 08\/2026/.test(tongThang8));
   ok('và cả dải số nhảy theo tháng 8', /Số dư đầu tháng 08\/2026/.test(tongThang8));
-  kq.__goi('S.loc.thang = ""');
+  kq.__goi('S.loc.tu = ""; S.loc.den = ""');
 
   console.log(SAO + 'Kế toán duyệt hoặc trả lại từng khoản' + HET);
   const k = veVoiVai('keToan');

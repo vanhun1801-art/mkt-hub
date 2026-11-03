@@ -375,3 +375,14 @@ Anh Hùng: "người quản lý có thể tạo những công việc lặp lại
 - Nhân sự có tám mốc: Hôm qua · Hôm nay · Ngày mai · Tuần này · Tuần tới · **Tháng trước** · Tháng này · Tháng tiếp theo. Anh Hùng chốt thêm "Tháng trước" để nhân sự xem lại số đã chốt của tháng vừa qua.
 - Vẫn không có khoảng tuỳ chọn, không có "toàn bộ" cho nhân sự.
 - Danh sách nằm một chỗ ở `lark-mkt-hub/public/loc.js` (mảng `MUC`); lớp vỏ và mọi app con đều đọc từ đó. Đổi mốc thì sửa ở đó, không thêm riêng trong từng app.
+
+## 27. Lọc thời gian bằng lịch chọn khoảng (03/11/2026, Quỹ chi phí)
+
+Anh Hùng: "bộ lọc cần thông minh hơn, nhưng vẫn gọn như vậy, dạng lịch rồi chọn mốc thời gian bắt đầu và kết thúc, nếu không lọc thì sẽ là mọi tháng".
+
+- **Trên thanh lọc vẫn chỉ là một viên** như ô chọn cũ: "Mọi tháng" khi không lọc, đang lọc thì tô xanh và ghi đúng khoảng ("Tháng 10/2026", "Tháng 08 – 10/2026", "05/11 – 20/11/2026").
+- Bấm vào mở bảng nổi: dải **mốc nhanh** (Mọi tháng · Tháng này · Tháng trước · Quý này · Năm nay), rồi **lịch ngày**: bấm ngày đầu, bấm ngày cuối là xong; rê chuột thấy trước khoảng sẽ chọn; bấm ngược chiều thì tự đảo. Bấm tên tháng trên đầu lịch là sang **lưới 12 tháng**, mỗi ô ghi số đã chi trong tháng; bấm một tháng hai lần là đúng tháng đó. Ngày có khoản chi mang một chấm nhỏ.
+- Dải số trên đầu đi theo khoảng: đầu kỳ + nạp − chi = cuối kỳ vẫn khớp với khoảng ngày lẻ. Tên kỳ nói như người nói: trọn tháng là "tháng 10/2026", trọn năm là "năm 2026".
+- Bảng nổi gắn vào `body`, đặt `fixed` theo nút, không để trong thanh lọc: trên điện thoại thanh lọc là dải cuộn nên cắt mất nó. Thiếu chỗ bên dưới thì lật lên trên; điện thoại chừa đáy 132px cho thanh tab. Trang cuộn thì bảng đóng.
+- **Bảng nổi tự làm không mang `role="dialog"`**: lớp chung coi mọi `role="dialog"` là cửa sổ lớn và kéo giãn nó. Lớp trạng thái đặt tên có tiền tố (`lk-tu`, `lk-giua`…), không dùng tên trần như `dau`, `trong`, `on`: luật chung của hub đã dùng mấy tên đó và làm vỡ lưới.
+- Mã ở `lark-quy-chi-phi/public/app.js` (khối "LỊCH CHỌN KHOẢNG"). App khác cần lọc theo khoảng thì mang khuôn này sang.

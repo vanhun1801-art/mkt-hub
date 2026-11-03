@@ -595,3 +595,96 @@ td.tacvu .btn + .btn { margin-left: 5px; }
 .ky-so b { color: var(--t1); }
 .ky-so b.am { color: var(--red-t, #b42318); }
 .ky-o .btn.nho { margin-top: 9px; }
+
+/* ===========================================================================
+   LỊCH CHỌN KHOẢNG — thay ô chọn tháng ở thanh lọc (03/11/2026)
+   Trên thanh chỉ là một viên như ô chọn cũ; bấm vào mở bảng nổi.
+   Bo theo thang chung: bảng nổi 14px, nút và ô ngày tròn hẳn.
+   =========================================================================== */
+.lk-hop { position: relative; flex: none; }
+.lk-nut {
+  display: inline-flex; align-items: center; gap: 7px; height: 32px; padding: 0 14px 0 12px;
+  border: 1px solid var(--line); border-radius: 999px; background: var(--c-nen-phu, var(--surface));
+  color: var(--ios-chu, var(--t1)); font: inherit; font-size: 14px; white-space: nowrap; cursor: pointer;
+  transition: background-color .16s var(--cd-deu, ease), color .16s var(--cd-deu, ease);
+}
+html[data-skin="ios"] .lk-nut { border-color: transparent; }
+.lk-nut svg { color: var(--t3); flex: none; }
+.lk-nut.lk-co-loc { background: var(--primary-bg); color: var(--primary); font-weight: 600; }
+.lk-nut.lk-co-loc svg { color: var(--primary); }
+.lk-nut[aria-expanded="true"] { box-shadow: 0 0 0 3px var(--primary-bg); }
+
+.lk-pop {
+  position: fixed; top: 0; left: 0; z-index: 900;
+  width: 304px; max-width: calc(100vw - 24px); padding: 10px; box-sizing: border-box;
+  overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none;
+  background: var(--surface); color: var(--t1);
+  border: .5px solid var(--line); border-radius: 14px;
+  box-shadow: 0 16px 40px -12px rgba(0, 0, 0, .28), 0 2px 6px rgba(0, 0, 0, .06);
+  opacity: 0; transform: translateY(-6px) scale(.97); transform-origin: top left;
+}
+.lk-pop.mo { opacity: 1; transform: none;
+  transition: opacity .26s var(--cd-vao, ease-out), transform .26s var(--cd-vao, ease-out); }
+.lk-pop.dong { opacity: 0; transform: translateY(-6px) scale(.97);
+  transition: opacity .2s var(--cd-ra, ease-in), transform .2s var(--cd-ra, ease-in); }
+.lk-pop::-webkit-scrollbar { display: none; }
+@media (prefers-reduced-motion: reduce) { .lk-pop, .lk-pop.mo, .lk-pop.dong { transition: none; } }
+
+/* Mốc nhanh: chip xuống dòng khi chật, không cuộn ngang trong bảng nổi. */
+.lk-moc-dai { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 -10px 8px; padding: 0 10px 10px;
+  border-bottom: .5px solid var(--line); }
+.lk-moc { flex: none; height: 28px; padding: 0 11px; border: 0; border-radius: 999px; cursor: pointer;
+  background: var(--surface-2, var(--hover)); color: var(--t1); font: inherit; font-size: 13px; }
+.lk-moc:hover { background: var(--hover); }
+.lk-moc.lk-on { background: var(--primary); color: #fff; font-weight: 600; }
+
+.lk-dau { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+.lk-tieude { height: 30px; padding: 0 12px; border: 0; border-radius: 999px; background: transparent;
+  color: var(--t1); font: inherit; font-size: 14.5px; font-weight: 600; cursor: pointer; }
+.lk-tieude:hover { background: var(--hover); }
+.lk-lui { width: 30px; height: 30px; padding: 0; border: 0; border-radius: 999px; background: transparent;
+  color: var(--primary); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+.lk-lui:hover { background: var(--primary-bg); }
+
+/* Lưới ngày: ô ngoài là dải tô khoảng, nút trong là vòng tròn ngày. */
+.lk-luoi { display: grid; grid-template-columns: repeat(7, 1fr); row-gap: 2px; }
+.lk-thu { text-align: center; font-size: 12px; font-weight: 600; color: var(--t3); padding: 4px 0 6px; }
+.lk-o { display: flex; justify-content: center; }
+.lk-o.lk-giua { background: var(--primary-bg); }
+.lk-o.lk-tu { border-radius: 999px 0 0 999px; }
+.lk-o.lk-den { border-radius: 0 999px 999px 0; }
+.lk-o.lk-tu.lk-den { border-radius: 999px; }
+.lk-ngay { position: relative; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 999px;
+  background: transparent; color: var(--t1); font: inherit; font-size: 14px; font-variant-numeric: tabular-nums; cursor: pointer;
+  transition: background-color .16s var(--cd-deu, ease), color .16s var(--cd-deu, ease); }
+.lk-ngay:hover { background: var(--hover); }
+.lk-ngay.lk-nay { color: var(--primary); font-weight: 700; }
+.lk-ngay.lk-co::after { content: ''; position: absolute; left: 50%; bottom: 5px; width: 4px; height: 4px;
+  margin-left: -2px; border-radius: 999px; background: var(--t3); }
+.lk-o.lk-tu .lk-ngay, .lk-o.lk-den .lk-ngay { background: var(--primary); color: #fff; font-weight: 600; }
+.lk-o.lk-tu .lk-ngay.lk-co::after, .lk-o.lk-den .lk-ngay.lk-co::after { background: rgba(255, 255, 255, .8); }
+
+/* Lưới tháng: ba cột, mỗi ô ghi số đã chi trong tháng. */
+.lk-thang { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 4px 0; }
+.lk-th { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  height: 50px; padding: 0; border: 0; border-radius: 999px; background: transparent; color: var(--t1);
+  font: inherit; cursor: pointer; transition: background-color .16s var(--cd-deu, ease); }
+.lk-th b { font-size: 14px; font-weight: 600; }
+.lk-th small { font-size: 12px; color: var(--t3); min-height: 14px; font-variant-numeric: tabular-nums; }
+.lk-th:hover { background: var(--hover); }
+.lk-th.lk-nay b { color: var(--primary); }
+.lk-th.lk-giua { background: var(--primary-bg); }
+.lk-th.lk-tu { background: var(--primary); }
+.lk-th.lk-tu b, .lk-th.lk-tu small { color: #fff; }
+
+.lk-chan { margin-top: 8px; padding-top: 8px; border-top: .5px solid var(--line); text-align: center;
+  font-size: 13px; color: var(--t2); }
+
+/* Tên tháng trong vệt đỏ "kỳ đóng sổ âm" bấm được để lọc ngay tháng đó. */
+.lk-am { border: 0; padding: 0; background: none; color: inherit; font: inherit; font-weight: 700;
+  text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+
+@media (max-width: 640px) {
+  .lk-nut { font-size: 15px; }
+  .lk-ngay { width: 38px; height: 38px; font-size: 15px; }
+}
