@@ -126,7 +126,15 @@ async function callOnce(method, url, { body } = {}) {
   return d.data || {};
 }
 
-const basesUrl = () => '/open-apis/base/v3/bases/' + cfg.baseToken;
+/* Base đang làm việc. Mặc định là Base Rooty Trip (cfg.baseToken); phần Routine
+ * Hospitality chạy cùng các hàm này trên Base khác qua voiBase(), giữ theo luồng
+ * async nên hai yêu cầu chạy song song không giẫm Base của nhau. */
+const { AsyncLocalStorage } = require('async_hooks');
+const baseDangDung = new AsyncLocalStorage();
+const tokenBase = () => baseDangDung.getStore() || cfg.baseToken;
+const voiBase = (token, fn) => baseDangDung.run(token, fn);
+
+const basesUrl = () => '/open-apis/base/v3/bases/' + tokenBase();
 const baseUrl = (tableId) => basesUrl() + '/tables/' + tableId;
 
 /* ---------------- Base -> bản ghi ---------------- */
@@ -251,7 +259,7 @@ const cli = async () => { throw new Error('Chế độ api không dùng lark-cli
 async function quyenGhi() {
   try {
     const d = await call('GET', '/open-apis/drive/v1/permissions/' +
-      encodeURIComponent(cfg.baseToken) + '/members/auth?type=bitable&action=edit',
+      encodeURIComponent(tokenBase()) + '/members/auth?type=bitable&action=edit',
       { retries: 1 });
     return typeof d.auth_result === 'boolean' ? d.auth_result : null;
   } catch (_) {
@@ -264,5 +272,5 @@ async function quyenGhi() {
 module.exports = {
   cli, whoami, quyenGhi, listAll, listTables, listFields, createField,
   createRecord, createMany, updateRecord, updateMany, deleteRecords,
-  tenantToken, call,
+  tenantToken, call, voiBase,
 };

@@ -5,3 +5,4 @@ schema.json
 node_modules/
 .env
 *.env
+routine/.thu-da-doc.json

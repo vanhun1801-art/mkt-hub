@@ -283,3 +283,49 @@ node test/api.test.js
 Quản lý vào **Dữ liệu Lark** và bấm **Tạo cột vận hành**. App chỉ thêm cột còn thiếu:
 `Giờ đón` (text), `Ghi chú khách` (text), `Sales đã nhận` (checkbox). Không sửa dữ liệu,
 công thức hay cột hiện có. `Payload gốc` chưa tạo ở giai đoạn nhập tay.
+
+## Khách sạn Routine (Routine Hospitality · Pito Hotel)
+
+Tab **Khách sạn Routine** theo dõi booking phòng của Pito Hotel trên Agoda, Expedia,
+Airbnb, Booking.com, Trip.com, cùng đơn Website, Đại lý và Khác. Khác phần Rooty Trip,
+phần này **không nhập tay**: máy chủ đọc thư trong hộp `pito@routinehospitality.vn`.
+
+```text
+GoHost gửi thư mỗi khi đơn mới / huỷ / OTA sửa / đổi phòng / nhận / trả phòng / thanh toán
+Agoda gửi thư CONFIRMED / CANCELLED (bổ sung quốc gia, số người, yêu cầu, hoa hồng thật)
+      ↓  routine/gohost.js đọc thư thành sự kiện
+      ↓  routine/gop.js gộp sự kiện cùng đơn (khoá: mã GoHost PIO…)
+Base "OTA Routine Hospitality" › bảng "Booking khách sạn"
+      ↓
+Tab Khách sạn Routine: đơn còn hiệu lực, đêm phòng, sắp nhận phòng, theo kênh
+```
+
+- Base: https://rootytrip2.sg.larksuite.com/base/LoK6bSFptaMRFwsDnA8l5pKWg2e (tạo 03/11/2026).
+- GoHost là nguồn chính vì một khuôn thư cho mọi kênh. Thư GoHost có từ 31/10/2026;
+  đơn Agoda trước đó lấy từ thư Agoda (mã `OTA-<mã Agoda>`).
+- Chỉ **đọc** thư (không đổi đã đọc, không chuyển thư mục). Chỉ thêm và sửa dòng trong
+  Base Routine, không xoá. Dòng đã có chỉ được ghi lại khi có thư mới cho đơn đó; lịch sử
+  cũ được giữ dù thư cũ đã trôi khỏi cửa sổ đọc.
+- Thư nhận/trả phòng của GoHost không ghi mã OTA. Thư Agoda nối vào theo tên khách + ngày
+  nhận phòng.
+- Base Routine đặt múi UTC; app ghi giờ Việt Nam dạng chuỗi trần nên ô ngày giờ đọc thẳng
+  ra giờ Việt Nam. Đừng quy đổi.
+- "Số tiền" là số GoHost ghi: với Agoda là giá thực nhận, với Booking.com là tiền khách trả.
+  Hoa hồng chỉ có khi thư có số thật (Agoda, ghi chú "OTA Commission" của Booking.com).
+
+Đọc thư ở đâu:
+
+| Nơi chạy | Cách đọc |
+|---|---|
+| Máy cá nhân | lark-cli của máy (qua `lark-hop-thu/thu.js`) |
+| Render | tenant token của app Marketing Hub. Cần quyền `mail:user_mailbox.message:readonly` và hộp pito@ nằm trong phạm vi dữ liệu của app |
+
+| Biến | Ý nghĩa |
+|---|---|
+| `ROUTINE_HOP_THU` | Hộp thư, mặc định `pito@routinehospitality.vn` |
+| `ROUTINE_BASE_TOKEN`, `ROUTINE_TABLE_ID` | Base và bảng booking khách sạn |
+| `ROUTINE_SO_THU` | Số thư mới nhất đọc mỗi thư mục (Hộp đến, Lưu trữ), mặc định 200 |
+| `ROUTINE_CHU_KY_MS` | Chu kỳ tự đọc thư, mặc định 600000 (10 phút); 0 = chỉ đọc khi bấm |
+
+Chạy tay: `node routine/dong-bo.js --thu` (chỉ đọc, báo sẽ thêm/sửa gì) hoặc
+`node routine/dong-bo.js` (ghi thật). Test: `node test/routine.test.js`.

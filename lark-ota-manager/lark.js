@@ -93,7 +93,15 @@ function cliOnce(args, { timeout = 90000 } = {}) {
   });
 }
 
-const baseArgs = () => ['--base-token', cfg.baseToken, '--as', cfg.identity];
+/* Base đang làm việc. Mặc định là Base Rooty Trip (cfg.baseToken); phần Routine
+ * Hospitality chạy cùng các hàm này trên Base khác qua voiBase(), giữ theo luồng
+ * async nên hai yêu cầu chạy song song không giẫm Base của nhau. */
+const { AsyncLocalStorage } = require('async_hooks');
+const baseDangDung = new AsyncLocalStorage();
+const tokenBase = () => baseDangDung.getStore() || cfg.baseToken;
+const voiBase = (token, fn) => baseDangDung.run(token, fn);
+
+const baseArgs = () => ['--base-token', tokenBase(), '--as', cfg.identity];
 
 /** Người đang đăng nhập lark-cli. */
 function whoami() {
@@ -148,7 +156,7 @@ async function listAll(tableId) {
 async function quyenGhi() {
   try {
     const d = await cli(['drive', 'permission.members', 'auth',
-      '--type', 'bitable', '--token', cfg.baseToken, '--action', 'edit',
+      '--type', 'bitable', '--token', tokenBase(), '--action', 'edit',
       '--as', cfg.identity, '--format', 'json'], { retries: 1, timeout: 25000 });
     return typeof d.auth_result === 'boolean' ? d.auth_result : null;
   } catch (_) {
@@ -250,5 +258,5 @@ module.exports = cfg.mode === 'api'
   : {
       cli, whoami, quyenGhi, listAll, listTables, listFields, createField,
       createRecord, createMany, updateRecord, updateMany, deleteRecords,
-      gonLoi,
+      gonLoi, voiBase,
     };

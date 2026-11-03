@@ -75,6 +75,20 @@ module.exports = {
    * sai thì nó dò lại theo TÊN BẢNG. */
   tableId: process.env.OTA_TABLE_ID || 'tblKNgLQEQVQKSRP',
 
+  /* Routine Hospitality (Pito Hotel): booking khách sạn đọc từ thư GoHost/Agoda
+   * trong hộp pito@, ghi vào Base riêng vì đơn khách sạn khác khuôn đơn tour.
+   * Base tạo 03/11/2026. Trên Render đọc thư bằng tenant token, cần app có quyền
+   * mail:user_mailbox.message:readonly; máy cá nhân đọc bằng lark-cli. */
+  routine: {
+    hop: process.env.ROUTINE_HOP_THU || 'pito@routinehospitality.vn',
+    baseToken: process.env.ROUTINE_BASE_TOKEN || 'LoK6bSFptaMRFwsDnA8l5pKWg2e',
+    tableId: process.env.ROUTINE_TABLE_ID || 'tblQeITmu24D9URY',
+    soThu: Number(process.env.ROUTINE_SO_THU || 200),
+    /* Chu kỳ tự đọc thư mới. 0 = tắt (chỉ đọc khi bấm). */
+    chuKyMs: Math.max(0, Number(process.env.ROUTINE_CHU_KY_MS ?? 600000)),
+    get baseUrl() { return 'https://rootytrip2.sg.larksuite.com/base/' + this.baseToken + '?table=' + this.tableId; },
+  },
+
   get baseUrl() {
     if (!this.baseToken) return '';
     return 'https://rootytrip2.sg.larksuite.com/base/' + this.baseToken +

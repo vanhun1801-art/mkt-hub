@@ -23,6 +23,7 @@ const S = {
   data: null,        // /api/bookings
   coDaNhan: true,    // Base có cột "Sales đã nhận" hay không
   tk: null,          // /api/thongke
+  rt: null,          // /api/routine/bookings (tab Khách sạn Routine)
   nhom: '',          // thẻ số đang chọn ở màn Booking mới
   loc: { moc: '7ngay', truong: 'ngayDi', from: '', to: '', kenh: [], trangThai: [], tim: '',
          sap: 'ngayDi' },
@@ -760,12 +761,32 @@ function veDuLieuLark() {
 
 /* ================================================================ vẽ ==== */
 function ve() {
-  $('#filters').hidden = S.tab === 'lark';
+  const rt = S.tab === 'routine';
+  $('#filters').hidden = S.tab === 'lark' || rt;
+  /* Nút đầu trang của Rooty Trip không áp cho Base khách sạn của Routine. */
+  /* Ẩn bằng style trực tiếp: lớp iOS của hub ép hiện nút "+" (.ios-tao) bằng luật !important. */
+  ['#btnNhapBooking', '#btnCsv', '#linkBase'].forEach((s) => {
+    const n = $(s);
+    if (n) { if (rt) n.style.setProperty('display', 'none', 'important'); else n.style.removeProperty('display'); }
+  });
   const el = $('#view');
+  if (rt) {
+    el.innerHTML = Routine.ve(S.rt);
+    if (S.rt) Routine.gan(el, S.rt, napRoutine);
+    return;
+  }
   el.innerHTML = S.tab === 'moi' ? veBookingMoi()
     : S.tab === 'thongke' ? veThongKe()
     : veDuLieuLark();
   ganSuKienView();
+}
+
+/** Nạp lại tab Routine. doc=false chỉ vẽ lại (đổi nút sang "Đang đọc thư…"). */
+async function napRoutine(doc = true) {
+  if (doc) {
+    try { S.rt = await goi('/api/routine/bookings' + (S.rt ? '?moi=1' : '')); } catch (e) { toast(gonLoi(e.message, 160), 'xau'); }
+  }
+  if (S.tab === 'routine') ve();
 }
 
 /**
@@ -955,7 +976,8 @@ async function napMeta() {
 
 async function nap() {
   try {
-    if (S.tab === 'thongke') S.tk = await goi('/api/thongke?' + queryLoc());
+    if (S.tab === 'routine') S.rt = await goi('/api/routine/bookings');
+    else if (S.tab === 'thongke') S.tk = await goi('/api/thongke?' + queryLoc());
     else if (S.tab === 'moi') {
       S.data = await goi('/api/bookings?' + queryLoc());
       /* Bảng Bookings chưa có cột "Sales đã nhận" ⇒ ẩn hẳn cột và nút "Nhận".

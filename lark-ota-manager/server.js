@@ -21,6 +21,7 @@ const mau = require('./mau');
 const gia = require('./gia');
 const danhmuc = require('./danhmuc');
 const H = require('./chuanhoa');
+const routine = require('./routine/api');
 
 const PUBLIC = path.join(__dirname, 'public');
 
@@ -335,6 +336,9 @@ async function api(req, res, u) {
   /* Luồng trực tiếp — giữ kết nối mở, KHÔNG được đi qua send()/ok() vì hai hàm đó
    * kết thúc response. */
   if (p === '/api/su-kien' && method === 'GET') return moLuongSuKien(req, res);
+
+  /* Routine Hospitality: booking khách sạn đọc từ thư, Base riêng. */
+  if (p.startsWith('/api/routine/') && await routine.xuLy(req, res, u, { ok, fail, quyenCua })) return;
 
   /* ======================= webhook OTA ======================= */
   let m;
@@ -767,4 +771,5 @@ server.listen(cfg.port, BIND, async () => {
       console.log('  Booking nhận được đang giữ ở hàng đợi: ' + hangdoi.demChuaDay() + ' dòng');
     }
   } catch (e) { console.error('  Không đọc được lược đồ:', e.message); }
+  routine.henGio();
 });
