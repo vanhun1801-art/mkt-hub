@@ -844,7 +844,9 @@ function khungCuaModule(mod, rec, mo) {
   const f = document.createElement('iframe');
   f.src = srcCuaModule(mod, rec, mo);
   f.title = mod.ten;
-  f.setAttribute('allow', 'clipboard-write; fullscreen');
+  /* local-network-access / loopback-network: Chrome mới đòi khung con được
+   * phép thì mới gọi được 127.0.0.1 (Hộp thư bản online hỏi AI qua Hub trên máy). */
+  f.setAttribute('allow', 'clipboard-write; fullscreen; local-network-access; loopback-network');
   f.addEventListener('load', () => {
     clearTimeout(henLau);
     boLopPhuKhung(wrap, f);

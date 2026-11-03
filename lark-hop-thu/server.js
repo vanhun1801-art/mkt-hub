@@ -141,7 +141,7 @@ async function songSong(viec, tran = 4) {
 /*
  * Đọc hai nhịp (anh Hùng 28/10/2026: "cảm thấy không đầy đủ thư"): 60 thư
  * mới nhất mỗi hộp chỉ phủ được vài ngày ở hộp đông như sales@. Nên nhịp đầu
- * đọc 60 thư để trang hiện ngay, rồi đọc tiếp tới soThuDu thư mỗi hộp ở phía
+ * đọc một trang (cfg.soThuMoiHop) để trang hiện ngay, rồi đọc tiếp tới soThuDu thư mỗi hộp ở phía
  * sau; giao diện hỏi lại bằng ?du=1 và vẽ đè khi xong. Bản đầy đủ giữ lâu hơn.
  */
 const DEM_DU_MS = 5 * 60000;
@@ -218,9 +218,11 @@ async function docHetMot(n, ep, max, maxGui) {
      * không đưa thư ra khỏi Thư rác trên Lark (hộp chung). Hỏng thì thôi. */
     try {
       const tu = Date.now() - cfg.ngayRac * 86400e3;
-      const ds = await thu.danhSach(h.email, cfg.soThuRac, n.tk, 'SPAM');
+      /* Nhịp đầu chỉ một trang thư rác; đủ 100 thư thì để nhịp sau. */
+      const soRac = du ? cfg.soThuRac : Math.min(cfg.soThuRac, max);
+      const ds = await thu.danhSach(h.email, soRac, n.tk, 'SPAM');
       const cu = ds.reduce((m, t) => (t.ngay && (!m || t.ngay < m) ? t.ngay : m), '');
-      ghiPhu(h.email, 'rac', { ds, du: ds.length < cfg.soThuRac || (cu && msNgay(cu) < tu), cu });
+      ghiPhu(h.email, 'rac', { ds, du: ds.length < soRac || (cu && msNgay(cu) < tu), cu });
       return { den: ds.filter((t) => msNgay(t.ngay) >= tu) };
     } catch (e) {
       if (e instanceof thu.LoiChuaNoi) throw e;
@@ -432,6 +434,25 @@ async function thuTuDuong(res, n, hopRaw, idRaw) {
   return { hop, id };
 }
 
+/*
+ * Chạy qua hub trên máy cá nhân thì không có đăng nhập: ai gọi được
+ * localhost:5180 là người chủ máy. Trình duyệt thì cho MỌI trang web gọi
+ * localhost, nên một trang lạ có thể ngầm gửi lệnh (gửi thư!) dưới tên chủ
+ * máy. Vì vậy request đến từ trang khác (Sec-Fetch-Site không phải
+ * same-origin) bị chặn, trừ đúng hai đường Hỏi AI cho trang Render của mình:
+ * mở Hub online trên chính máy này vẫn hỏi được bằng gói Claude của chủ máy.
+ */
+const NGUON_CAU = String(process.env.HOP_THU_NGUON_HOI || 'https://mkt-hub-w6hi.onrender.com')
+  .split(',').map((x) => x.trim().replace(/\/+$/, '')).filter(Boolean);
+const DUONG_CAU = new Set(['/api/hoi-may', '/api/hoi-thu']);
+
+/** '' khi request đến từ chính trang này (hoặc không phải trình duyệt); còn lại là origin lạ. */
+function nguonLa(req) {
+  const site = String(req.headers['sec-fetch-site'] || '');
+  if (!site || site === 'same-origin' || site === 'none') return '';
+  return String(req.headers.origin || 'la');
+}
+
 async function api(req, res, url) {
   const p = url.pathname;
   const m = req.method;
@@ -444,6 +465,29 @@ async function api(req, res, url) {
     return loi(res, 403, quyen.n.quaHub
       ? 'Hộp thư đang nối với tài khoản Lark ' + (quyen.chu || '(chưa rõ)') + '. Chỉ chủ tài khoản đó mở được.'
       : 'App chỉ mở được qua Marketing Hub.', { khongPhaiChu: true });
+  }
+  if (!n.quaHub) {
+    const la = nguonLa(req);
+    if (la) {
+      if (!NGUON_CAU.includes(la) || !DUONG_CAU.has(p)) return loi(res, 403, 'Yêu cầu không đến từ Marketing Hub.');
+      res.setHeader('Access-Control-Allow-Origin', la);
+      res.setHeader('Vary', 'Origin');
+      if (m === 'OPTIONS') {
+        res.writeHead(204, {
+          'Access-Control-Allow-Methods': 'GET, POST',
+          'Access-Control-Allow-Headers': 'Content-Type',
+          'Access-Control-Allow-Private-Network': 'true',
+          'Access-Control-Max-Age': '600',
+        });
+        return res.end();
+      }
+      /* Bắt JSON để trình duyệt luôn phải hỏi trước (preflight): form thường không gửi lén được. */
+      if (m === 'POST' && !/^application\/json/i.test(String(req.headers['content-type'] || ''))) {
+        return loi(res, 415, 'Chỉ nhận JSON.');
+      }
+    }
+    /* Trang Render dò xem máy này có hỏi được không. */
+    if (p === '/api/hoi-may' && m === 'GET') return json(res, { hoiAi: coHoiAi(n) });
   }
   await kho.nap(n.nguoi, n.khoa);
   await kho.napChung();

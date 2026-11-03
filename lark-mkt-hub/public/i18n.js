@@ -1201,6 +1201,8 @@
     'Hỏi tiến độ': 'Ask for an update',
     'Viết lời nhắc gửi lại cho người nhận': 'Write a follow-up to the recipients',
     'Đang đọc thêm thư cũ…': 'Loading older mail…',
+    'Đang cập nhật thư mới…': 'Updating new mail…',
+    'Hub trên máy anh chưa bật. Bật lark-mkt-hub/start.bat rồi hỏi lại.': "The Hub on your computer isn't running. Start lark-mkt-hub/start.bat and ask again.",
     'Sửa hết': 'Fix all',
     'Kèm chữ ký': 'Include signature',
     'Sửa chữ ký': 'Edit signature',

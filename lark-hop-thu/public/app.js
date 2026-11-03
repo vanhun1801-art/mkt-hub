@@ -167,19 +167,50 @@ async function napHop() {
   Object.assign(S, { hop: d.hop, chinh: d.chinh, ngan: d.ngan, ai: d.ai, hoiAi: Boolean(d.hoiAi) });
 }
 
+/* Bản danh sách lần trước, giữ trong trình duyệt theo hộp chính (03/11/2026:
+ * mở Hộp thư trên Render phải chờ đọc lại 8 hộp). Mở trang là vẽ ngay bản này,
+ * rồi bản mới từ Lark vẽ đè. Chỉ là tiện ích trên máy: hỏng thì đọc như cũ. */
+const khoaDs = () => 'hop-thu:ds:' + (S.chinh || '');
+function ghiDem(d) {
+  if (!S.chinh) return;
+  try { localStorage.setItem(khoaDs(), JSON.stringify({ luc: d.luc, thu: d.thu, cho: d.cho, gui: d.gui, nhom: d.nhom, phu: d.phu, du: d.du })); } catch (_) {}
+}
+function docDem() {
+  if (!S.chinh) return null;
+  try { const d = JSON.parse(localStorage.getItem(khoaDs()) || 'null'); return d && Array.isArray(d.thu) ? d : null; } catch (_) { return null; }
+}
+
+/** Đổ một bản danh sách (từ máy chủ hoặc từ bản lần trước) vào trạng thái. */
+function apDs(d) {
+  S.thu = d.thu; S.loi = d.loi || []; S.luc = d.luc;
+  S.cho = (d.cho || []).map((g) => Object.assign({ daGui: true, tu: { ten: 'Anh gửi', email: g.hop } }, g));
+  S.gui = (d.gui || []).map((g) => Object.assign({ daGui: true, tu: { ten: 'Anh gửi', email: g.hop } }, g));
+  S.nhom = d.nhom || [];
+  S.phu = d.phu || {}; S.du = Boolean(d.du);
+  lapChiMuc();
+}
+
+/** Vẽ ngay bản lần trước nếu có. Trả true khi đã vẽ. */
+function veDem() {
+  const d = docDem();
+  if (!d) return false;
+  apDs(d);
+  ve();
+  $('#moc').textContent = 'Đang cập nhật thư mới…';
+  return true;
+}
+
 async function napThu(ep) {
   if (S.dangNap) return;
   S.dangNap = true;
   $('#btnLamMoi').classList.add('quay');
   try {
     const d = await api('thu' + (ep ? '?lam=1' : ''));
-    S.thu = d.thu; S.loi = d.loi || []; S.luc = d.luc;
-    S.cho = (d.cho || []).map((g) => Object.assign({ daGui: true, tu: { ten: 'Anh gửi', email: g.hop } }, g));
-    S.gui = (d.gui || []).map((g) => Object.assign({ daGui: true, tu: { ten: 'Anh gửi', email: g.hop } }, g));
-    S.nhom = d.nhom || [];
-    S.phu = d.phu || {}; S.du = Boolean(d.du);
-    lapChiMuc();
+    const cuon = $('#cotDs').scrollTop;
+    apDs(d);
     ve();
+    $('#cotDs').scrollTop = cuon;
+    ghiDem(d);
     if (ep) bao('Đã đọc lại hộp thư', 'ok');
     if (!d.du) napDu();
   } finally {
@@ -198,15 +229,11 @@ async function napDu() {
   $('#moc').textContent = 'Đang đọc thêm thư cũ…';
   try {
     const d = await api('thu?du=1');
-    S.thu = d.thu; S.loi = d.loi || []; S.luc = d.luc;
-    S.cho = (d.cho || []).map((g) => Object.assign({ daGui: true, tu: { ten: 'Anh gửi', email: g.hop } }, g));
-    S.gui = (d.gui || []).map((g) => Object.assign({ daGui: true, tu: { ten: 'Anh gửi', email: g.hop } }, g));
-    S.nhom = d.nhom || [];
-    S.phu = d.phu || {}; S.du = Boolean(d.du);
-    lapChiMuc();
+    apDs(d);
     const cuon = $('#cotDs').scrollTop;
     ve();
     $('#cotDs').scrollTop = cuon;
+    ghiDem(d);
   } catch (_) { veMoc(); }
   finally { dangNapDu = false; $('#btnLamMoi').classList.remove('quay'); }
 }
@@ -2249,6 +2276,33 @@ function moChat() {
   if (S.hoiAi && !laHep()) $('#oHoi').focus();
 }
 
+/* Hỏi qua Hub trên máy anh (03/11/2026). Bản online không có khoá API, nhưng
+ * anh mở nó trên chính máy đang chạy Hub: trang dò http://127.0.0.1:5180, có
+ * thì câu hỏi đi thẳng xuống đó và chạy bằng gói Claude của anh. Máy người
+ * khác không có Hub nên không dò thấy gì, ô Hỏi AI vẫn tắt như cũ. Mã thư
+ * [#…] hai bên giống nhau (cùng hộp, cùng id) nên nút mở thư vẫn đúng. */
+const CUA_MAY = 'http://127.0.0.1:5180/m/hop-thu/api/';
+const laTrenMay = () => /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+async function doCuaMay() {
+  if (S.hoiAi || laTrenMay()) return;
+  try {
+    const r = await fetch(CUA_MAY + 'hoi-may', { signal: AbortSignal.timeout(3000) });
+    const d = await r.json();
+    if (r.ok && d.hoiAi) { S.hoiAi = true; S.quaMay = true; if (!S.chon) veChat(); }
+  } catch (_) { /* không có Hub trên máy này: giữ nguyên */ }
+}
+async function hoiQuaMay(body) {
+  let r;
+  try {
+    r = await fetch(CUA_MAY + 'hoi-thu', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  } catch (_) {
+    throw new Error('Hub trên máy anh chưa bật. Bật lark-mkt-hub/start.bat rồi hỏi lại.');
+  }
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.error || ('Lỗi ' + r.status));
+  return d;
+}
+
 async function hoiAi(cau) {
   cau = String(cau || '').trim();
   if (!cau || CHAT.dang || !S.hoiAi) return;
@@ -2259,7 +2313,8 @@ async function hoiAi(cau) {
   if (!S.chon) veChat();
   let tin;
   try {
-    const r = await api('hoi-thu', { body: { cauHoi: cau, lichSu, dangMo: CHAT.vuaMo } });
+    const than = { cauHoi: cau, lichSu, dangMo: CHAT.vuaMo };
+    const r = S.quaMay ? await hoiQuaMay(than) : await api('hoi-thu', { body: than });
     tin = { vai: 'dap', chu: r.chu, thu: r.thu || {}, daMo: r.daMo || 0 };
   } catch (e) {
     tin = { vai: 'loi', chu: e.message || 'Chưa hỏi được, anh thử lại.', hoi: cau };
@@ -2313,6 +2368,8 @@ $('#btnHoiAi').addEventListener('click', moChat);
   try {
     await napHop();
     if (!S.chon) veChat();            // ô Hỏi AI vẽ lúc chưa biết đã bật hay chưa
+    doCuaMay();                       // bản online: hỏi được qua Hub trên máy anh nếu đang chạy
+    veDem();                          // bản lần trước hiện ngay, bản mới vẽ đè khi đọc xong
     await napThu(false);
   } catch (e) {
     document.body.classList.add('khong-doc');      // chưa đọc được hộp nào thì không bày khung đọc trống

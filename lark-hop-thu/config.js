@@ -46,11 +46,12 @@ module.exports = {
    * dung thư nên đã gitignore, giống du-lieu/ của KPI và KOL. */
   duLieu: process.env.HOP_THU_DU_LIEU || path.join(__dirname, 'du-lieu'),
 
-  /* Số thư đọc mỗi hộp mỗi lần. Hộp chính anh Hùng ~5 thư/tuần, 60 là hơn
-   * hai tháng; hộp chung nhiều hơn nhưng thư cũ quá thì đã xử lý rồi. */
-  soThuMoiHop: Number(process.env.HOP_THU_SO_THU || 60),
+  /* Nhịp đầu: số thư mỗi thư mục để trang hiện ngay. 20 = đúng một trang của
+   * Lark (một lượt liệt kê + một lượt đọc). 03/11/2026 hạ từ 60/30/100 xuống
+   * 20 vì mở Hộp thư trên Render mất 10-20 giây; phần sâu hơn đã có nhịp sau. */
+  soThuMoiHop: Number(process.env.HOP_THU_SO_THU || 20),
   /* Thư mục Đã gửi chỉ cần đủ để biết thư nào đã trả lời, thư nào đang chờ. */
-  soThuGuiMoiHop: Number(process.env.HOP_THU_SO_THU_GUI || 30),
+  soThuGuiMoiHop: Number(process.env.HOP_THU_SO_THU_GUI || 20),
   /* Nhịp đọc sau (server.js, docSau): đủ sâu để hộp đông như sales@ cũng phủ
    * được khoảng một tháng. */
   soThuDu: Number(process.env.HOP_THU_SO_THU_DU || 200),

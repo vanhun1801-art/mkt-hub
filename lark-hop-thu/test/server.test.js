@@ -73,6 +73,26 @@ server.listen(0, '127.0.0.1', async () => {
       delete process.env.HUB;
       return r.ma === 403;
     })());
+    ok('HUB=1 + HUB_MODE=cli (hub trên máy, không đăng nhập): được', await (async () => {
+      process.env.HUB = '1'; process.env.HUB_MODE = 'cli';
+      const r = await hoi('GET', '/api/hop');
+      delete process.env.HUB; delete process.env.HUB_MODE;
+      return r.ma === 200;
+    })());
+
+    console.log('\nTrang web khác gọi localhost');
+    const la2 = { 'sec-fetch-site': 'cross-site', origin: 'https://trang-la.com' };
+    const render = { 'sec-fetch-site': 'cross-site', origin: 'https://mkt-hub-w6hi.onrender.com' };
+    ok('trang lạ đọc thư: 403', (await hoi('GET', '/api/thu', { h: la2 })).ma === 403);
+    const guiLen = await hoi('POST', duong('hunglv@rootytrip.com', 'aaaaaaaaaa==', 'tra-loi'), { h: la2, than: { chu: 'x', gui: true } });
+    ok('trang lạ gửi thư: 403, không gọi Lark', guiLen.ma === 403 && !goi.some((g) => g[0] === 'traLoi'));
+    ok('trang Render gọi đường khác ngoài Hỏi AI: 403', (await hoi('GET', '/api/thu', { h: render })).ma === 403);
+    const truoc = await hoi('OPTIONS', '/api/hoi-thu', { h: render });
+    ok('trang Render hỏi trước (preflight): 204, cho đúng origin', truoc.ma === 204);
+    const may = await hoi('GET', '/api/hoi-may', { h: render });
+    ok('trang Render dò Hỏi AI: trả được', may.ma === 200 && typeof may.j.hoiAi === 'boolean');
+    ok('trang Render gửi không phải JSON: 415', (await hoi('POST', '/api/hoi-thu', { h: Object.assign({ 'content-type': 'text/plain' }, render), than: {} })).ma === 415);
+    ok('chính trang này (same-origin): được', (await hoi('GET', '/api/hop', { h: { 'sec-fetch-site': 'same-origin' } })).ma === 200);
 
     console.log('\nDanh sách');
     const ds = (await hoi('GET', '/api/thu')).j.thu;
