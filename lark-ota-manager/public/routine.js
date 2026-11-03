@@ -65,7 +65,7 @@ const Routine = (() => {
 
     html += `<div class="nhap-mot-lan">
       <div><b>Thư từ ${esc(db.hop || 'pito@')}</b>
-        <p>${db.luc ? 'Đọc lúc ' + new Date(db.luc).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : 'Chưa đọc thư lần nào từ khi máy chủ mở'}${
+        <p>${db.luc ? (db.loi ? 'Thử đọc lúc ' : 'Đọc lúc ') + new Date(db.luc).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + (db.loi ? ', chưa đọc được' : '') : 'Chưa đọc thư lần nào từ khi máy chủ mở'}${
           db.chuKyMs ? ', tự đọc mỗi ' + Math.round(db.chuKyMs / 60000) + ' phút' : ''}</p></div>
       <div class="rt-nut">
         <button class="btn small primary" id="rtDoc" ${dangDoc || db.dangChay ? 'disabled' : ''}>${dangDoc || db.dangChay ? 'Đang đọc thư…' : 'Đọc thư mới'}</button>

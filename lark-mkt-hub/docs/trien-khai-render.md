@@ -94,7 +94,12 @@ bằng **tenant token** (không qua Nối hộp thư của từng người). App
 (tenant scope) `mail:user_mailbox.message:readonly`, `mail:user_mailbox.message.body:read`,
 `mail:user_mailbox.message.subject:read`, `mail:user_mailbox.message.address:read`, rồi
 Create Version → Publish, và hộp pito@ phải nằm trong phạm vi dữ liệu thư của app.
-Thiếu thì tab báo "Lần đọc thư gần nhất bị lỗi"; booking cũ trong Base vẫn hiện. Cấp scope mà chưa phát hành version: lỗi `99991672`.
+Thiếu thì tab báo "Lần đọc thư gần nhất bị lỗi"; booking cũ trong Base vẫn hiện.
+
+03/11/2026: đã cấp quyền, Base đọc được, nhưng thư báo `1230002` "pito@routinehospitality.vn
+permission denied, please apply for privilege". Nghĩa là app có quyền thư nhưng hộp pito@
+chưa nằm trong phạm vi dữ liệu thư của app. Trong lúc chờ, Hub trên máy anh Hùng đọc hộp
+này bằng lark-cli mỗi 10 phút và ghi cùng Base, nên Render vẫn thấy đơn mới khi máy bật. Cấp scope mà chưa phát hành version: lỗi `99991672`.
 
 ### A2a. Base nào mở cho CẢ PHÒNG — khai bằng biến, không bằng nút
 
