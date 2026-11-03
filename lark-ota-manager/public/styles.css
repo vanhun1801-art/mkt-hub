@@ -562,7 +562,8 @@ tfoot th { text-transform: none; letter-spacing: 0; font-size: 13px; color: var(
 }
 .modal > .modal-x + h3 { padding-right: 52px; }
 
-/* ---- tab Khách sạn Routine (routine.js) ---- */
+/* ---- đơn vị Routine Hospitality (routine.js) ---- */
+.seg.don-vi button { white-space: nowrap; }
 .rt-nut { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .rt-lich-su { margin: 0; padding-left: 18px; font-size: 13px; color: var(--ink-2); line-height: 1.7; }
 .modal-than h4 { margin: 20px 0 8px; font-size: 13px; }

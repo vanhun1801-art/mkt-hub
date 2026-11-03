@@ -286,7 +286,7 @@ công thức hay cột hiện có. `Payload gốc` chưa tạo ở giai đoạn 
 
 ## Khách sạn Routine (Routine Hospitality · Pito Hotel)
 
-Tab **Khách sạn Routine** theo dõi booking phòng của Pito Hotel trên Agoda, Expedia,
+Chọn **Routine Hospitality** ở nút chọn đơn vị góc phải (cạnh Rooty Trip) để theo dõi booking phòng của Pito Hotel trên Agoda, Expedia,
 Airbnb, Booking.com, Trip.com, cùng đơn Website, Đại lý và Khác. Khác phần Rooty Trip,
 phần này **không nhập tay**: máy chủ đọc thư trong hộp `pito@routinehospitality.vn`.
 
@@ -297,7 +297,7 @@ Agoda gửi thư CONFIRMED / CANCELLED (bổ sung quốc gia, số người, yê
       ↓  routine/gop.js gộp sự kiện cùng đơn (khoá: mã GoHost PIO…)
 Base "OTA Routine Hospitality" › bảng "Booking khách sạn"
       ↓
-Tab Khách sạn Routine: đơn còn hiệu lực, đêm phòng, sắp nhận phòng, theo kênh
+Đơn vị Routine Hospitality: đơn còn hiệu lực, đêm phòng, sắp nhận phòng, theo kênh
 ```
 
 - Base: https://rootytrip2.sg.larksuite.com/base/LoK6bSFptaMRFwsDnA8l5pKWg2e (tạo 03/11/2026).

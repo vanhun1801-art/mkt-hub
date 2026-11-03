@@ -1,6 +1,6 @@
 'use strict';
 /* ============================================================================
- * Tab "Khách sạn Routine": booking của Pito Hotel (Routine Hospitality).
+ * Đơn vị "Routine Hospitality" (nút chọn ở đầu trang): booking của Pito Hotel.
  *
  * Nguồn là thư GoHost/Agoda trong hộp pito@routinehospitality.vn, máy chủ đọc
  * và ghi vào Base riêng (routine/dong-bo.js). Tab này chỉ đọc Base đó qua

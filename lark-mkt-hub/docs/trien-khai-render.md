@@ -98,7 +98,11 @@ Thiếu thì tab báo "Lần đọc thư gần nhất bị lỗi"; booking cũ t
 
 03/11/2026: đã cấp quyền, Base đọc được, nhưng thư báo `1230002` "pito@routinehospitality.vn
 permission denied, please apply for privilege". Nghĩa là app có quyền thư nhưng hộp pito@
-chưa nằm trong phạm vi dữ liệu thư của app. Trong lúc chờ, Hub trên máy anh Hùng đọc hộp
+chưa nằm trong phạm vi dữ liệu thư của app. Cách mở (theo tài liệu "Cấu hình quyền dữ liệu
+của app" của Lark): Developer Console → app Marketing Hub → Development Configuration →
+Permissions & Scopes → ở dòng quyền thư, cột **phạm vi dữ liệu được truy cập** bấm Configure
+→ chọn mục **Mail** → chọn "Tất cả" hoặc "Lọc theo điều kiện" sao cho gồm pito@routinehospitality.vn
+→ Save → Create Version → Publish → quản trị viên duyệt. Chưa duyệt thì vẫn `1230002`. Trong lúc chờ, Hub trên máy anh Hùng đọc hộp
 này bằng lark-cli mỗi 10 phút và ghi cùng Base, nên Render vẫn thấy đơn mới khi máy bật. Cấp scope mà chưa phát hành version: lỗi `99991672`.
 
 ### A2a. Base nào mở cho CẢ PHÒNG — khai bằng biến, không bằng nút
