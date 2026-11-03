@@ -121,5 +121,37 @@ console.log('— gộp sự kiện thành booking');
   t('lịch sử theo giờ', a.suKien[0].startsWith('2026-11-02 21:10'));
 }
 
+console.log('— cảnh báo chăm sóc và thống kê');
+{
+  const TK = require('../routine/thongke');
+  const nay = '2026-11-03';
+  const don = (o) => ({ id: o.ma, ma: o.ma, kenh: 'Agoda', trangThai: 'Đã đặt', chamSoc: '', ...o });
+  const ds = TK.danhDau([
+    don({ ma: 'A', nhanPhong: '2026-11-03', traPhong: '2026-11-04', soDem: 1, soTien: 1000000, ngayDat: '2026-11-01 10:00' }),
+    don({ ma: 'B', nhanPhong: '2026-11-05', traPhong: '2026-11-07', soDem: 2, soTien: 3000000, ngayDat: '2026-10-01 10:00', chamSoc: 'Đã nhắn chào' }),
+    don({ ma: 'C', kenh: 'Booking.com', trangThai: 'Đã huỷ', nhanPhong: '2026-12-01', soTien: 9000000 }),
+    don({ ma: 'D', kenh: 'Expedia', trangThai: 'Đã nhận phòng', nhanPhong: '2026-11-02', soTien: 500000 }),
+    don({ ma: 'E', trangThai: 'Đã đặt', nhanPhong: '2026-11-01', traPhong: '2026-11-02', soDem: 1 }),
+  ], nay);
+  const theo = Object.fromEntries(ds.map((b) => [b.ma, b]));
+  t('nhận phòng hôm nay chưa liên hệ → cao', theo.A.muc === 'cao' && /hôm nay/.test(theo.A.canXuLy[0].nhan));
+  t('đã nhắn chào → không báo chưa liên hệ', !theo.B.canXuLy.some((c) => /liên hệ|nhắn chào/.test(c.nhan)), JSON.stringify(theo.B.canXuLy));
+  t('đơn huỷ không có việc', theo.C.canXuLy[0].nhan === 'Đã huỷ');
+  t('quá ngày nhận phòng chưa báo nhận → cao', theo.E.muc === 'cao');
+  t('đang ở thiếu ngày trả phòng → vừa', theo.D.canXuLy.some((c) => c.nhan === 'Thiếu ngày trả phòng'));
+  const vh = TK.vanHanh(ds, nay);
+  const so = (k) => vh.the.find((x) => x.khoa === k).so;
+  t('thẻ nhận phòng hôm nay = 1', so('hom-nay') === 1);
+  t('thẻ đang ở = 1', so('dang-o') === 1);
+  t('thẻ chưa nhắn chào chỉ tính đơn sắp tới', so('chua-chao') === 1, String(so('chua-chao')));
+  const tk = TK.thongKe(ds);
+  t('đơn huỷ không cộng tiền', tk.tong.tien === 4500000 && tk.tong.huy === 1, JSON.stringify(tk.tong));
+  t('giá TB/đêm chỉ tính đơn biết số đêm', tk.tong.giaDem === Math.round(4000000 / 4), String(tk.tong.giaDem));
+  t('đặt trước TB = (2 + 35) / 2', tk.tong.datTruocTb === 18.5, String(tk.tong.datTruocTb));
+  t('lọc theo kênh', TK.loc(ds, { kenh: ['Expedia'] }).length === 1);
+  t('lọc theo ngày nhận phòng', TK.loc(ds, { truong: 'nhanPhong', from: '2026-11-03', to: '2026-11-05' }).length === 2);
+  t('tìm theo mã', TK.loc(ds, { tim: 'b' }).map((b) => b.ma).join() === 'B');
+}
+
 console.log(`\n${pass} pass · ${fail} fail`);
 process.exit(fail ? 1 : 0);

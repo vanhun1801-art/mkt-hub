@@ -567,3 +567,6 @@ tfoot th { text-transform: none; letter-spacing: 0; font-size: 13px; color: var(
 .rt-nut { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .rt-lich-su { margin: 0; padding-left: 18px; font-size: 13px; color: var(--ink-2); line-height: 1.7; }
 .modal-than h4 { margin: 20px 0 8px; font-size: 13px; }
+.rt-hai-cot { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 0 18px; }
+.rt-hai-cot > .khoi { min-width: 0; }
+@media (max-width: 640px) { .rt-hai-cot { grid-template-columns: 1fr; } }

@@ -25,9 +25,13 @@ const S = {
   tk: null,          // /api/thongke
   rt: null,          // /api/routine/bookings (đơn vị Routine Hospitality)
   donVi: 'rooty',    // 'rooty' = booking tour Rooty Trip · 'routine' = khách sạn Routine Hospitality
+  tabTheoDv: { rooty: 'moi', routine: 'rt-don' },  // tab đang mở của từng đơn vị
   nhom: '',          // thẻ số đang chọn ở màn Booking mới
+  nhomRt: '',        // thẻ số đang chọn ở màn Đơn & chăm sóc của Routine
   loc: { moc: '7ngay', truong: 'ngayDi', from: '', to: '', kenh: [], trangThai: [], tim: '',
          sap: 'ngayDi' },
+  /* Bộ lọc riêng của Routine, dùng chung ô lọc với Rooty Trip (xem LOC()). */
+  locRt: { moc: 'tatca', truong: 'nhanPhong', from: '', to: '', kenh: [], trangThai: [], tim: '' },
   tuHub: false,      // khoảng thời gian do lớp vỏ áp xuống
   nguon: 'base',   // Lark Base luôn là nguồn chính; hàng đợi chỉ mở tạm để soi lỗi
   live: true,        // tự kiểm tra Lark định kỳ; SSE chỉ hỗ trợ API/webhook tương lai
@@ -154,25 +158,51 @@ function apMoc(id) {
   return { from: '', to: '' };
 }
 
+/* Routine Hospitality dùng chung ô lọc nhưng có danh mục riêng: lọc theo ngày
+ * nhận phòng / đặt / trả phòng, kênh và trạng thái khách sạn. */
+const TRUONG_RT = [
+  { id: 'nhanPhong', ten: 'Ngày nhận phòng' },
+  { id: 'ngayDat', ten: 'Ngày đặt' },
+  { id: 'traPhong', ten: 'Ngày trả phòng' },
+];
+const KENH_RT = ['Agoda', 'Booking.com', 'Expedia', 'Airbnb', 'Trip.com', 'Website', 'Đại lý', 'Khác'];
+const TT_RT = ['Đã đặt', 'Đã nhận phòng', 'Đã trả phòng', 'Đã huỷ'];
+
+/** Bộ lọc của đơn vị đang chọn. */
+const LOC = () => (S.donVi === 'routine' ? S.locRt : S.loc);
+
 function veBoLoc() {
+  const L = LOC(), rt = S.donVi === 'routine';
   $('#mocSeg').innerHTML = MOC.map((m) =>
-    `<button data-moc="${m.id}" class="${S.loc.moc === m.id ? 'on' : ''}">${esc(m.ten)}</button>`).join('');
-  $('#truongSeg').innerHTML = TRUONG.map((t) =>
-    `<button data-truong="${t.id}" class="${S.loc.truong === t.id ? 'on' : ''}">${esc(t.ten)}</button>`).join('');
-  $('#fFrom').value = S.loc.from;
-  $('#fTo').value = S.loc.to;
-  $('#fTim').value = S.loc.tim;
+    `<button data-moc="${m.id}" class="${L.moc === m.id ? 'on' : ''}">${esc(m.ten)}</button>`).join('');
+  $('#truongSeg').innerHTML = (rt ? TRUONG_RT : TRUONG).map((t) =>
+    `<button data-truong="${t.id}" class="${L.truong === t.id ? 'on' : ''}">${esc(t.ten)}</button>`).join('');
+  $('#fFrom').value = L.from;
+  $('#fTo').value = L.to;
+  $('#fTim').value = L.tim;
+  $('#lblTim').textContent = rt ? 'Tìm khách / mã đặt phòng / phòng' : 'Tìm khách / mã booking / tour';
+  $('#fTim').placeholder = rt ? 'Tên khách · PIO… · mã OTA · 401' : 'Nguyễn Văn A · KLK1234 · 0912…';
 
-  const kenh = (S.meta && S.meta.kenh) || [];
+  const kenh = rt ? KENH_RT.map((k) => ({ id: k, ten: k })) : ((S.meta && S.meta.kenh) || []);
   $('#fKenh').innerHTML = kenh.map((k) =>
-    `<button data-kenh="${esc(k.id)}" class="${S.loc.kenh.includes(k.id) ? 'on' : ''}">${esc(k.ten)}</button>`).join('');
+    `<button data-kenh="${esc(k.id)}" class="${L.kenh.includes(k.id) ? 'on' : ''}">${esc(k.ten)}</button>`).join('');
 
-  const tt = (S.meta && S.meta.trangThai) || [];
+  const tt = rt ? TT_RT : ((S.meta && S.meta.trangThai) || []);
   $('#fTrangThai').innerHTML = tt.map((t) =>
-    `<button data-tt="${esc(t)}" class="${S.loc.trangThai.includes(t) ? 'on' : ''}">${esc(t)}</button>`).join('');
+    `<button data-tt="${esc(t)}" class="${L.trangThai.includes(t) ? 'on' : ''}">${esc(t)}</button>`).join('');
 }
 
 function queryLoc() {
+  if (S.donVi === 'routine') {
+    const L = S.locRt, q = new URLSearchParams();
+    if (L.from) q.set('from', L.from);
+    if (L.to) q.set('to', L.to);
+    q.set('truong', L.truong);
+    if (L.kenh.length) q.set('kenh', L.kenh.join(','));
+    if (L.trangThai.length) q.set('trangThai', L.trangThai.join(','));
+    if (L.tim) q.set('tim', L.tim);
+    return q.toString();
+  }
   const q = new URLSearchParams();
   if (S.loc.from) q.set('from', S.loc.from);
   if (S.loc.to) q.set('to', S.loc.to);
@@ -763,19 +793,18 @@ function veDuLieuLark() {
 /* ================================================================ vẽ ==== */
 function ve() {
   const rt = S.donVi === 'routine';
-  $('#filters').hidden = S.tab === 'lark' || rt;
+  $('#filters').hidden = S.tab === 'lark';
   $$('#donViSeg button').forEach((b) => b.classList.toggle('on', b.dataset.dv === S.donVi));
-  /* Tab, chip tự cập nhật và nút đầu trang của Rooty Trip không áp cho Base khách
-   * sạn của Routine. Ẩn bằng style trực tiếp: lớp iOS của hub ép hiện nút "+"
-   * (.ios-tao) bằng luật !important. */
-  ['.tabsbar', '#tabs', '#nguonChip', '#btnNhapBooking', '#btnCsv', '#linkBase'].forEach((s) => {
-    const n = $(s);
-    if (n) { if (rt) n.style.setProperty('display', 'none', 'important'); else n.style.removeProperty('display'); }
-  });
+  /* Ẩn bằng style trực tiếp: lớp iOS của hub ép hiện nút "+" (.ios-tao) bằng luật
+   * !important. Tab của đơn vị kia ẩn đi; tab rt-* chỉ thuộc Routine. */
+  const an = (n, giau) => { if (!n) return; if (giau) n.style.setProperty('display', 'none', 'important'); else n.style.removeProperty('display'); };
+  ['#nguonChip', '#btnNhapBooking', '#linkBase'].forEach((s) => an($(s), rt));
+  $$('#tabs button').forEach((b) => an(b, rt !== b.dataset.tab.startsWith('rt-')));
+  $$('#tabs button').forEach((b) => b.classList.toggle('on', b.dataset.tab === S.tab));
   const el = $('#view');
   if (rt) {
-    el.innerHTML = Routine.ve(S.rt);
-    if (S.rt) Routine.gan(el, S.rt, napRoutine);
+    el.innerHTML = Routine.ve(S.rt, { tab: S.tab, nhom: S.nhomRt });
+    if (S.rt) Routine.gan(el, S.rt, { napLai: napRoutine, nhom: S.nhomRt, chonNhom: (k) => { S.nhomRt = k; ve(); } });
     return;
   }
   el.innerHTML = S.tab === 'moi' ? veBookingMoi()
@@ -787,7 +816,7 @@ function ve() {
 /** Nạp lại phần Routine. doc=false chỉ vẽ lại (đổi nút sang "Đang đọc thư…"). */
 async function napRoutine(doc = true) {
   if (doc) {
-    try { S.rt = await goi('/api/routine/bookings' + (S.rt ? '?moi=1' : '')); } catch (e) { toast(gonLoi(e.message, 160), 'xau'); }
+    try { S.rt = await goi('/api/routine/bookings?moi=1&' + queryLoc()); } catch (e) { toast(gonLoi(e.message, 160), 'xau'); }
   }
   if (S.donVi === 'routine') ve();
 }
@@ -795,8 +824,11 @@ async function napRoutine(doc = true) {
 /** Đổi đơn vị Rooty Trip / Routine Hospitality. Nhớ theo máy người xem. */
 function doiDonVi(dv) {
   if (dv === S.donVi) return;
+  S.tabTheoDv[S.donVi] = S.tab;
   S.donVi = dv;
+  S.tab = S.tabTheoDv[dv];
   try { localStorage.setItem('ota-don-vi', dv); } catch (_) {}
+  veBoLoc();
   ve();
   nap();
 }
@@ -975,6 +1007,7 @@ function veDauTrang() {
 function moTab(id) {
   S.tab = id;
   S.nhom = '';
+  S.nhomRt = '';
   $$('#tabs button').forEach((x) => x.classList.toggle('on', x.dataset.tab === id));
   nap();
 }
@@ -988,7 +1021,7 @@ async function napMeta() {
 
 async function nap() {
   try {
-    if (S.donVi === 'routine') S.rt = await goi('/api/routine/bookings');
+    if (S.donVi === 'routine') S.rt = await goi('/api/routine/bookings?' + queryLoc());
     else if (S.tab === 'thongke') S.tk = await goi('/api/thongke?' + queryLoc());
     else if (S.tab === 'moi') {
       S.data = await goi('/api/bookings?' + queryLoc());
@@ -1359,46 +1392,54 @@ function ganSuKienChung() {
   $('#mocSeg').onclick = (ev) => {
     const b = ev.target.closest('button[data-moc]');
     if (!b) return;
-    S.loc.moc = b.dataset.moc;
-    Object.assign(S.loc, apMoc(S.loc.moc));
-    S.tuHub = false;
-    if (window.hubBaoKhoang) window.hubBaoKhoang(S.loc.from, S.loc.to);
+    const L = LOC();
+    L.moc = b.dataset.moc;
+    Object.assign(L, apMoc(L.moc));
+    /* Khoảng thời gian của lớp vỏ là của Rooty Trip; Routine lọc riêng. */
+    if (S.donVi === 'rooty') {
+      S.tuHub = false;
+      if (window.hubBaoKhoang) window.hubBaoKhoang(S.loc.from, S.loc.to);
+    }
     veBoLoc(); nap();
   };
   $('#truongSeg').onclick = (ev) => {
     const b = ev.target.closest('button[data-truong]');
     if (!b) return;
-    S.loc.truong = b.dataset.truong;
+    LOC().truong = b.dataset.truong;
     veBoLoc(); nap();
   };
   $('#fKenh').onclick = (ev) => {
     const b = ev.target.closest('button[data-kenh]');
     if (!b) return;
-    const k = b.dataset.kenh;
-    S.loc.kenh = S.loc.kenh.includes(k) ? S.loc.kenh.filter((x) => x !== k) : S.loc.kenh.concat(k);
+    const k = b.dataset.kenh, L = LOC();
+    L.kenh = L.kenh.includes(k) ? L.kenh.filter((x) => x !== k) : L.kenh.concat(k);
     veBoLoc(); nap();
   };
   $('#fTrangThai').onclick = (ev) => {
     const b = ev.target.closest('button[data-tt]');
     if (!b) return;
-    const t = b.dataset.tt;
-    S.loc.trangThai = S.loc.trangThai.includes(t)
-      ? S.loc.trangThai.filter((x) => x !== t) : S.loc.trangThai.concat(t);
+    const t = b.dataset.tt, L = LOC();
+    L.trangThai = L.trangThai.includes(t) ? L.trangThai.filter((x) => x !== t) : L.trangThai.concat(t);
     veBoLoc(); nap();
   };
-  $('#fFrom').onchange = () => { S.loc.from = $('#fFrom').value; S.loc.moc = ''; veBoLoc(); nap(); };
-  $('#fTo').onchange = () => { S.loc.to = $('#fTo').value; S.loc.moc = ''; veBoLoc(); nap(); };
+  $('#fFrom').onchange = () => { LOC().from = $('#fFrom').value; LOC().moc = ''; veBoLoc(); nap(); };
+  $('#fTo').onchange = () => { LOC().to = $('#fTo').value; LOC().moc = ''; veBoLoc(); nap(); };
 
   let hen = null;
   $('#fTim').oninput = () => {
     clearTimeout(hen);
-    hen = setTimeout(() => { S.loc.tim = $('#fTim').value.trim(); nap(); }, 300);
+    hen = setTimeout(() => { LOC().tim = $('#fTim').value.trim(); nap(); }, 300);
   };
 
   $('#btnBoLoc').onclick = () => {
-    S.loc = { moc: 'tatca', truong: 'ngayDi', from: '', to: '', kenh: [], trangThai: [], tim: '',
-              sap: 'ngayDi' };
-    S.nhom = '';
+    if (S.donVi === 'routine') {
+      S.locRt = { moc: 'tatca', truong: 'nhanPhong', from: '', to: '', kenh: [], trangThai: [], tim: '' };
+      S.nhomRt = '';
+    } else {
+      S.loc = { moc: 'tatca', truong: 'ngayDi', from: '', to: '', kenh: [], trangThai: [], tim: '',
+                sap: 'ngayDi' };
+      S.nhom = '';
+    }
     veBoLoc(); nap();
   };
 
@@ -1412,7 +1453,9 @@ function ganSuKienChung() {
     finally { ev.currentTarget.disabled = false; }
   };
 
-  $('#btnCsv').onclick = () => { window.location = 'api/export.csv?' + queryLoc(); };
+  $('#btnCsv').onclick = () => {
+    window.location = (S.donVi === 'routine' ? 'api/routine/export.csv?' : 'api/export.csv?') + queryLoc();
+  };
 
 
   // đóng cửa sổ
@@ -1441,13 +1484,13 @@ function ganSuKienChung() {
     else localStorage.removeItem('ota-nguon');
     // Tự cập nhật mặc định BẬT: booking nhập ở Lark sẽ hiện mà không cần nhập lại
     S.live = localStorage.getItem('ota-live') !== '0';
-    if (localStorage.getItem('ota-don-vi') === 'routine') S.donVi = 'routine';
+    if (localStorage.getItem('ota-don-vi') === 'routine') { S.donVi = 'routine'; S.tab = 'rt-don'; }
   } catch (_) {}
   ganSuKienChung();
   try {
     await napMeta();
     /* Chưa nối Base thì vào thẳng Dữ liệu Lark — đây là nguồn duy nhất cần sửa. */
-    if (!S.meta.luocDo.ok && !S.meta.soBooking) {
+    if (S.donVi === 'rooty' && !S.meta.luocDo.ok && !S.meta.soBooking) {
       S.tab = 'lark';
       $$('#tabs button').forEach((x) => x.classList.toggle('on', x.dataset.tab === 'lark'));
     }

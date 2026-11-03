@@ -313,6 +313,15 @@ Base "OTA Routine Hospitality" › bảng "Booking khách sạn"
 - "Số tiền" là số GoHost ghi: với Agoda là giá thực nhận, với Booking.com là tiền khách trả.
   Hoa hồng chỉ có khi thư có số thật (Agoda, ghi chú "OTA Commission" của Booking.com).
 
+Hai tab, dùng chung bộ lọc với Rooty Trip (khoảng thời gian theo ngày nhận phòng / đặt / trả phòng, kênh, trạng thái, tìm):
+
+| Tab | Có gì |
+|---|---|
+| **Đơn & chăm sóc** | Thẻ việc: nhận phòng hôm nay, ngày mai, 7 ngày tới, đang ở, cần làm ngay, chưa nhắn chào, đơn mới 24h. Danh sách có cột Chăm sóc và Cần xử lý. Bấm đơn để cập nhật **trạng thái chăm sóc** (Chưa liên hệ, Đã nhắn chào, Đã xác nhận giờ đến, Đã hỏi thăm khi ở, Đã xin đánh giá, Có vấn đề) và ghi chú. |
+| **Thống kê** | Đơn, đêm phòng, doanh thu, giá trung bình/đêm, đặt trước trung bình, lưu trú trung bình, tỷ lệ huỷ; theo kênh; theo tháng nhận phòng; phân bố đặt trước và số đêm; tình trạng chăm sóc. |
+
+Bốn cột chăm sóc (Chăm sóc, Ghi chú chăm sóc, Người chăm sóc, Chăm sóc lúc) do nhân viên cập nhật trong app; bộ đọc thư không bao giờ ghi vào. Cần xử lý tính ở `routine/thongke.js`. Xuất CSV theo bộ lọc đang chọn.
+
 Đọc thư ở đâu:
 
 | Nơi chạy | Cách đọc |

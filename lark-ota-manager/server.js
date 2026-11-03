@@ -338,7 +338,7 @@ async function api(req, res, u) {
   if (p === '/api/su-kien' && method === 'GET') return moLuongSuKien(req, res);
 
   /* Routine Hospitality: booking khách sạn đọc từ thư, Base riêng. */
-  if (p.startsWith('/api/routine/') && await routine.xuLy(req, res, u, { ok, fail, quyenCua })) return;
+  if (p.startsWith('/api/routine/') && await routine.xuLy(req, res, u, { ok, fail, send, quyenCua, readBody, nguoiDung })) return;
 
   /* ======================= webhook OTA ======================= */
   let m;
