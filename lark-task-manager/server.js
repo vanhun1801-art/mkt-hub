@@ -1001,6 +1001,58 @@ async function baoTraoDoi(openIds, t, me, noiDung) {
   return { gui, loi };
 }
 
+/* ---- Thẻ "yêu cầu điều chỉnh" (anh Hùng 03/11/2026) ----
+ * "Ứng dụng Marketing Hub khi nào có yêu cầu điều chỉnh công việc thông báo cho
+ * anh." Trước đây yêu cầu chỉ nằm trong bảng Base, quản lý phải tự mở hàng đợi
+ * mới thấy, còn người gửi thì ngồi chờ.
+ *
+ * Người nhận: danh sách quản lý (quyen.json), trừ chính người gửi. Không xét
+ * cfg.notify, cùng lý lẽ với baoTraoDoi(): người bấm Gửi là ý muốn rõ ràng, không
+ * phải tin máy tự bắn. Gửi hỏng chỉ ghi log, không làm hỏng yêu cầu đã lưu. */
+function theYeuCau(nguoiGui, tenViec, parts, deXuat, lyDo, taskId) {
+  const ten = (nguoiGui && nguoiGui.name) || 'Ai đó';
+  const viec = String(tenViec || '(chưa có tên)').replace(/\s+/g, ' ').trim();
+  const dong = ['**Cần sửa:** ' + sachMd((parts || []).join(', ')),
+    '**Đề xuất:** ' + sachMd(String(deXuat || '').slice(0, 600))];
+  if (lyDo) dong.push('**Lý do:** ' + sachMd(String(lyDo).slice(0, 400)));
+  return {
+    config: { wide_screen_mode: true },
+    header: {
+      template: 'orange',
+      title: { tag: 'plain_text', content: '✏️ ' + ten + ' xin điều chỉnh việc: ' + viec.slice(0, 120) },
+    },
+    elements: [
+      { tag: 'note', elements: [{ tag: 'plain_text', content: 'Bảng công việc · Marketing Hub' }] },
+      { tag: 'div', text: { tag: 'lark_md', content: dong.join('\n') } },
+      { tag: 'action', actions: [{
+        tag: 'button', type: 'primary', text: { tag: 'plain_text', content: 'Mở việc' },
+        url: urlHubTB() + '/#/m/cong-viec?rec=' + encodeURIComponent(taskId),
+      }] },
+    ],
+  };
+}
+
+async function baoYeuCau(nguoiGui, tenViec, parts, deXuat, lyDo, taskId) {
+  const ds = [...new Set(cfg.loadManagerIds())].filter((id) => id && id !== (nguoiGui && nguoiGui.id));
+  if (!ds.length) return { gui: 0, loi: [] };
+  const the = theYeuCau(nguoiGui, tenViec, parts, deXuat, lyDo, taskId);
+  const chu = ((nguoiGui && nguoiGui.name) || 'Ai đó') + ' gửi yêu cầu điều chỉnh "' + (tenViec || '') + '"' + XD +
+    'Cần sửa: ' + (parts || []).join(', ') + XD + 'Đề xuất: ' + String(deXuat || '').slice(0, 200) + duoiTin();
+  let gui = 0;
+  const loi = [];
+  for (const id of ds) {
+    try {
+      const ok = lark.sendCard ? await lark.sendCard(id, the) : false;
+      if (!ok) await lark.sendMessage(id, chu);
+      gui += 1;
+    } catch (e) {
+      loi.push(String((e && e.message) || e).slice(0, 200));
+    }
+  }
+  if (loi.length) console.error('[yeu-cau] không báo được cho', loi.length, 'quản lý:', loi[0]);
+  return { gui, loi };
+}
+
 /* ==========================================================================
    ĐÃ XEM TỚI ĐÂU
    ==========================================================================
@@ -2717,13 +2769,17 @@ async function api(req, res, url) {
      * senderId trong thân chỉ quản lý mới được đặt hộ. */
     if (!(await requireXemViec(res, body.taskId, req))) return;
     const ql = await isManager(req);
-    const nguoiGui = (ql && body.senderId) || ((await whoAmI(req)) || {}).id;
+    const me = (await whoAmI(req)) || {};
+    const nguoiGui = (ql && body.senderId) || me.id;
     if (nguoiGui) cells[RF.sender.name] = [{ id: nguoiGui }];
     cells[RF.handled.name] = false;
 
     const result = await lark.createRecord(cells, cfg.requestTableId);
     cacheYC.at = 0;
-    return json(res, { ok: true, result });
+    /* Báo quản lý sau khi đã lưu: lưu hỏng thì không báo một yêu cầu không có. */
+    const bao = await baoYeuCau({ id: nguoiGui, name: nguoiGui === me.id ? me.name : '' },
+      body.taskTitle, body.parts, body.proposal, body.reason, body.taskId).catch(() => ({ gui: 0, loi: ['lỗi'] }));
+    return json(res, { ok: true, result, daBao: bao.gui });
   }
 
   /* Quản lý đánh dấu đã xử lý một yêu cầu điều chỉnh. Việc sửa thật (đổi
