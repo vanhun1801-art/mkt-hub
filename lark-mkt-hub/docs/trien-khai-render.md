@@ -96,14 +96,8 @@ bằng **tenant token** (không qua Nối hộp thư của từng người). App
 Create Version → Publish, và hộp pito@ phải nằm trong phạm vi dữ liệu thư của app.
 Thiếu thì tab báo "Lần đọc thư gần nhất bị lỗi"; booking cũ trong Base vẫn hiện.
 
-03/11/2026: đã cấp quyền, Base đọc được, nhưng thư báo `1230002` "pito@routinehospitality.vn
-permission denied, please apply for privilege". Nghĩa là app có quyền thư nhưng hộp pito@
-chưa nằm trong phạm vi dữ liệu thư của app. Cách mở (theo tài liệu "Cấu hình quyền dữ liệu
-của app" của Lark): Developer Console → app Marketing Hub → Development Configuration →
-Permissions & Scopes → ở dòng quyền thư, cột **phạm vi dữ liệu được truy cập** bấm Configure
-→ chọn mục **Mail** → chọn "Tất cả" hoặc "Lọc theo điều kiện" sao cho gồm pito@routinehospitality.vn
-→ Save → Create Version → Publish → quản trị viên duyệt. Chưa duyệt thì vẫn `1230002`. Trong lúc chờ, Hub trên máy anh Hùng đọc hộp
-này bằng lark-cli mỗi 10 phút và ghi cùng Base, nên Render vẫn thấy đơn mới khi máy bật. Cấp scope mà chưa phát hành version: lỗi `99991672`.
+03/11/2026: lỗi `1230002` "pito@routinehospitality.vn permission denied" là do phạm vi dữ liệu thư chỉ có **Member Range contains Lê Văn Hùng**. pito@ là **hộp thư chung** (PUBLIC_MAILBOX), không thuộc thành viên nào, nên phải thêm riêng. Cách đúng: Permissions & Scopes → Configure (cột Data access scope) → Email → Resources-Email Message → Configure → **+ Add OR Condition Group** → `Public Mailbox contains pito@routinehospitality.vn` → Save → Create Version → Publish.
+Đặt hai điều kiện **chung một nhóm** thì Lark hiểu là phải thoả cả hai và vẫn báo 1230002; phải là hai nhóm nối bằng **OR**. Không chọn "All PublicMailbox" (app sẽ đọc được sales@, marketing@, cmo@…). Bản 1.0.29 trở đi đúng; Render đọc được thư từ 11:01 03/11/2026. Cấp scope mà chưa phát hành version: lỗi `99991672`.
 
 ### A2a. Base nào mở cho CẢ PHÒNG — khai bằng biến, không bằng nút
 
