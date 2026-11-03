@@ -1151,6 +1151,7 @@
     'Hỏi lại': 'Ask again',
     'Chưa hỏi được: máy chủ chưa có khoá Claude API.': 'Can’t ask yet: the server has no Claude API key.',
     'AI đang đọc thư': 'AI is reading mail',
+    'Đang đọc thư, có thể mất một phút': 'Reading your mail, this can take a minute',
     'AI đã trả lời, bấm Hỏi AI để xem': 'AI answered. Tap Ask AI to see it',
     'Thư này không còn trong danh sách (đã quá cũ hoặc vừa chuyển đi)': 'This message is no longer in the list (too old or just moved)',
     'Nội dung thư': 'Message',

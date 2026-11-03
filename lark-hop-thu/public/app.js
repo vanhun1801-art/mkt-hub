@@ -16,6 +16,7 @@ const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) =>
 
 const S = {
   hop: [], chinh: '', ngan: [], ai: false,
+  hoiAi: false,        // ô Hỏi AI: có khoá API, hoặc Claude Code của chủ máy
   thu: [], loi: [], luc: 0,
   cho: [],             // thư anh gửi đi mà bên kia chưa hồi âm (từ thư mục Đã gửi)
   gui: [],             // thư đã gửi thuộc chủ đề có thư đến: bong bóng bên phải của luồng
@@ -163,7 +164,7 @@ function gioHen(ms) {
 
 async function napHop() {
   const d = await api('hop');
-  Object.assign(S, { hop: d.hop, chinh: d.chinh, ngan: d.ngan, ai: d.ai });
+  Object.assign(S, { hop: d.hop, chinh: d.chinh, ngan: d.ngan, ai: d.ai, hoiAi: Boolean(d.hoiAi) });
 }
 
 async function napThu(ep) {
@@ -2186,7 +2187,7 @@ function veTinChat(x, i) {
     return '<div class="bong di"><div class="vo-bong"><div class="than-bong" data-no-i18n>' + esc(x.chu).replace(/\n/g, '<br>') + '</div></div></div>';
   }
   const than = x.vai === 'cho'
-    ? '<div class="dang-nghi" aria-label="AI đang đọc thư"><i></i><i></i><i></i></div>'
+    ? '<div class="dang-nghi" aria-label="AI đang đọc thư"><i></i><i></i><i></i></div><div class="ghi-cho">Đang đọc thư, có thể mất một phút</div>'
     : x.vai === 'loi'
       ? '<span class="loi-bong">' + esc(x.chu) + '</span><button class="xem-het" data-hoi="lai" data-i="' + i + '">Hỏi lại</button>'
       : '<div class="tra-loi-ai" data-no-i18n>' + veTraLoi(x.chu, x.thu) + '</div>';
@@ -2204,7 +2205,7 @@ function veChat() {
   if (!CHAT.ds.length) {
     than.innerHTML = '<div class="doc-trong chat-chao">' +
       '<span class="avt-ai lon" aria-hidden="true"><svg viewBox="0 0 24 24">' + IC_AI + '</svg></span>' +
-      (S.ai
+      (S.hoiAi
         ? '<b>Hỏi gì về thư của anh cũng được</b><span>AI đọc các hộp anh được cấp, chỉ đọc, không gửi hay đổi thư nào.</span>' +
           '<div class="goi-y-hoi">' + GOI_Y_HOI.map((g, i) => '<button class="nut" data-hoi="goi-y" data-i="' + i + '">' + esc(g) + '</button>').join('') + '</div>'
         : '<b>Hỏi AI chưa bật</b><span>Máy chủ cần khoá Claude API (ANTHROPIC_API_KEY) thì mới hỏi được.</span>') +
@@ -2229,9 +2230,9 @@ function veChat() {
 function capNhatNutHoi() {
   const o = $('#oHoi');
   if (!o) return;
-  o.disabled = !S.ai;
-  $('#btnHoi').disabled = !S.ai || CHAT.dang || !o.value.trim();
-  $('#lyDoHoi').textContent = !S.ai ? 'Chưa hỏi được: máy chủ chưa có khoá Claude API.' : '';
+  o.disabled = !S.hoiAi;
+  $('#btnHoi').disabled = !S.hoiAi || CHAT.dang || !o.value.trim();
+  $('#lyDoHoi').textContent = !S.hoiAi ? 'Chưa hỏi được: máy chủ chưa có khoá Claude API.' : '';
   /* Ô một dòng, gõ dài thì cao dần tới 132px (nguyên tắc 24). */
   o.style.height = 'auto';
   if (o.value) o.style.height = Math.min(132, o.scrollHeight + 2) + 'px';
@@ -2245,12 +2246,12 @@ function moChat() {
   cot.classList.remove('dong-lai');
   cot.hidden = false;
   veChat();
-  if (S.ai && !laHep()) $('#oHoi').focus();
+  if (S.hoiAi && !laHep()) $('#oHoi').focus();
 }
 
 async function hoiAi(cau) {
   cau = String(cau || '').trim();
-  if (!cau || CHAT.dang || !S.ai) return;
+  if (!cau || CHAT.dang || !S.hoiAi) return;
   const lichSu = CHAT.ds.filter((x) => x.vai === 'hoi' || x.vai === 'dap').map((x) => ({ vai: x.vai, chu: x.chu }));
   CHAT.ds.push({ vai: 'hoi', chu: cau }, { vai: 'cho' });
   CHAT.dang = true;
@@ -2311,6 +2312,7 @@ $('#btnHoiAi').addEventListener('click', moChat);
   veDocTrong();
   try {
     await napHop();
+    if (!S.chon) veChat();            // ô Hỏi AI vẽ lúc chưa biết đã bật hay chưa
     await napThu(false);
   } catch (e) {
     document.body.classList.add('khong-doc');      // chưa đọc được hộp nào thì không bày khung đọc trống

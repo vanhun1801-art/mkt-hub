@@ -793,6 +793,7 @@ svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width:
 .tc-thu:hover { background: color-mix(in srgb, var(--xanh) 18%, var(--mat)); }
 .tc-thu:active { transform: scale(.96); }
 .ghi-chat { font-size: 12px; color: var(--chu-3); margin: 3px 4px 0; }
+.ghi-cho { font-size: 12.5px; color: var(--chu-3); margin-top: 2px; }
 
 /* AI đang đọc: ba chấm thở chậm, không nháy mạnh. */
 .dang-nghi { display: flex; gap: 5px; padding: 5px 2px; }

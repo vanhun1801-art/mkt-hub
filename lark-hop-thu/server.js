@@ -316,6 +316,13 @@ function lamGiau(ds, hop, nguoi = '') {
   }).sort((a, b) => (a.ngay < b.ngay ? 1 : a.ngay > b.ngay ? -1 : 0));
 }
 
+/**
+ * Hỏi AI bật khi có khoá API, hoặc khi đây là CHỦ MÁY và máy có Claude Code
+ * (gói Claude cá nhân của anh Hùng, 03/11/2026). Người nối hộp thư bằng token
+ * riêng (n.tk) không bao giờ được mượn gói của chủ máy.
+ */
+const coHoiAi = (n) => ai.coKhoa() || (!n.tk && ai.coClaudeCode());
+
 /** Danh sách đã gom chủ đề, xếp ngăn, ghép với Đã gửi: dùng chung cho /api/thu và /api/hoi-thu. */
 async function ghepDs(n, d) {
   const hop = await cacHop(n);
@@ -440,7 +447,7 @@ async function api(req, res, url) {
 
   if (p === '/api/hop' && m === 'GET') {
     const hop = await cacHop(n);
-    return json(res, { hop, chinh: hopChinh(hop), ngan: NGAN, ai: ai.coKhoa(), model: cfg.ai.model });
+    return json(res, { hop, chinh: hopChinh(hop), ngan: NGAN, ai: ai.coKhoa(), hoiAi: coHoiAi(n), model: cfg.ai.model });
   }
 
   if (p === '/api/thu' && m === 'GET') {
@@ -499,7 +506,7 @@ async function api(req, res, url) {
   /* Hỏi AI về thư trong hộp: chỉ đọc. AI thấy danh mục thư của chính người
    * hỏi (đúng các hộp người đó được cấp) và tự mở thư cần đọc kỹ. */
   if (p === '/api/hoi-thu' && m === 'POST') {
-    if (!ai.coKhoa()) return loi(res, 409, 'Hỏi AI cần khoá Claude API (ANTHROPIC_API_KEY) trên máy chủ.', { khongKhoa: true });
+    if (!coHoiAi(n)) return loi(res, 409, 'Hỏi AI cần khoá Claude API (ANTHROPIC_API_KEY) trên máy chủ.', { khongKhoa: true });
     const b = await docThan(req);
     const cauHoi = String(b.cauHoi || '').trim();
     if (!cauHoi) return loi(res, 400, 'Câu hỏi đang trống');
@@ -508,7 +515,8 @@ async function api(req, res, url) {
     const muc = dongHoi(ds, d.gui || []);
     const theoMa = new Map(muc.map((t) => [t.ma, t]));
     const dangMo = /^[^|]+\|.+$/.test(String(b.dangMo || '')) ? maHoi({ hop: b.dangMo.split('|')[0], id: b.dangMo.slice(b.dangMo.indexOf('|') + 1) }) : '';
-    const kq = await ai.hoiDap({
+    /* Có khoá API thì đi API; không thì Claude Code của chủ máy (coHoiAi đã chặn người khác). */
+    const kq = await (ai.coKhoa() ? ai.hoiDap : ai.hoiDapMay)({
       cauHoi,
       lichSu: Array.isArray(b.lichSu) ? b.lichSu : [],
       ds: muc,

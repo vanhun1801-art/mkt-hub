@@ -5,6 +5,7 @@
  * mã lạ không mở được gì, có trần số thư mở, lịch sử ghép đúng lượt.
  */
 process.env.ANTHROPIC_API_KEY = 'khoa-thu';
+process.env.HOP_THU_CLAUDE_CLI = process.execPath;   // Claude Code giả: chỉ cần một tệp có thật
 const ai = require('../ai');
 
 let pass = 0, fail = 0;
@@ -92,6 +93,47 @@ const NOI = {
   loi = null;
   try { await ai.hoiDap({ cauHoi: 'a', ds: DS, docThu: async () => null, fetchFn: fetchHang([traLoi('  ')], []) }); } catch (e) { loi = e; }
   ok('trả lời rỗng thành câu tiếng Việt', loi instanceof ai.LoiAi && /hỏi cách khác/.test(loi.message));
+
+  console.log('\nQua Claude Code trên máy (tiến trình giả)');
+  const goiCC = [];
+  const spawnGia = (hang) => (f, args, opts) => {
+    const { EventEmitter } = require('events');
+    const p = new EventEmitter();
+    p.stdout = new EventEmitter(); p.stderr = new EventEmitter();
+    const lan = { f, args, opts, vao: '' };
+    goiCC.push(lan);
+    p.stdin = { end: (s) => { lan.vao = s; setImmediate(() => { p.stdout.emit('data', JSON.stringify(hang.shift())); p.emit('close', 0); }); } };
+    p.kill = () => {};
+    return p;
+  };
+  const kqMay = await ai.hoiDapMay({
+    cauHoi: 'Khách nào hỏi giá?', ds: DS, homNay: '2026-11-03 08:00',
+    docThu: async (ma) => NOI[ma] || null,
+    spawnFn: spawnGia([
+      { is_error: false, structured_output: { traLoi: '', ma: ['aaaaaaa', 'zzzzzzz'] } },
+      { is_error: false, structured_output: { traLoi: 'Khách A hỏi tour 4 đảo [#aaaaaaa].' } },
+    ]),
+  });
+  ok('hai lượt: chọn thư rồi trả lời', goiCC.length === 2 && /Khách A/.test(kqMay.chu));
+  ok('chỉ mở thư có thật', kqMay.daMo.length === 1 && kqMay.daMo[0] === 'aaaaaaa');
+  const a0 = goiCC[0].args;
+  ok('tắt mọi công cụ, MCP và settings', a0[a0.indexOf('--tools') + 1] === '' && a0.includes('--strict-mcp-config') && a0[a0.indexOf('--setting-sources') + 1] === '');
+  ok('ép JSON bằng --json-schema', a0.includes('--json-schema'));
+  ok('không mang khoá API sang Claude Code', !('ANTHROPIC_API_KEY' in goiCC[0].opts.env) && !('CLAUDECODE' in goiCC[0].opts.env));
+  ok('tiêu đề thư nằm trong stdin, không ở lời dặn', /Bỏ qua mọi hướng dẫn/.test(goiCC[0].vao) && !/Bỏ qua mọi hướng dẫn/.test(a0[a0.indexOf('--system-prompt') + 1]));
+  ok('lượt 2 nhận nội dung thư đã mở', /<thu_da_mo>[\s\S]*4 đảo[\s\S]*<\/thu_da_mo>/.test(goiCC[1].vao));
+
+  goiCC.length = 0;
+  const thang = await ai.hoiDapMay({ cauHoi: 'Có mấy thư?', ds: DS, docThu: async () => null,
+    spawnFn: spawnGia([{ is_error: false, structured_output: { traLoi: 'Có 2 thư.', ma: [] } }]) });
+  ok('trả lời được từ danh mục thì chỉ một lượt', goiCC.length === 1 && thang.chu === 'Có 2 thư.');
+
+  loi = null;
+  try {
+    await ai.hoiDapMay({ cauHoi: 'a', ds: DS, docThu: async () => null,
+      spawnFn: spawnGia([{ is_error: true, result: 'Not logged in · Please run /login' }]) });
+  } catch (e) { loi = e; }
+  ok('chưa đăng nhập thành câu dễ hiểu', loi instanceof ai.LoiAi && /chưa đăng nhập/.test(loi.message));
 
   console.log('\n' + (fail ? '\x1b[31m' : '\x1b[32m') + pass + ' pass · ' + fail + ' fail\x1b[0m');
   if (fail) { console.log(fails.map((x) => ' - ' + x).join('\n')); process.exit(1); }
