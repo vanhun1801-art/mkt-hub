@@ -48,6 +48,9 @@ const Routine = (() => {
 
   /* ---------------- danh sách đơn ---------------- */
   const veCo = (b) => `<div class="co">${(b.canXuLy || []).map((c) => `<span class="${c.muc}">${esc(c.nhan)}</span>`).join('')}</div>`;
+  /* Đơn không có thư trả phòng mà đã qua ngày trả: máy chủ coi là đã trả (suyRa). */
+  const veTrangThai = (b) => `<span class="tt ${TT[b.trangThai] || ''}" ${b.suyRa ? 'title="Không có thư trả phòng, đã qua ngày trả nên coi là đã trả"' : ''}>${esc(b.trangThai || '—')}</span>` +
+    (b.suyRa ? '<div class="manh">theo ngày trả</div>' : '');
   const veChamSoc = (b) => (b.chamSoc && b.chamSoc !== 'Chưa liên hệ'
     ? `<span class="chip ${CS[b.chamSoc] || ''}">${esc(b.chamSoc)}</span>` : '<span class="manh">Chưa liên hệ</span>');
 
@@ -69,7 +72,7 @@ const Routine = (() => {
           <td class="so">${b.soDem != null ? soVn(b.soDem) : '—'}</td>
           <td>${esc(b.phong || '—')}</td>
           ${co ? `<td class="so">${vnd(b.soTien)}</td>` : ''}
-          <td><span class="tt ${TT[b.trangThai] || ''}">${esc(b.trangThai || '—')}</span></td>
+          <td>${veTrangThai(b)}</td>
           <td>${veChamSoc(b)}</td>
           <td class="can-xu-ly">${veCo(b)}</td>
         </tr>`).join('')}</tbody></table></div>`;
@@ -174,7 +177,7 @@ const Routine = (() => {
       <div class="modal-than">
         <dl class="dl">
           ${dong('Tên khách', esc(b.tenKhach || '—'))}
-          ${dong('Trạng thái', `<span class="tt ${TT[b.trangThai] || ''}">${esc(b.trangThai || '—')}</span>`)}
+          ${dong('Trạng thái', veTrangThai(b).replace('theo ngày trả', 'Không có thư trả phòng; đã qua ngày trả nên coi là đã trả'))}
           ${dong('Cần xử lý', veCo(b))}
           ${dong('Mã OTA', esc(b.maOta))}
           ${dong('Nhận phòng', esc(ngayNgan(b.nhanPhong)))}

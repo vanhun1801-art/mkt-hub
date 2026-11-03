@@ -131,6 +131,11 @@ function boSungAgoda(b, luc, su, chiAgoda = false) {
     dat(b, 'traPhong', su.traPhong);
     if (!b.ngayDat && su.trangThaiAgoda === 'CONFIRMED') b.ngayDat = luc;
     if (b.nhanPhong && b.traPhong) b.soDem = Math.round((Date.parse(b.traPhong) - Date.parse(b.nhanPhong)) / 864e5);
+  } else if (!b.traPhong && su.traPhong && (!b.nhanPhong || b.nhanPhong === su.nhanPhong)) {
+    /* Đơn chỉ có thư nhận phòng của GoHost (không ghi ngày trả): thư Agoda có ngày trả. */
+    b.traPhong = su.traPhong;
+    if (b.nhanPhong) b.soDem = Math.round((Date.parse(b.traPhong) - Date.parse(b.nhanPhong)) / 864e5);
+    if (!b.ngayDat && su.trangThaiAgoda === 'CONFIRMED') b.ngayDat = luc;
   }
   if (su.trangThaiAgoda === 'CANCELLED') b.trangThai = 'Đã huỷ';
   else if (!b.trangThai) b.trangThai = 'Đã đặt';

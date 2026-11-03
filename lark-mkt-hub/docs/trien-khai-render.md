@@ -94,7 +94,7 @@ bằng **tenant token** (không qua Nối hộp thư của từng người). App
 (tenant scope) `mail:user_mailbox.message:readonly`, `mail:user_mailbox.message.body:read`,
 `mail:user_mailbox.message.subject:read`, `mail:user_mailbox.message.address:read`, rồi
 Create Version → Publish, và hộp pito@ phải nằm trong phạm vi dữ liệu thư của app.
-Thiếu thì tab báo "Lần đọc thư gần nhất bị lỗi"; booking cũ trong Base vẫn hiện. App còn ghi bốn cột chăm sóc khách vào Base này (từ 03/11/2026), nên app phải giữ quyền chỉnh sửa Base.
+Thiếu thì tab báo "Lần đọc thư gần nhất bị lỗi"; booking cũ trong Base vẫn hiện. App còn ghi bốn cột chăm sóc khách vào Base này (từ 03/11/2026), nên app phải giữ quyền chỉnh sửa Base. Đơn không có thư trả phòng mà đã qua ngày trả thì màn hình coi là đã trả (không ghi vào Base).
 
 03/11/2026: lỗi `1230002` "pito@routinehospitality.vn permission denied" là do phạm vi dữ liệu thư chỉ có **Member Range contains Lê Văn Hùng**. pito@ là **hộp thư chung** (PUBLIC_MAILBOX), không thuộc thành viên nào, nên phải thêm riêng. Cách đúng: Permissions & Scopes → Configure (cột Data access scope) → Email → Resources-Email Message → Configure → **+ Add OR Condition Group** → `Public Mailbox contains pito@routinehospitality.vn` → Save → Create Version → Publish.
 Đặt hai điều kiện **chung một nhóm** thì Lark hiểu là phải thoả cả hai và vẫn báo 1230002; phải là hai nhóm nối bằng **OR**. Không chọn "All PublicMailbox" (app sẽ đọc được sales@, marketing@, cmo@…). Bản 1.0.29 trở đi đúng; Render đọc được thư từ 11:01 03/11/2026. Cấp scope mà chưa phát hành version: lỗi `99991672`.

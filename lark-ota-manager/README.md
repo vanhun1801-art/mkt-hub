@@ -313,6 +313,8 @@ Base "OTA Routine Hospitality" › bảng "Booking khách sạn"
 - "Số tiền" là số GoHost ghi: với Agoda là giá thực nhận, với Booking.com là tiền khách trả.
   Hoa hồng chỉ có khi thư có số thật (Agoda, ghi chú "OTA Commission" của Booking.com).
 
+Đơn không có thư trả phòng mà đã qua ngày trả thì app coi là đã trả (anh Hùng chốt 03/11/2026): đơn đang ở, và đơn chỉ có thư OTA trước khi nối GoHost. Chỉ đổi trên màn hình, không ghi vào Base. Đơn GoHost còn "Đã đặt" mà quá ngày nhận phòng thì vẫn cảnh báo.
+
 Hai tab, dùng chung bộ lọc với Rooty Trip (khoảng thời gian theo ngày nhận phòng / đặt / trả phòng, kênh, trạng thái, tìm):
 
 | Tab | Có gì |

@@ -101,10 +101,10 @@ async function docBang() {
   return lark.voiBase(R.baseToken, async () => {
     const cot = await lark.listFields(R.tableId);
     const id = (ten) => (cot.find((c) => c.name === ten) || {}).id;
-    const fMa = id('Mã đặt phòng'), fLs = id('Lịch sử');
+    const fMa = id('Mã đặt phòng'), fLs = id('Lịch sử'), fTra = id('Trả phòng');
     if (!fMa || !fLs) throw new Error('Bảng Routine thiếu cột "Mã đặt phòng" hoặc "Lịch sử"');
     const ds = await lark.listAll(R.tableId);
-    return ds.map((r) => ({ id: r.id, ma: chu(r.c[fMa]).trim(), lichSu: chu(r.c[fLs]) }));
+    return ds.map((r) => ({ id: r.id, ma: chu(r.c[fMa]).trim(), lichSu: chu(r.c[fLs]), coTra: !!(fTra && r.c[fTra]) }));
   });
 }
 
@@ -122,10 +122,12 @@ async function dongBo({ ghi = true } = {}) {
     const r = coSan.get(b.maGoHost);
     if (!r) { them.push(sangDong(b)); continue; }
     /* Thư cũ có thể đã trôi khỏi cửa sổ đọc: gộp lịch sử cũ + mới, và chỉ ghi khi
-     * có dòng lịch sử mới, để không ghi đè thông tin cũ bằng bản thiếu hơn. */
+     * có dòng lịch sử mới, để không ghi đè thông tin cũ bằng bản thiếu hơn. Ngoại
+     * lệ: Base còn trống ngày trả phòng mà thư đã cho biết (thư Agoda của đơn chỉ
+     * có thư nhận phòng GoHost, cách nối thêm từ 03/11/2026). */
     const cu = r.lichSu.split('\n').filter(Boolean);
     const gopLai = [...new Set([...cu, ...b.suKien])].sort((x, y) => (x.slice(0, 16) < y.slice(0, 16) ? -1 : x.slice(0, 16) > y.slice(0, 16) ? 1 : 0));
-    if (gopLai.length === cu.length) continue;
+    if (gopLai.length === cu.length && !(b.traPhong && !r.coTra)) continue;
     sua[r.id] = sangDong({ ...b, suKien: gopLai });
   }
 

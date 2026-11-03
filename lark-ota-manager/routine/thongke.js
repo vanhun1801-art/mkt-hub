@@ -63,9 +63,28 @@ function canXuLy(b, nay = homNayVN()) {
 
 const mucCao = (ds) => (ds.some((c) => c.muc === 'cao') ? 'cao' : ds.some((c) => c.muc === 'vua') ? 'vua' : 'ok');
 
-/** Gắn canXuLy + muc cho từng đơn. */
+/**
+ * Đã qua ngày trả phòng thì coi là đã trả (anh Hùng chốt 03/11/2026), cho hai loại
+ * đơn không bao giờ có thư trả phòng:
+ *   - đơn đang ở (đã có thư nhận phòng): GoHost thường không gửi thư trả phòng cho đơn OTA;
+ *   - đơn chỉ có thư OTA (mã OTA-…), đặt trước ngày nối GoHost: không có thư nhận/trả nào.
+ * Chỉ đổi trên màn hình (`suyRa`), không ghi vào Base. Đơn GoHost còn "Đã đặt" mà
+ * quá ngày nhận phòng thì giữ cảnh báo, vì GoHost có gửi thư nhận phòng.
+ */
+function suyTrangThai(b, nay) {
+  if (!b.traPhong || b.traPhong >= nay) return b;
+  const daO = b.trangThai === 'Đã nhận phòng';
+  const chiOta = b.trangThai === 'Đã đặt' && String(b.ma || '').startsWith('OTA-');
+  return daO || chiOta ? { ...b, trangThai: 'Đã trả phòng', trangThaiThu: b.trangThai, suyRa: true } : b;
+}
+
+/** Gắn trạng thái suy ra + canXuLy + muc cho từng đơn. */
 function danhDau(rows, nay = homNayVN()) {
-  return rows.map((b) => { const c = canXuLy(b, nay); return { ...b, canXuLy: c, muc: mucCao(c) }; });
+  return rows.map((g) => {
+    const b = suyTrangThai(g, nay);
+    const c = canXuLy(b, nay);
+    return { ...b, canXuLy: c, muc: mucCao(c) };
+  });
 }
 
 /** Thẻ việc cần làm ở màn Vận hành, tính trên MỌI đơn (không theo bộ lọc). */

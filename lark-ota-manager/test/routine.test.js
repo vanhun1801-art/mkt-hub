@@ -151,6 +151,30 @@ console.log('— cảnh báo chăm sóc và thống kê');
   t('lọc theo kênh', TK.loc(ds, { kenh: ['Expedia'] }).length === 1);
   t('lọc theo ngày nhận phòng', TK.loc(ds, { truong: 'nhanPhong', from: '2026-11-03', to: '2026-11-05' }).length === 2);
   t('tìm theo mã', TK.loc(ds, { tim: 'b' }).map((b) => b.ma).join() === 'B');
+
+  /* Anh Hùng chốt 03/11/2026: không có thư trả phòng mà đã qua ngày trả thì coi là đã trả. */
+  const suy = TK.danhDau([
+    don({ ma: 'OTA-1', nhanPhong: '2026-10-29', traPhong: '2026-10-30' }),
+    don({ ma: 'PIODANGO', trangThai: 'Đã nhận phòng', nhanPhong: '2026-11-01', traPhong: '2026-11-02' }),
+    don({ ma: 'PIOCHUANHAN', nhanPhong: '2026-11-01', traPhong: '2026-11-02' }),
+    don({ ma: 'PIOOCHUATRA', trangThai: 'Đã nhận phòng', nhanPhong: '2026-11-02', traPhong: '2026-11-05' }),
+  ], nay);
+  const s2 = Object.fromEntries(suy.map((b) => [b.ma, b]));
+  t('đơn chỉ có thư OTA, qua ngày trả → Đã trả phòng', s2['OTA-1'].trangThai === 'Đã trả phòng' && s2['OTA-1'].suyRa);
+  t('đơn đang ở, qua ngày trả → Đã trả phòng', s2.PIODANGO.trangThai === 'Đã trả phòng' && s2.PIODANGO.trangThaiThu === 'Đã nhận phòng');
+  t('đơn GoHost chưa nhận phòng vẫn cảnh báo', s2.PIOCHUANHAN.trangThai === 'Đã đặt' && s2.PIOCHUANHAN.muc === 'cao');
+  t('đơn còn trong kỳ ở vẫn là Đang ở', s2.PIOOCHUATRA.trangThai === 'Đã nhận phòng' && !s2.PIOOCHUATRA.suyRa);
+  t('thẻ Đang ở chỉ còn đơn chưa tới ngày trả', TK.vanHanh(suy, nay).the.find((x) => x.khoa === 'dang-o').so === 1);
+}
+
+console.log('— thư Agoda bổ sung ngày trả cho đơn chỉ có thư nhận phòng');
+{
+  const nhan = { luc: '2026-11-01 17:34', su: { loai: 'nhan-phong', maGoHost: 'PIOZZZZZ9', maOta: '', kenh: 'Agoda',
+    tenKhach: 'Kim Minsu', ngayNhan: '2026-11-01', loaiPhong: '201', soTien: 1319340, nguon: 'gohost' } };
+  const agoda = { luc: '2026-10-31 02:26', su: { maOta: '1792200000', kenh: 'Agoda', trangThaiAgoda: 'CONFIRMED',
+    tenKhach: 'Kim Minsu', nhanPhong: '2026-11-01', traPhong: '2026-11-02', nguoiLon: 2, treEm: 0, nguon: 'agoda' } };
+  const [b] = gop([nhan, agoda]);
+  t('nối theo tên + ngày nhận, lấy ngày trả', b.traPhong === '2026-11-02' && b.soDem === 1 && b.maOta === '1792200000', JSON.stringify(b));
 }
 
 console.log(`\n${pass} pass · ${fail} fail`);
