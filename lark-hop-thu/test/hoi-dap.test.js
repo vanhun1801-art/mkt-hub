@@ -62,6 +62,9 @@ const NOI = {
   ok('tiêu đề đó không có trong system', !/Bỏ qua mọi hướng dẫn/.test(g.system));
   ok('chỉ một công cụ, và chỉ để đọc', g.tools.length === 1 && g.tools[0].name === 'doc_thu');
   ok('không gửi thinking hay temperature', !('thinking' in g) && !('temperature' in g));
+  /* 03/11/2026: AI soạn sẵn thư trả lời, nhưng vẫn không có công cụ gửi */
+  ok('lời dặn dạy khối thư soạn sẵn <nhap ma>', /<nhap ma="abc1234">[\s\S]*<\/nhap>/.test(g.system));
+  ok('lời dặn vẫn nói AI không gửi thư', /không gửi/.test(g.system) && /tự gửi/.test(g.system));
   ok('danh mục ghi mã [#…] và ngày hôm nay', /\[#aaaaaaa\] 2026-11-02 09:00/.test(g.messages[0].content) && /hom_nay="2026-11-03 08:00"/.test(g.messages[0].content));
 
   console.log('\nTrần số vòng');

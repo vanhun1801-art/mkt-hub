@@ -792,6 +792,12 @@ svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width:
 .tc-thu span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tc-thu:hover { background: color-mix(in srgb, var(--xanh) 18%, var(--mat)); }
 .tc-thu:active { transform: scale(.96); }
+.doan-ai + .nhap-ai, .nhap-ai + .doan-ai { margin-top: 8px; }
+.nhap-ai { margin: 8px 0; padding: 12px 14px; border-radius: 14px; background: var(--mat); border: 1px solid var(--vien); }
+.dau-nhap { font-size: 12.5px; font-weight: 600; color: var(--tim); margin-bottom: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dau-nhap span { font-weight: 400; color: var(--chu-3); }
+.chu-nhap { font-size: 14px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+.nut-nhap { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .ghi-chat { font-size: 12px; color: var(--chu-3); margin: 3px 4px 0; }
 .ghi-cho { font-size: 12.5px; color: var(--chu-3); margin-top: 2px; }
 

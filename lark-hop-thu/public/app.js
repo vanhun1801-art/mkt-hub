@@ -1109,7 +1109,8 @@ function veGoiY(daGui) {
   const mau = daGui ? MAU_NHAC : MAU;
   return mau.map((m, i) => '<button class="nut" data-mau="' + i + '">' + esc(m.nhan) + '</button>').join('') +
     goiY.map((g) => '<button class="nut ai" data-no-i18n data-goi-y="' + esc(g) + '">✦ ' + esc(g) + '</button>').join('') +
-    (S.ai ? '<button class="nut ai" data-viec="ai-viet">✦ AI viết theo ý trong ô</button>' : '');
+    (S.ai ? '<button class="nut ai" data-viec="ai-viet">✦ AI viết theo ý trong ô</button>' : '') +
+    (S.hoiAi ? '<button class="nut ai" data-viec="ai-tu-van">✦ Hỏi AI nên trả lời sao</button>' : '');
 }
 
 /**
@@ -1797,6 +1798,7 @@ $('#cotDoc').addEventListener('click', (e) => {
     b.nextElementSibling.classList.toggle('mo', mo);
   }
   else if (v === 'ai-viet') aiViet($('#oSoan').value.trim() || 'Trả lời phù hợp với nội dung thư');
+  else if (v === 'ai-tu-van') { moChat(); hoiAi(CAU_TU_VAN); }
   else if (v === 'luu-nhap') luuNhap();
   else if (v === 'gui') hoiGui();
   else if (v === 'them') menuThem(b, t);
@@ -2183,13 +2185,45 @@ const GOI_Y_HOI = [
   'Khách nào đang chờ báo giá?',
   'Ban giám đốc gửi gì tuần này?',
   'Thư nào anh gửi mà chưa ai hồi âm?',
+  'Soạn sẵn trả lời cho thư khách đang chờ',
 ];
+/* Nút trong ô soạn của một thư: hỏi về đúng thư đang mở (CHAT.vuaMo). */
+const CAU_TU_VAN = 'Thư này nên trả lời thế nào? Soạn sẵn giúp anh thư trả lời.';
 const IC_AI = '<path d="M12 3.5l1.9 5.1 5.1 1.9-5.1 1.9L12 17.5l-1.9-5.1L5 10.5l5.1-1.9z"/><path d="M18.5 15.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/>';
 const IC_GUI = '<path d="M12 19V5M6 11l6-6 6 6"/>';
 const IC_MOI = '<path d="M12 5v14M5 12h14"/>';
 
-/** Chữ AI trả lời → HTML: thoát hết, rồi mới dựng đậm, gạch đầu dòng và nút mở thư. */
-function veTraLoi(chu, thu) {
+/* Thư trả lời AI soạn sẵn: khối <nhap ma="abc1234">…</nhap> trong câu trả lời
+ * (03/11/2026, anh Hùng: "có gợi ý phản hồi … thay vì chỉ xem thôi"). Giao
+ * diện vẽ thành thẻ có nút đưa vào khung trả lời của đúng thư đó; AI vẫn
+ * không gửi gì, anh xem rồi tự bấm Gửi. */
+const RE_NHAP = /<nhap ma="([0-9a-f]{7})">\s*([\s\S]*?)\s*(?:<\/nhap>|$)/g;
+const cacNhap = (chu) => Array.from(String(chu || '').matchAll(RE_NHAP), (m) => ({ ma: m[1], chu: m[2].trim() }));
+
+function veNhap(n, thu, i, j) {
+  const t = thu && thu[n.ma];
+  const ten = t ? String(t.tieuDe || '(không tiêu đề)').replace(/^\s*((re|fw|fwd|tl)\s*:\s*)+/i, '') : '';
+  return '<div class="nhap-ai">' +
+    '<div class="dau-nhap">Thư trả lời soạn sẵn' + (t ? '<span data-no-i18n> · ' + esc((t.tu ? t.tu + ' · ' : '') + ten) + '</span>' : '') + '</div>' +
+    '<div class="chu-nhap" data-no-i18n>' + esc(n.chu) + '</div>' +
+    '<div class="nut-nhap">' +
+    (t ? '<button class="nut chinh" data-nhap="dung" data-i="' + i + '" data-j="' + j + '">Đưa vào khung trả lời</button>' : '') +
+    '<button class="nut" data-nhap="chep" data-i="' + i + '" data-j="' + j + '">Chép</button>' +
+    '</div></div>';
+}
+
+/** Chữ AI trả lời → HTML: thoát hết, rồi mới dựng đậm, gạch đầu dòng, nút mở thư và thẻ thư soạn sẵn. */
+function veTraLoi(chu, thu, i) {
+  let h = '', j = 0, tu = 0;
+  const s = String(chu || '');
+  for (const m of s.matchAll(RE_NHAP)) {
+    h += veDoan(s.slice(tu, m.index), thu) + veNhap({ ma: m[1], chu: m[2].trim() }, thu, i, j++);
+    tu = m.index + m[0].length;
+  }
+  return h + veDoan(s.slice(tu), thu);
+}
+
+function veDoan(chu, thu) {
   const nutThu = (ma) => {
     const t = thu && thu[ma];
     if (!t) return '';
@@ -2206,7 +2240,9 @@ function veTraLoi(chu, thu) {
     if (ds) { h += '</ul>'; ds = false; }
     h += d.trim() ? '<p>' + dong(d) + '</p>' : '';
   }
-  return h + (ds ? '</ul>' : '');
+  h += ds ? '</ul>' : '';
+  /* Chữ của AI không đi qua bộ dịch; nút trên thẻ nháp thì có. */
+  return h ? '<div class="doan-ai" data-no-i18n>' + h + '</div>' : '';
 }
 
 function veTinChat(x, i) {
@@ -2217,7 +2253,7 @@ function veTinChat(x, i) {
     ? '<div class="dang-nghi" aria-label="AI đang đọc thư"><i></i><i></i><i></i></div><div class="ghi-cho">Đang đọc thư, có thể mất một phút</div>'
     : x.vai === 'loi'
       ? '<span class="loi-bong">' + esc(x.chu) + '</span><button class="xem-het" data-hoi="lai" data-i="' + i + '">Hỏi lại</button>'
-      : '<div class="tra-loi-ai" data-no-i18n>' + veTraLoi(x.chu, x.thu) + '</div>';
+      : '<div class="tra-loi-ai">' + veTraLoi(x.chu, x.thu, i) + '</div>';
   return '<div class="bong den ai-chat"><span class="avt avt-ai" aria-hidden="true"><svg viewBox="0 0 24 24">' + IC_AI + '</svg></span>' +
     '<div class="vo-bong"><div class="than-bong">' + than + '</div>' +
     (x.vai === 'dap' && x.daMo ? '<span class="ghi-chat">Đã đọc kỹ ' + x.daMo + ' thư</span>' : '') + '</div></div>';
@@ -2233,7 +2269,7 @@ function veChat() {
     than.innerHTML = '<div class="doc-trong chat-chao">' +
       '<span class="avt-ai lon" aria-hidden="true"><svg viewBox="0 0 24 24">' + IC_AI + '</svg></span>' +
       (S.hoiAi
-        ? '<b>Hỏi gì về thư của anh cũng được</b><span>AI đọc các hộp anh được cấp, chỉ đọc, không gửi hay đổi thư nào.</span>' +
+        ? '<b>Hỏi gì về thư của anh cũng được</b><span>AI đọc các hộp anh được cấp, gợi ý cách trả lời và soạn sẵn thư. AI không tự gửi hay đổi thư nào.</span>' +
           '<div class="goi-y-hoi">' + GOI_Y_HOI.map((g, i) => '<button class="nut" data-hoi="goi-y" data-i="' + i + '">' + esc(g) + '</button>').join('') + '</div>'
         : '<b>Hỏi AI chưa bật</b><span>Máy chủ cần khoá Claude API (ANTHROPIC_API_KEY) thì mới hỏi được.</span>') +
       '</div>';
@@ -2327,18 +2363,42 @@ async function hoiAi(cau) {
   else bao(tin.vai === 'dap' ? 'AI đã trả lời, bấm Hỏi AI để xem' : tin.chu, tin.vai === 'dap' ? 'ok' : 'loi');
 }
 
-/** Mở thư AI vừa nhắc. Thư anh đã gửi thì mở luồng có thư đó. */
+/** Mở thư AI vừa nhắc. Thư anh đã gửi thì mở luồng có thư đó. Trả true nếu mở được. */
 function moThuTuChat(k) {
-  if (timThu(k)) { mo(k); return; }
+  if (timThu(k)) { mo(k); return true; }
   const g = S.gui.find((x) => khoa(x) === k);
   const t = g && S.thu.find((x) => x.hop === g.hop && maCd(x) === g.cd);
-  if (t) { mo(khoa(t)); return; }
+  if (t) { mo(khoa(t)); return true; }
   bao('Thư này không còn trong danh sách (đã quá cũ hoặc vừa chuyển đi)', 'loi');
+  return false;
+}
+
+/** Thẻ thư soạn sẵn: mở đúng thư rồi đặt chữ vào ô trả lời, hoặc chép. */
+async function nutNhap(viec, i, j) {
+  const x = CHAT.ds[i];
+  const n = x && cacNhap(x.chu)[j];
+  if (!n) return;
+  if (viec === 'chep') {
+    try { await navigator.clipboard.writeText(n.chu); bao('Đã chép thư trả lời', 'ok'); }
+    catch (_) { bao('Trình duyệt chưa cho chép, anh bôi đen rồi chép tay nhé', 'loi'); }
+    return;
+  }
+  const t = x.thu && x.thu[n.ma];
+  if (!t || !moThuTuChat(t.hop + '|' + t.id)) return;
+  /* mo() vẽ khuôn thư và ô soạn ngay, trước khi tải nội dung. */
+  const o = $('#oSoan');
+  if (!o) return;
+  o.value = n.chu;
+  capNhatNutGui();
+  o.focus();
+  bao('Đã đưa vào khung trả lời, anh xem lại rồi bấm Gửi', 'ok');
 }
 
 $('#cotDoc').addEventListener('click', (e) => {
   const tc = e.target.closest('[data-mo-thu]');
   if (tc) { moThuTuChat(tc.dataset.moThu); return; }
+  const bn = e.target.closest('[data-nhap]');
+  if (bn) { nutNhap(bn.dataset.nhap, +bn.dataset.i, +bn.dataset.j); return; }
   const b = e.target.closest('[data-hoi]');
   if (!b) return;
   const viec = b.dataset.hoi;

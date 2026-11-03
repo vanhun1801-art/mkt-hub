@@ -572,9 +572,11 @@ async function api(req, res, url) {
       nguoi: n.ten || 'anh Hùng',
       docThu: async (ma) => { const t = theoMa.get(ma); return t ? thu.doc(t.hop, t.id, n.tk) : null; },
     });
-    /* Chỉ trả lại những thư câu trả lời có nhắc tới, để giao diện vẽ thành nút mở thư. */
+    /* Chỉ trả lại những thư câu trả lời có nhắc tới, để giao diện vẽ thành nút mở
+     * thư; bản nháp <nhap ma="…"> cũng cần thư của nó để đưa vào khung trả lời. */
     const thuNhac = {};
-    for (const [, ma] of kq.chu.matchAll(/\[#([0-9a-f]{7})\]/g)) {
+    for (const x of kq.chu.matchAll(/\[#([0-9a-f]{7})\]|<nhap ma="([0-9a-f]{7})">/g)) {
+      const ma = x[1] || x[2];
       const t = theoMa.get(ma);
       if (t) thuNhac[ma] = { hop: t.hop, id: t.id, tieuDe: t.tieuDe, tu: t.tu ? t.tu.ten || t.tu.email : '', daGui: Boolean(t.daGui) };
     }
