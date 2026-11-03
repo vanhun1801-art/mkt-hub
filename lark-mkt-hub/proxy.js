@@ -54,6 +54,9 @@ const VIEC_LAU_NHOM = [
    * của một tháng. Cắt ở 30 giây thì nút "Tìm cặp đáng nối" không bao giờ ra
    * kết quả, mà lỗi lại hiện thành "Module không trả lời" nên rất khó lần. */
   'noi-qc',
+  /* Hộp thư · hỏi AI: Claude có thể mở vài lượt thư trên Lark rồi mới trả lời,
+   * thường 10–40 giây, lâu hơn mốc 30 giây. */
+  'hoi-thu',
 ];
 const VIEC_LAU = new RegExp('^/api/(' + VIEC_LAU_NHOM.join('|') + ')(-[a-z-]+)?(/|$|\\?)');
 const cfg = require('./config');

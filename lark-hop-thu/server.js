@@ -316,6 +316,44 @@ function lamGiau(ds, hop, nguoi = '') {
   }).sort((a, b) => (a.ngay < b.ngay ? 1 : a.ngay > b.ngay ? -1 : 0));
 }
 
+/** Danh sách đã gom chủ đề, xếp ngăn, ghép với Đã gửi: dùng chung cho /api/thu và /api/hoi-thu. */
+async function ghepDs(n, d) {
+  const hop = await cacHop(n);
+  /* Gắn mã chủ đề lên bản sao, không sửa bộ đệm danh sách. */
+  /* Đơn khách đặt không gom theo tiêu đề: mỗi đơn một khách (chu-de.js). */
+  const ngan = new Map(lamGiau(d.ds, hop, n.nguoi).map((t) => [t.hop + '|' + t.id, t.ngan]));
+  const maCd = gomChuDe(d.ds, d.gui || [], { khongGom: (t) => ngan.get(t.hop + '|' + t.id) === 'don' });
+  const gan = (t) => Object.assign({}, t, { cd: maCd.get(t.hop + '|' + t.id) });
+  const den = d.ds.map(gan), daGui = (d.gui || []).map(gan);
+  const { daTraLoi, cho } = ghepChuoi(den, daGui);
+  const ds = lamGiau(den, hop, n.nguoi).map((t) => (daTraLoi.has(t.hop + '|' + t.id) ? Object.assign(t, { daTraLoi: true }) : t));
+  return { ds, den, daGui, cho };
+}
+
+/* Mã ngắn cố định của một thư cho hỏi đáp AI: cùng thư thì cùng mã qua mọi
+ * câu hỏi, nên câu trả lời cũ trong lịch sử vẫn trỏ đúng thư. */
+const maHoi = (t) => require('crypto').createHash('sha1').update(t.hop + '|' + t.id).digest('hex').slice(0, 7);
+
+/** Dòng danh mục cho AI: chỉ thứ người dùng thấy trên danh sách, không nội dung. */
+function dongHoi(ds, daGui) {
+  const tenNgan = new Map(NGAN.map((x) => [x.id, x.ten]));
+  const den = ds.map((t) => ({
+    ma: maHoi(t), hop: t.hop, id: t.id, ngay: t.ngay, tu: t.tu, tieuDe: t.tieuDe,
+    ngan: tenNgan.get(t.ngan) || t.ngan,
+    trangThai: [
+      t.chuaDoc && 'chưa đọc', t.daTraLoi && 'đã trả lời', t.sep && 'Ban giám đốc gửi',
+      t.lo && (t.lo.minh ? 'anh đang lo' : t.lo.ten + ' đang lo'),
+      t.xong && 'anh đã đánh dấu xong', t.boQua && 'anh đã bỏ qua', t.henDen && 'đang hẹn lại',
+      t.rac && 'nằm trong Thư rác', t.luuTru && 'đã lưu trữ trên Lark',
+    ].filter(Boolean).join(', '),
+    tomTat: t.tomTat || '',
+  }));
+  const di = daGui.map((t) => ({
+    ma: maHoi(t), hop: t.hop, id: t.id, ngay: t.ngay, tieuDe: t.tieuDe, daGui: true, ngan: 'Đã gửi',
+  }));
+  return den.concat(di).sort((a, b) => (a.ngay < b.ngay ? 1 : a.ngay > b.ngay ? -1 : 0));
+}
+
 /**
  * Chữ ký gắn vào thư trả lời: bản người dùng đã đặt; chưa đặt thì gợi ý từ
  * chữ ký Lark Mail (máy có lark-cli), không có nữa thì tên + hộp chính.
@@ -409,15 +447,7 @@ async function api(req, res, url) {
     const muonDu = url.searchParams.get('du') === '1';
     const d = muonDu ? await docSau(n) : await docHet(n, url.searchParams.get('lam') === '1');
     if (!d.du && !muonDu) docSau(n).catch((e) => console.error('[hop-thu] đọc sâu hỏng:', e.message));
-    const hop = await cacHop(n);
-    /* Gắn mã chủ đề lên bản sao, không sửa bộ đệm danh sách. */
-    /* Đơn khách đặt không gom theo tiêu đề: mỗi đơn một khách (chu-de.js). */
-    const ngan = new Map(lamGiau(d.ds, hop, n.nguoi).map((t) => [t.hop + '|' + t.id, t.ngan]));
-    const maCd = gomChuDe(d.ds, d.gui || [], { khongGom: (t) => ngan.get(t.hop + '|' + t.id) === 'don' });
-    const gan = (t) => Object.assign({}, t, { cd: maCd.get(t.hop + '|' + t.id) });
-    const den = d.ds.map(gan), daGui = (d.gui || []).map(gan);
-    const { daTraLoi, cho } = ghepChuoi(den, daGui);
-    const ds = lamGiau(den, hop, n.nguoi).map((t) => (daTraLoi.has(t.hop + '|' + t.id) ? Object.assign(t, { daTraLoi: true }) : t));
+    const { ds, den, daGui, cho } = await ghepDs(n, d);
     /* Thư mình gửi thuộc chủ đề có thư đến: giao diện vẽ thành bong bóng bên
      * phải trong luồng hội thoại. */
     const coCd = new Set(den.map((t) => t.hop + '|' + t.cd));
@@ -464,6 +494,36 @@ async function api(req, res, url) {
       return loi(res, 409, 'Trình duyệt này chưa dịch được và app chưa có khoá Claude. Mở Marketing Hub bằng Google Chrome bản mới để dịch ngay trên máy.', { khongKhoa: true });
     }
     return json(res, { chu: await ai.dich(chu, b.den === 'en' ? 'en' : 'vi') });
+  }
+
+  /* Hỏi AI về thư trong hộp: chỉ đọc. AI thấy danh mục thư của chính người
+   * hỏi (đúng các hộp người đó được cấp) và tự mở thư cần đọc kỹ. */
+  if (p === '/api/hoi-thu' && m === 'POST') {
+    if (!ai.coKhoa()) return loi(res, 409, 'Hỏi AI cần khoá Claude API (ANTHROPIC_API_KEY) trên máy chủ.', { khongKhoa: true });
+    const b = await docThan(req);
+    const cauHoi = String(b.cauHoi || '').trim();
+    if (!cauHoi) return loi(res, 400, 'Câu hỏi đang trống');
+    const d = await docHet(n, false);
+    const { ds } = await ghepDs(n, d);
+    const muc = dongHoi(ds, d.gui || []);
+    const theoMa = new Map(muc.map((t) => [t.ma, t]));
+    const dangMo = /^[^|]+\|.+$/.test(String(b.dangMo || '')) ? maHoi({ hop: b.dangMo.split('|')[0], id: b.dangMo.slice(b.dangMo.indexOf('|') + 1) }) : '';
+    const kq = await ai.hoiDap({
+      cauHoi,
+      lichSu: Array.isArray(b.lichSu) ? b.lichSu : [],
+      ds: muc,
+      dangMo,
+      homNay: new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 16).replace('T', ' '),
+      nguoi: n.ten || 'anh Hùng',
+      docThu: async (ma) => { const t = theoMa.get(ma); return t ? thu.doc(t.hop, t.id, n.tk) : null; },
+    });
+    /* Chỉ trả lại những thư câu trả lời có nhắc tới, để giao diện vẽ thành nút mở thư. */
+    const thuNhac = {};
+    for (const [, ma] of kq.chu.matchAll(/\[#([0-9a-f]{7})\]/g)) {
+      const t = theoMa.get(ma);
+      if (t) thuNhac[ma] = { hop: t.hop, id: t.id, tieuDe: t.tieuDe, tu: t.tu ? t.tu.ten || t.tu.email : '', daGui: Boolean(t.daGui) };
+    }
+    return json(res, { chu: kq.chu, thu: thuNhac, daMo: kq.daMo.length });
   }
 
   /* Thêm vào lịch Lark của chính người đang dùng. */

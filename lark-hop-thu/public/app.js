@@ -688,6 +688,7 @@ async function mo(k) {
   const t = timThu(k);
   if (!t) return;
   S.chon = k;
+  CHAT.vuaMo = k;
   S.ct = null;
   veDs();
   boAn('doc');                      // khung đọc đang đóng thì mở thư là mở lại
@@ -716,16 +717,10 @@ async function mo(k) {
   }
 }
 
-/* Phần bên phải khi chưa chọn thư. Máy tính luôn bày phần này để khuôn hai
- * cột đứng yên; điện thoại thì cột đọc ẩn hẳn. */
-function veDocTrong() {
-  $('#hangNut').innerHTML = '';
-  const o = $('#docSoan');
-  o.hidden = true; o.innerHTML = ''; o.dataset.k = '';
-  $('#docThan').innerHTML = '<div class="doc-trong">' +
-    '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M3.5 6.5L12 13l8.5-6.5"/></svg>' +
-    '<b>Chọn một thư bên trái để đọc</b><span>Trả lời, giao việc hay đánh dấu xong ngay trên thư.</span></div>';
-}
+/* Phần bên phải khi chưa chọn thư là ô Hỏi AI (03/11/2026, anh Hùng: "một ô
+ * dạng như chat để hỏi AI về các email"). Máy tính luôn bày phần này để khuôn
+ * hai cột đứng yên; điện thoại thì mở bằng nút Hỏi AI trên đầu trang. */
+function veDocTrong() { veChat(); }
 
 function dongDoc() {
   const cot = $('#cotDoc');
@@ -2138,6 +2133,176 @@ document.addEventListener('keydown', (e) => {
   else if (S.chon && laHep()) dongDoc();
 });
 addEventListener('resize', datVienTruot);
+
+/* ---------------- hỏi AI về thư ---------------- */
+
+/*
+ * Ô chat hỏi AI về thư trong hộp. Máy chủ đưa Claude danh mục thư (người gửi,
+ * tiêu đề, ngày, ngăn, trạng thái) và để Claude tự mở thư cần đọc kỹ; AI chỉ
+ * ĐỌC, không gửi hay đổi gì. Câu trả lời nhắc thư bằng mã [#abc1234], giao
+ * diện vẽ thành nút bấm mở đúng thư. Cuộc trò chuyện giữ trong phiên của tab.
+ */
+const KHOA_CHAT = 'hopThu.chat';
+const CHAT = {
+  ds: (() => { try { return JSON.parse(sessionStorage.getItem(KHOA_CHAT) || '[]').filter((x) => x.vai === 'hoi' || x.vai === 'dap'); } catch (_) { return []; } })(),
+  dang: false,
+  vuaMo: '',           // thư mở gần nhất: "thư này" trong câu hỏi
+};
+const luuChat = () => { try { sessionStorage.setItem(KHOA_CHAT, JSON.stringify(CHAT.ds.filter((x) => x.vai !== 'loi').slice(-40))); } catch (_) {} };
+
+const GOI_Y_HOI = [
+  'Hôm nay có thư nào cần trả lời gấp?',
+  'Khách nào đang chờ báo giá?',
+  'Ban giám đốc gửi gì tuần này?',
+  'Thư nào anh gửi mà chưa ai hồi âm?',
+];
+const IC_AI = '<path d="M12 3.5l1.9 5.1 5.1 1.9-5.1 1.9L12 17.5l-1.9-5.1L5 10.5l5.1-1.9z"/><path d="M18.5 15.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/>';
+const IC_GUI = '<path d="M12 19V5M6 11l6-6 6 6"/>';
+const IC_MOI = '<path d="M12 5v14M5 12h14"/>';
+
+/** Chữ AI trả lời → HTML: thoát hết, rồi mới dựng đậm, gạch đầu dòng và nút mở thư. */
+function veTraLoi(chu, thu) {
+  const nutThu = (ma) => {
+    const t = thu && thu[ma];
+    if (!t) return '';
+    const ten = String(t.tieuDe || '(không tiêu đề)').replace(/^\s*((re|fw|fwd|tl)\s*:\s*)+/i, '');
+    return '<button class="tc-thu" data-mo-thu="' + esc(t.hop + '|' + t.id) + '" title="' + esc((t.tu ? t.tu + ' · ' : '') + ten) + '">' +
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M3.5 6.5L12 13l8.5-6.5"/></svg>' +
+      '<span>' + esc(ten.length > 42 ? ten.slice(0, 40) + '…' : ten) + '</span></button>';
+  };
+  const dong = (s) => esc(s).replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>').replace(/\s*\[#([0-9a-f]{7})\]/g, (_, ma) => ' ' + nutThu(ma));
+  let h = '', ds = false;
+  for (const d of String(chu || '').split('\n')) {
+    const m = /^\s*[-•*]\s+(.*)$/.exec(d);
+    if (m) { if (!ds) { h += '<ul>'; ds = true; } h += '<li>' + dong(m[1]) + '</li>'; continue; }
+    if (ds) { h += '</ul>'; ds = false; }
+    h += d.trim() ? '<p>' + dong(d) + '</p>' : '';
+  }
+  return h + (ds ? '</ul>' : '');
+}
+
+function veTinChat(x, i) {
+  if (x.vai === 'hoi') {
+    return '<div class="bong di"><div class="vo-bong"><div class="than-bong" data-no-i18n>' + esc(x.chu).replace(/\n/g, '<br>') + '</div></div></div>';
+  }
+  const than = x.vai === 'cho'
+    ? '<div class="dang-nghi" aria-label="AI đang đọc thư"><i></i><i></i><i></i></div>'
+    : x.vai === 'loi'
+      ? '<span class="loi-bong">' + esc(x.chu) + '</span><button class="xem-het" data-hoi="lai" data-i="' + i + '">Hỏi lại</button>'
+      : '<div class="tra-loi-ai" data-no-i18n>' + veTraLoi(x.chu, x.thu) + '</div>';
+  return '<div class="bong den ai-chat"><span class="avt avt-ai" aria-hidden="true"><svg viewBox="0 0 24 24">' + IC_AI + '</svg></span>' +
+    '<div class="vo-bong"><div class="than-bong">' + than + '</div>' +
+    (x.vai === 'dap' && x.daMo ? '<span class="ghi-chat">Đã đọc kỹ ' + x.daMo + ' thư</span>' : '') + '</div></div>';
+}
+
+function veChat() {
+  $('#hangNut').innerHTML = '<span class="tieu-chat"><svg viewBox="0 0 24 24" aria-hidden="true">' + IC_AI + '</svg>Hỏi AI về thư</span>' +
+    (CHAT.ds.length ? '<button class="nut-tron moi-chat" data-hoi="moi" title="Cuộc trò chuyện mới" aria-label="Cuộc trò chuyện mới">' +
+      '<svg viewBox="0 0 24 24" aria-hidden="true">' + IC_MOI + '</svg></button>' : '');
+  const than = $('#docThan');
+  than.dataset.k = '#chat';
+  if (!CHAT.ds.length) {
+    than.innerHTML = '<div class="doc-trong chat-chao">' +
+      '<span class="avt-ai lon" aria-hidden="true"><svg viewBox="0 0 24 24">' + IC_AI + '</svg></span>' +
+      (S.ai
+        ? '<b>Hỏi gì về thư của anh cũng được</b><span>AI đọc các hộp anh được cấp, chỉ đọc, không gửi hay đổi thư nào.</span>' +
+          '<div class="goi-y-hoi">' + GOI_Y_HOI.map((g, i) => '<button class="nut" data-hoi="goi-y" data-i="' + i + '">' + esc(g) + '</button>').join('') + '</div>'
+        : '<b>Hỏi AI chưa bật</b><span>Máy chủ cần khoá Claude API (ANTHROPIC_API_KEY) thì mới hỏi được.</span>') +
+      '</div>';
+  } else {
+    than.innerHTML = '<div class="luong chat">' + CHAT.ds.map(veTinChat).join('') + '</div>';
+    than.scrollTop = than.scrollHeight;
+  }
+  const o = $('#docSoan');
+  o.hidden = false;
+  if (o.dataset.k !== '#chat' || !$('#oHoi')) {
+    o.dataset.k = '#chat';
+    o.innerHTML = '<div class="o-hoi">' +
+      '<textarea id="oHoi" rows="1" placeholder="Hỏi về thư của anh" aria-label="Câu hỏi cho AI"></textarea>' +
+      '<button class="nut-tron chinh" id="btnHoi" data-hoi="gui" title="Gửi câu hỏi" aria-label="Gửi câu hỏi">' +
+      '<svg viewBox="0 0 24 24" aria-hidden="true">' + IC_GUI + '</svg></button></div>' +
+      '<div class="ly-do ly-do-hoi" id="lyDoHoi"></div>';
+  }
+  capNhatNutHoi();
+}
+
+function capNhatNutHoi() {
+  const o = $('#oHoi');
+  if (!o) return;
+  o.disabled = !S.ai;
+  $('#btnHoi').disabled = !S.ai || CHAT.dang || !o.value.trim();
+  $('#lyDoHoi').textContent = !S.ai ? 'Chưa hỏi được: máy chủ chưa có khoá Claude API.' : '';
+  /* Ô một dòng, gõ dài thì cao dần tới 132px (nguyên tắc 24). */
+  o.style.height = 'auto';
+  if (o.value) o.style.height = Math.min(132, o.scrollHeight + 2) + 'px';
+}
+
+/** Mở ô Hỏi AI ở khung bên phải (điện thoại: trượt vào như mở thư). */
+function moChat() {
+  const cot = $('#cotDoc');
+  if (S.chon) { S.chon = ''; S.ct = null; veDs(); }
+  boAn('doc');
+  cot.classList.remove('dong-lai');
+  cot.hidden = false;
+  veChat();
+  if (S.ai && !laHep()) $('#oHoi').focus();
+}
+
+async function hoiAi(cau) {
+  cau = String(cau || '').trim();
+  if (!cau || CHAT.dang || !S.ai) return;
+  const lichSu = CHAT.ds.filter((x) => x.vai === 'hoi' || x.vai === 'dap').map((x) => ({ vai: x.vai, chu: x.chu }));
+  CHAT.ds.push({ vai: 'hoi', chu: cau }, { vai: 'cho' });
+  CHAT.dang = true;
+  if ($('#oHoi')) $('#oHoi').value = '';
+  if (!S.chon) veChat();
+  let tin;
+  try {
+    const r = await api('hoi-thu', { body: { cauHoi: cau, lichSu, dangMo: CHAT.vuaMo } });
+    tin = { vai: 'dap', chu: r.chu, thu: r.thu || {}, daMo: r.daMo || 0 };
+  } catch (e) {
+    tin = { vai: 'loi', chu: e.message || 'Chưa hỏi được, anh thử lại.', hoi: cau };
+  }
+  CHAT.dang = false;
+  const i = CHAT.ds.findIndex((x) => x.vai === 'cho');
+  if (i >= 0) CHAT.ds.splice(i, 1, tin); else CHAT.ds.push(tin);
+  luuChat();
+  if (!S.chon) veChat();
+  else bao(tin.vai === 'dap' ? 'AI đã trả lời, bấm Hỏi AI để xem' : tin.chu, tin.vai === 'dap' ? 'ok' : 'loi');
+}
+
+/** Mở thư AI vừa nhắc. Thư anh đã gửi thì mở luồng có thư đó. */
+function moThuTuChat(k) {
+  if (timThu(k)) { mo(k); return; }
+  const g = S.gui.find((x) => khoa(x) === k);
+  const t = g && S.thu.find((x) => x.hop === g.hop && maCd(x) === g.cd);
+  if (t) { mo(khoa(t)); return; }
+  bao('Thư này không còn trong danh sách (đã quá cũ hoặc vừa chuyển đi)', 'loi');
+}
+
+$('#cotDoc').addEventListener('click', (e) => {
+  const tc = e.target.closest('[data-mo-thu]');
+  if (tc) { moThuTuChat(tc.dataset.moThu); return; }
+  const b = e.target.closest('[data-hoi]');
+  if (!b) return;
+  const viec = b.dataset.hoi;
+  if (viec === 'gui') hoiAi($('#oHoi').value);
+  else if (viec === 'goi-y') hoiAi(GOI_Y_HOI[+b.dataset.i]);     // câu gốc, không lấy chữ đã dịch trên nút
+  else if (viec === 'moi') { if (CHAT.dang) return; CHAT.ds = []; luuChat(); veChat(); if ($('#oHoi') && !laHep()) $('#oHoi').focus(); }
+  else if (viec === 'lai') {
+    const x = CHAT.ds[+b.dataset.i];
+    if (!x || !x.hoi) return;
+    CHAT.ds.splice(+b.dataset.i - 1, 2);    // bỏ câu hỏi cũ và dòng lỗi, hỏi lại từ đầu
+    hoiAi(x.hoi);
+  }
+});
+$('#cotDoc').addEventListener('input', (e) => { if (e.target.id === 'oHoi') capNhatNutHoi(); });
+$('#cotDoc').addEventListener('keydown', (e) => {
+  if (e.target.id !== 'oHoi' || e.key !== 'Enter' || e.shiftKey || e.isComposing) return;
+  e.preventDefault();
+  hoiAi(e.target.value);
+});
+$('#btnHoiAi').addEventListener('click', moChat);
 
 /* ---------------- khởi động ---------------- */
 

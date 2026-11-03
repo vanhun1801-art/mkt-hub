@@ -750,3 +750,82 @@ svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width:
   .cau-truc dl.cap { grid-template-columns: fit-content(46%) minmax(0, 1fr); }
   .cau-truc dl.cap dt, .cau-truc dl.cap dd { padding: 7px 10px; }
 }
+
+/* ---------- Hỏi AI về thư (03/11/2026) ----------
+ * Ô chat nằm ở khung bên phải khi chưa mở thư. Câu hỏi bên phải màu thương
+ * hiệu, AI bên trái kèm dấu sao tím; thư AI nhắc tới là viên bấm mở được.
+ * Ô gõ một dòng cao bằng nút gửi tròn, gõ dài thì cao dần (nguyên tắc 24). */
+.topbar .hoi-ai { padding: 6px 14px; flex: none; }
+.topbar .hoi-ai svg { width: 16px; height: 16px; }
+.tieu-chat { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; font-size: 15px; }
+.tieu-chat svg { color: var(--tim); }
+.hang-nut .moi-chat { margin-left: auto; }
+
+.avt-ai {
+  flex: none; width: 30px; height: 30px; border-radius: 999px; display: grid; place-items: center;
+  background: color-mix(in srgb, var(--tim) 14%, var(--mat)); color: var(--tim);
+}
+.avt-ai svg { width: 16px; height: 16px; }
+.avt-ai.lon { width: 52px; height: 52px; margin-bottom: 4px; }
+.avt-ai.lon svg { width: 26px; height: 26px; stroke-width: 1.6; }
+.chat-chao { max-width: 520px; margin: 0 auto; }
+.goi-y-hoi { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 10px; }
+.goi-y-hoi .nut { white-space: normal; text-align: left; font-weight: 400; color: var(--chu-2); }
+@media (hover: hover) and (pointer: fine) { .goi-y-hoi .nut:hover { color: var(--chu); border-color: var(--chu-3); } }
+
+.luong.chat { padding-bottom: 4px; }
+.luong.chat .bong { animation: hien .26s var(--vao); }
+.bong.ai-chat .than-bong { background: var(--mat-2); }
+.tra-loi-ai { font-size: 14px; line-height: 1.6; }
+.tra-loi-ai p { margin: 0 0 6px; }
+.tra-loi-ai p:last-child, .tra-loi-ai ul:last-child { margin-bottom: 0; }
+.tra-loi-ai ul { margin: 2px 0 8px; padding-left: 18px; }
+.tra-loi-ai li { margin: 3px 0; }
+.tc-thu {
+  display: inline-flex; align-items: center; gap: 5px; vertical-align: baseline; max-width: 100%;
+  margin: 1px 0; padding: 1px 9px 1px 7px; border-radius: 999px; cursor: pointer;
+  border: 1px solid color-mix(in srgb, var(--xanh) 30%, transparent);
+  background: color-mix(in srgb, var(--xanh) 10%, var(--mat)); color: var(--xanh);
+  font-size: 12.5px; font-weight: 500; line-height: 1.6; transition: background .16s, transform .16s;
+}
+.tc-thu svg { width: 13px; height: 13px; flex: none; }
+.tc-thu span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tc-thu:hover { background: color-mix(in srgb, var(--xanh) 18%, var(--mat)); }
+.tc-thu:active { transform: scale(.96); }
+.ghi-chat { font-size: 12px; color: var(--chu-3); margin: 3px 4px 0; }
+
+/* AI đang đọc: ba chấm thở chậm, không nháy mạnh. */
+.dang-nghi { display: flex; gap: 5px; padding: 5px 2px; }
+.dang-nghi i { width: 7px; height: 7px; border-radius: 999px; background: var(--chu-3); animation: nghi 1.4s ease-in-out infinite; }
+.dang-nghi i:nth-child(2) { animation-delay: .18s; }
+.dang-nghi i:nth-child(3) { animation-delay: .36s; }
+@keyframes nghi { 0%, 100% { opacity: .25; transform: translateY(0); } 40% { opacity: .9; transform: translateY(-2px); } }
+@media (prefers-reduced-motion: reduce) { .dang-nghi i, .luong.chat .bong { animation: none; } .dang-nghi i { opacity: .6; } }
+
+.o-hoi { display: flex; align-items: flex-end; gap: 8px; }
+.o-hoi textarea {
+  flex: 1; min-width: 0; height: 38px; min-height: 38px; max-height: 132px; resize: none;
+  font: inherit; font-size: 14px; line-height: 20px; color: var(--chu);
+  background: var(--mat-2); border: 1px solid var(--vien); border-radius: 12px; padding: 8px 12px; outline: none;
+  transition: border-color .16s, background .16s;
+}
+.o-hoi textarea:focus { border-color: var(--xanh); background: var(--mat); }
+.o-hoi textarea:disabled { opacity: .6; }
+.o-hoi .nut-tron { width: 38px; height: 38px; }
+.nut-tron.chinh { background: var(--xanh); color: #fff; border-color: transparent; }
+.nut-tron.chinh:hover { background: var(--xanh); filter: brightness(1.07); color: #fff; }
+.nut-tron.chinh:disabled { opacity: .45; cursor: default; filter: none; transform: none; }
+.nut-tron.chinh svg { stroke-width: 2.2; }
+.ly-do-hoi { font-size: 12.5px; color: var(--chu-3); margin-top: 6px; }
+.ly-do-hoi:empty { display: none; }
+
+@media (max-width: 640px) {
+  .o-hoi textarea { font-size: 16px; }
+  .topbar .hoi-ai { width: 34px; height: 34px; padding: 0; justify-content: center; }
+  .topbar .hoi-ai span { display: none; }
+}
+/* Trong hub trên điện thoại, thanh tab kính và viên linh vật nổi ở đáy màn:
+ * ô gõ (Hỏi AI, cả ô trả lời thư) phải đứng trên mốc 132px (nguyên tắc 24). */
+@media (max-width: 640px) {
+  html.trong-hub .doc-soan { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 132px); }
+}
