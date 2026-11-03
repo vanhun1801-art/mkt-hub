@@ -83,8 +83,18 @@ Hub chỉ xin hai quyền này khi người dùng bấm "Cho phép" lúc thêm l
 | Social | mở Base → Share → thêm app |
 | Báo cáo & KPI | mở Base → Share → thêm app |
 | **Chỉnh ảnh & Edit video** | <https://rootytrip2.sg.larksuite.com/base/OzF9bSPkPamYQHsNcU8lmMVQgFb> → Share → thêm app |
+| **OTA Routine Hospitality** (tab Khách sạn Routine, từ 03/11/2026) | <https://rootytrip2.sg.larksuite.com/base/LoK6bSFptaMRFwsDnA8l5pKWg2e> → Share → thêm app |
 
-Thiếu bước này: lỗi `91403`. Cấp scope mà chưa phát hành version: lỗi `99991672`.
+Thiếu bước này: lỗi `91403`.
+
+### A2b. Bot đọc hộp pito@ cho tab Khách sạn Routine (03/11/2026)
+
+App Booking OTA tự đọc thư GoHost/Agoda trong `pito@routinehospitality.vn` mỗi 10 phút
+bằng **tenant token** (không qua Nối hộp thư của từng người). App cần quyền **ứng dụng**
+(tenant scope) `mail:user_mailbox.message:readonly`, `mail:user_mailbox.message.body:read`,
+`mail:user_mailbox.message.subject:read`, `mail:user_mailbox.message.address:read`, rồi
+Create Version → Publish, và hộp pito@ phải nằm trong phạm vi dữ liệu thư của app.
+Thiếu thì tab báo "Lần đọc thư gần nhất bị lỗi"; booking cũ trong Base vẫn hiện. Cấp scope mà chưa phát hành version: lỗi `99991672`.
 
 ### A2a. Base nào mở cho CẢ PHÒNG — khai bằng biến, không bằng nút
 
