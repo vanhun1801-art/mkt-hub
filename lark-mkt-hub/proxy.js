@@ -342,7 +342,7 @@ function chuyenTiep(req, res, mod, duongDan, nguoi) {
   /* Cookie nối hộp thư chỉ hub mở được; app con không cần thấy nó. */
   if (opts.headers.cookie) {
     opts.headers.cookie = String(opts.headers.cookie).split(';')
-      .filter((c) => c.trim().split('=')[0] !== 'hub_thu').join(';').trim();
+      .filter((c) => !/^hub_thu(_\d+)?$/.test(c.trim().split('=')[0])).join(';').trim();
     if (!opts.headers.cookie) delete opts.headers.cookie;
   }
   if (nguoi && nguoi.id) {

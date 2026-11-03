@@ -89,6 +89,14 @@ lark.listen(0, '127.0.0.1', async () => {
     const r1 = resGia();
     ok('đúng người thì xong', (await noi.nhanCode(r1, 'code-hung', HUNG)) === '');
     const c1 = cookieTu(r1);
+    /* Refresh token dài (Lark v2): một cookie ~4 KB là trình duyệt bỏ, nên phải cắt mảnh. */
+    const rDai = resGia();
+    noi._datCookie(rDai, 'ou_hung', { r: 'x'.repeat(6000), re: Date.now() + 86400000 });
+    const dongDai = [].concat(rDai.h['set-cookie']);
+    ok('token dài: mỗi cookie dưới 4 KB', dongDai.every((d) => d.length < 4000));
+    const ghep = dongDai.map((d) => d.split(';')[0]).filter((d) => !/=$/.test(d)).join('; ');
+    const moLai = noi._mo(noi._docCookie({ headers: { cookie: 'hub_session=x; ' + ghep } }));
+    ok('token dài: ghép mảnh đọc lại đúng', moLai && moLai.u === 'ou_hung' && moLai.r.length === 6000);
     ok('cookie HttpOnly, Secure, có hạn', /HttpOnly/.test(r1.h['set-cookie']) && /Secure/.test(r1.h['set-cookie']) && /Max-Age=\d+/.test(r1.h['set-cookie']));
     ok('cookie không chứa token dạng chữ rõ', c1 && !/r-1|a-ou_hung/.test(c1) && !/r-1/.test(Buffer.from(c1, 'base64url').toString('latin1')));
 

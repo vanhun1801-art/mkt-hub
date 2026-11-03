@@ -73,12 +73,23 @@ function mo(s) {
   } catch (_) { return null; }
 }
 
+/* Một cookie tối đa ~4 KB; vượt là trình duyệt lặng lẽ bỏ, không báo gì.
+ * Refresh token v2 của Lark dài, mã hoá xong có thể vượt mức đó (03/11/2026:
+ * nối xong quay về vẫn "chưa nối", lý do "trình duyệt chưa giữ phiên"). Nên
+ * chuỗi mã hoá được cắt thành vài mảnh: hub_thu, hub_thu_1, hub_thu_2, … */
+const MANH = 3800;
+const SO_MANH = 4;
+const tenManh = (i) => (i ? COOKIE + '_' + i : COOKIE);
+
 function docCookie(req) {
+  const co = {};
   for (const part of String(req.headers.cookie || '').split(';')) {
     const [k, ...v] = part.trim().split('=');
-    if (k === COOKIE) { try { return decodeURIComponent(v.join('=')); } catch (_) { return ''; } }
+    if (k === COOKIE || k.startsWith(COOKIE + '_')) co[k] = v.join('=');
   }
-  return '';
+  let s = '';
+  for (let i = 0; i < SO_MANH && co[tenManh(i)]; i++) s += co[tenManh(i)];
+  try { return decodeURIComponent(s); } catch (_) { return ''; }
 }
 
 /** Thêm một Set-Cookie, không đè cookie khác đã đặt trên cùng phản hồi. */
@@ -87,17 +98,24 @@ function themCookie(res, dong) {
   res.setHeader('Set-Cookie', [].concat(co || [], dong));
 }
 
+function dongCookie(ten, giaTri, giay) {
+  const parts = [ten + '=' + giaTri, 'Path=/', 'HttpOnly', 'SameSite=Lax', 'Max-Age=' + giay];
+  if (cfg.publicUrl.startsWith('https://')) parts.push('Secure');
+  return parts.join('; ');
+}
+
 function datCookie(res, u, s) {
   const giay = Math.max(60, Math.floor((s.re - Date.now()) / 1000));
-  const parts = [COOKIE + '=' + ma({ u, r: s.r, re: s.re }), 'Path=/', 'HttpOnly', 'SameSite=Lax', 'Max-Age=' + giay];
-  if (cfg.publicUrl.startsWith('https://')) parts.push('Secure');
-  themCookie(res, parts.join('; '));
+  const chuoi = ma({ u, r: s.r, re: s.re });
+  for (let i = 0; i < SO_MANH; i++) {
+    const manh = chuoi.slice(i * MANH, (i + 1) * MANH);
+    /* Mảnh thừa của lần trước (token cũ dài hơn) phải xoá, kẻo ghép nhầm. */
+    themCookie(res, dongCookie(tenManh(i), manh, manh ? giay : 0));
+  }
 }
 
 function xoaCookie(res) {
-  const parts = [COOKIE + '=', 'Path=/', 'HttpOnly', 'SameSite=Lax', 'Max-Age=0'];
-  if (cfg.publicUrl.startsWith('https://')) parts.push('Secure');
-  themCookie(res, parts.join('; '));
+  for (let i = 0; i < SO_MANH; i++) themCookie(res, dongCookie(tenManh(i), '', 0));
 }
 
 /* ---------------- gọi Lark ---------------- */
@@ -228,4 +246,4 @@ function ngat(req, res, nguoi) {
   xoaCookie(res);
 }
 
-module.exports = { COOKIE, SCOPE, SCOPE_LICH, urlHoiQuyen, nhanCode, tokenCho, ngat, _ma: ma, _mo: mo, _ram: ram };
+module.exports = { COOKIE, SCOPE, SCOPE_LICH, urlHoiQuyen, nhanCode, tokenCho, ngat, _ma: ma, _mo: mo, _ram: ram, _datCookie: datCookie, _docCookie: docCookie };
