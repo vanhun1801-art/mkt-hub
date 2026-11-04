@@ -261,7 +261,7 @@ async function docHetMot(n, ep, max, maxGui) {
 
 /*
  * Dò thư mới (04/11/2026, anh Hùng: "lôi email từ lark liên tục để ko bị
- * trễ"). Trang đang mở thì mỗi phút hỏi một lần. Chỉ đọc SO_DO thư mới nhất
+ * trễ"). Trang đang mở thì cứ 30 giây hỏi một lần. Chỉ đọc SO_DO thư mới nhất
  * của Hộp đến và Đã gửi mỗi hộp rồi ghép vào bản đệm, không đọc lại cả tám hộp
  * bốn thư mục: đọc cả thì chạm ngưỡng Lark (99991400 lúc 14:40 03/11).
  * Không đụng `luc` của bản đệm, để lượt đọc đủ vẫn tới hạn như cũ (thư bị lưu

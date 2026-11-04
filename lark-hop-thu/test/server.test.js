@@ -102,7 +102,7 @@ server.listen(0, '127.0.0.1', async () => {
     ok('đọc hai nhịp: nhịp đầu chưa đủ, ?du=1 trả bản đủ', nhip1.du === false && nhip2.du === true && nhip2.thu.length === 2);
     ok('sau khi đủ, lần đọc thường dùng luôn bản đủ', (await hoi('GET', '/api/thu')).j.du === true);
 
-    console.log('\nDò thư mới (mỗi phút khi trang mở)');
+    console.log('\nDò thư mới (30 giây một lần khi trang mở)');
     const soMax = [];
     const dsGoc = gia.danhSach;
     gia.danhSach = async (hop, max, tk, thuMuc) => { soMax.push(max + ':' + thuMuc); return dsGoc(hop, max, tk, thuMuc); };

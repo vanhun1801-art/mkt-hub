@@ -240,14 +240,16 @@ async function napDu() {
 }
 
 /* Dò thư mới (04/11/2026, anh Hùng: "lôi email từ lark liên tục để ko bị
- * trễ"): trang đang hiện trên màn hình thì mỗi phút hỏi máy chủ một lần, máy
- * chủ chỉ đọc vài thư mới nhất mỗi hộp. Tab bị ẩn thì thôi; quay lại tab sau
- * hơn 20 giây thì dò ngay. Lỗi thì im, nhịp sau dò lại. */
-const NHIP_DO = 60000;
-let doLuc = Date.now();
+ * trễ"): trang đang hiện trên màn hình thì cứ 30 giây (anh chốt 04/11, trước
+ * là một phút) hỏi máy chủ một lần, máy chủ chỉ đọc vài thư mới nhất mỗi hộp.
+ * 30 giây tính từ lúc lượt trước XONG, để Lark chậm thì các lượt không chồng
+ * lên nhau. Tab bị ẩn thì thôi; quay lại tab sau hơn 20 giây thì dò ngay.
+ * Lỗi thì im, nhịp sau dò lại. */
+const NHIP_DO = 30000;
+let doLuc = Date.now(), dangDo = false;
 async function doThuMoi() {
-  if (document.hidden || S.dangNap || dangNapDu || !S.luc) return;
-  doLuc = Date.now();
+  if (dangDo || document.hidden || S.dangNap || dangNapDu || !S.luc) return;
+  dangDo = true;
   try {
     const d = await api('thu?moi=1');
     if (S.dangNap || dangNapDu) return;            // lượt đọc đủ đang chạy sẽ vẽ bản mới hơn
@@ -258,8 +260,9 @@ async function doThuMoi() {
     ghiDem(d);
     if (d.moi > 0) bao(d.moi === 1 ? 'Có 1 thư mới' : 'Có ' + d.moi + ' thư mới', 'ok');
   } catch (_) { /* nhịp sau dò lại */ }
+  finally { dangDo = false; doLuc = Date.now(); }
 }
-setInterval(() => { if (Date.now() - doLuc >= NHIP_DO - 1000) doThuMoi(); }, 15000);
+setInterval(() => { if (Date.now() - doLuc >= NHIP_DO - 1000) doThuMoi(); }, 5000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden && Date.now() - doLuc > 20000) doThuMoi(); });
 
 /* Xếp bằng AI những thư luật chưa nhận, chạy nền sau khi danh sách đã hiện. */
