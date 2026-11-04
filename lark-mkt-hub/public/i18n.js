@@ -1470,6 +1470,8 @@
     [/^Đã lưu trữ: (.+)$/, 'Archived: $1'],
     [/^Hạn: (.+)$/, 'Due: $1'],
     [/^Đã đọc kỹ (\d+) thư$/, 'Read $1 messages in full'],
+    [/^Có 1 thư mới$/, '1 new message'],
+    [/^Có (\d+) thư mới$/, '$1 new messages'],
     [/^(.+) \(chính\)$/, '$1 (primary)'],
     [/^Thư từ (\S+) luôn vào$/, 'Mail from $1 always goes to'],
     [/^Luật anh đặt cho (\S+)$/, 'Your rule for $1'],

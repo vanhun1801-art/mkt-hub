@@ -101,6 +101,20 @@ server.listen(0, '127.0.0.1', async () => {
     const nhip2 = (await hoi('GET', '/api/thu?du=1')).j;
     ok('đọc hai nhịp: nhịp đầu chưa đủ, ?du=1 trả bản đủ', nhip1.du === false && nhip2.du === true && nhip2.thu.length === 2);
     ok('sau khi đủ, lần đọc thường dùng luôn bản đủ', (await hoi('GET', '/api/thu')).j.du === true);
+
+    console.log('\nDò thư mới (mỗi phút khi trang mở)');
+    const soMax = [];
+    const dsGoc = gia.danhSach;
+    gia.danhSach = async (hop, max, tk, thuMuc) => { soMax.push(max + ':' + thuMuc); return dsGoc(hop, max, tk, thuMuc); };
+    const khong = (await hoi('GET', '/api/thu?moi=1')).j;
+    ok('chưa có thư mới: moi = 0, vẫn đủ danh sách', khong.moi === 0 && khong.thu.length === 2 && khong.du === true);
+    ok('chỉ đọc vài thư mới nhất của Hộp đến và Đã gửi', soMax.length === 4 && soMax.every((x) => /^10:(INBOX|SENT)$/.test(x)), soMax.join(','));
+    THU.unshift({ hop: 'sales@rootytrip.com', id: 'cccccccccc==', ngay: '2026-11-04 08:00', tu: { ten: 'Khách', email: 'k@x.com' }, tieuDe: 'Hỏi tour', chuaDoc: true, sao: false, nhan: [] });
+    const co = (await hoi('GET', '/api/thu?moi=1')).j;
+    ok('có thư mới: báo số, ghép vào danh sách', co.moi === 1 && co.thu.length === 3 && co.thu.some((t) => t.id === 'cccccccccc=='));
+    ok('lần đọc thường sau đó cũng thấy thư mới', (await hoi('GET', '/api/thu')).j.thu.length === 3);
+    THU.shift();
+    gia.danhSach = dsGoc;
     ok('mới nhất trước', ds[0].id === 'bbbbbbbbbb==');
     const sep = ds.find((t) => t.id === 'aaaaaaaaaa==');
     ok('thư Ban giám đốc vào Cần trả lời, có cờ sep', sep.ngan === 'xu-ly' && sep.sep === true);

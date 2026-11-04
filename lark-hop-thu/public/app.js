@@ -238,6 +238,29 @@ async function napDu() {
   finally { dangNapDu = false; $('#btnLamMoi').classList.remove('quay'); }
 }
 
+/* Dò thư mới (04/11/2026, anh Hùng: "lôi email từ lark liên tục để ko bị
+ * trễ"): trang đang hiện trên màn hình thì mỗi phút hỏi máy chủ một lần, máy
+ * chủ chỉ đọc vài thư mới nhất mỗi hộp. Tab bị ẩn thì thôi; quay lại tab sau
+ * hơn 20 giây thì dò ngay. Lỗi thì im, nhịp sau dò lại. */
+const NHIP_DO = 60000;
+let doLuc = Date.now();
+async function doThuMoi() {
+  if (document.hidden || S.dangNap || dangNapDu || !S.luc) return;
+  doLuc = Date.now();
+  try {
+    const d = await api('thu?moi=1');
+    if (S.dangNap || dangNapDu) return;            // lượt đọc đủ đang chạy sẽ vẽ bản mới hơn
+    const cuon = $('#cotDs').scrollTop;
+    apDs(d);
+    ve();
+    $('#cotDs').scrollTop = cuon;
+    ghiDem(d);
+    if (d.moi > 0) bao(d.moi === 1 ? 'Có 1 thư mới' : 'Có ' + d.moi + ' thư mới', 'ok');
+  } catch (_) { /* nhịp sau dò lại */ }
+}
+setInterval(() => { if (Date.now() - doLuc >= NHIP_DO - 1000) doThuMoi(); }, 15000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden && Date.now() - doLuc > 20000) doThuMoi(); });
+
 /* Xếp bằng AI những thư luật chưa nhận, chạy nền sau khi danh sách đã hiện. */
 async function xepAi() {
   if (!S.ai || !S.thu.some((t) => t.nguon === 'mac-dinh')) return;

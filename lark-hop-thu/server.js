@@ -252,6 +252,55 @@ async function docHetMot(n, ep, max, maxGui) {
   return moi;
 }
 
+/*
+ * Dò thư mới (04/11/2026, anh Hùng: "lôi email từ lark liên tục để ko bị
+ * trễ"). Trang đang mở thì mỗi phút hỏi một lần. Chỉ đọc SO_DO thư mới nhất
+ * của Hộp đến và Đã gửi mỗi hộp rồi ghép vào bản đệm, không đọc lại cả tám hộp
+ * bốn thư mục: đọc cả thì chạm ngưỡng Lark (99991400 lúc 14:40 03/11).
+ * Không đụng `luc` của bản đệm, để lượt đọc đủ vẫn tới hạn như cũ (thư bị lưu
+ * trữ, xoá trên Lark chỉ lượt đó mới thấy). Chưa có bản đệm thì đọc như thường.
+ */
+const SO_DO = 10;
+const doDang = new Map();
+function docMoi(n) {
+  if (!dsDem.get(n.khoa)) return docHet(n, false).then((d) => Object.assign({ moi: 0 }, d));
+  if (!doDang.has(n.khoa)) doDang.set(n.khoa, docMoiMot(n).finally(() => doDang.delete(n.khoa)));
+  return doDang.get(n.khoa);
+}
+
+async function docMoiMot(n) {
+  const hop = await cacHop(n);
+  const viec = [];
+  for (const h of hop) {
+    for (const thuMuc of ['INBOX', 'SENT']) {
+      viec.push(async () => {
+        try { return { thuMuc, ds: await thu.danhSach(h.email, SO_DO, n.tk, thuMuc) }; } catch (e) {
+          if (e instanceof thu.LoiChuaNoi) throw e;
+          return null;                       // hộp này nhịp sau dò lại
+        }
+      });
+    }
+  }
+  /* Hai lượt một lúc: dò là việc nền, không cần nhanh, chỉ cần không bị chặn. */
+  const kq = (await songSong(viec, 2)).filter(Boolean);
+  const c = dsDem.get(n.khoa);              // bản đệm mới nhất: lượt đọc đủ có thể vừa xong trong lúc dò
+  if (!c) return docHet(n, false).then((d) => Object.assign({ moi: 0 }, d));
+  const k = (t) => t.hop + '|' + t.id;
+  /* Thư đã có thì thay bằng bản mới (trạng thái đọc, nhãn); thư chưa có thì thêm vào. */
+  const ghep = (cu, them) => {
+    const theoKhoa = new Map(them.map((t) => [k(t), t]));
+    const daCo = new Set(cu.map(k));
+    return them.filter((t) => !daCo.has(k(t))).concat(cu.map((t) => theoKhoa.get(k(t)) || t));
+  };
+  const den = [].concat(...kq.filter((x) => x.thuMuc === 'INBOX').map((x) => x.ds));
+  const gui = [].concat(...kq.filter((x) => x.thuMuc === 'SENT').map((x) => x.ds));
+  const daCo = new Set(c.ds.map(k));
+  const soMoi = den.filter((t) => !daCo.has(k(t))).length;
+  const sau = Object.assign({}, c, { ds: ghep(c.ds, den), gui: ghep(c.gui || [], gui), doLuc: Date.now() });
+  dsDem.set(n.khoa, sau);
+  return Object.assign({ moi: soMoi }, sau);
+}
+
 const NGAY_CHO = 21;                                   // thư gửi đi quá 21 ngày thì thôi theo dõi
 const msNgay = (s) => { const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d):(\d\d)/.exec(s || ''); return m ? Date.UTC(+m[1], m[2] - 1, +m[3], m[4] - 7, +m[5]) : 0; };
 
@@ -499,15 +548,17 @@ async function api(req, res, url) {
 
   if (p === '/api/thu' && m === 'GET') {
     const muonDu = url.searchParams.get('du') === '1';
-    const d = muonDu ? await docSau(n) : await docHet(n, url.searchParams.get('lam') === '1');
-    if (!d.du && !muonDu) docSau(n).catch((e) => console.error('[hop-thu] đọc sâu hỏng:', e.message));
+    const dho = url.searchParams.get('moi') === '1';      // nhịp dò thư mới của trang đang mở
+    const d = muonDu ? await docSau(n) : dho ? await docMoi(n) : await docHet(n, url.searchParams.get('lam') === '1');
+    if (!d.du && !muonDu && !dho) docSau(n).catch((e) => console.error('[hop-thu] đọc sâu hỏng:', e.message));
     const { ds, den, daGui, cho } = await ghepDs(n, d);
     /* Thư mình gửi thuộc chủ đề có thư đến: giao diện vẽ thành bong bóng bên
      * phải trong luồng hội thoại. */
     const coCd = new Set(den.map((t) => t.hop + '|' + t.cd));
     const gui = daGui.filter((g) => coCd.has(g.hop + '|' + g.cd))
       .map((g) => ({ hop: g.hop, id: g.id, chuoi: g.chuoi, cd: g.cd, ngay: g.ngay, tieuDe: g.tieuDe }));
-    return json(res, { luc: d.luc, thu: ds, cho, gui, nhom: kho.nhom(n.nguoi), loi: d.loi, du: Boolean(d.du), phu: d.phu || {} });
+    return json(res, { luc: Math.max(d.luc || 0, d.doLuc || 0), thu: ds, cho, gui, nhom: kho.nhom(n.nguoi), loi: d.loi, du: Boolean(d.du), phu: d.phu || {},
+      moi: d.moi || 0 });
   }
 
   /* Chữ ký: lần đầu gợi ý từ Lark Mail (máy có lark-cli), sau đó là bản người dùng tự sửa. */
