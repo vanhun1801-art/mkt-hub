@@ -89,7 +89,7 @@ Thiếu bước này: lỗi `91403`.
 
 ### A2b. Bot đọc hộp pito@ cho tab Khách sạn Routine (03/11/2026)
 
-App Booking OTA tự đọc thư GoHost/Agoda trong `pito@routinehospitality.vn` mỗi 5 phút
+App Booking OTA tự đọc thư GoHost/Agoda trong `pito@routinehospitality.vn` mỗi 1 phút (anh Hùng chốt 04/11/2026)
 bằng **tenant token** (không qua Nối hộp thư của từng người). App cần quyền **ứng dụng**
 (tenant scope) `mail:user_mailbox.message:readonly`, `mail:user_mailbox.message.body:read`,
 `mail:user_mailbox.message.subject:read`, `mail:user_mailbox.message.address:read`, rồi

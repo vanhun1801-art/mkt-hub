@@ -88,7 +88,7 @@ module.exports = {
      * (Render, chế độ api) tự đọc và báo nhóm: máy anh Hùng cũng chạy thì hai nơi
      * cùng tạo một đơn, cùng gửi một tin. */
     chuKyMs: Math.max(0, Number(process.env.ROUTINE_CHU_KY_MS ??
-      ((process.env.LARK_MODE || ((process.env.LARK_APP_ID && process.env.LARK_APP_SECRET) ? 'api' : 'cli')) === 'api' ? 300000 : 0))),
+      ((process.env.LARK_MODE || ((process.env.LARK_APP_ID && process.env.LARK_APP_SECRET) ? 'api' : 'cli')) === 'api' ? 60000 : 0))),
     /* Nhóm Lark nhận tin booking mới (Booking KS). Bot Marketing Hub phải ở trong nhóm. */
     nhomChatId: process.env.ROUTINE_NHOM_CHAT_ID ?? 'oc_e4ffee6b15cbf4458ae1e8c79521a293',
     baoNhom: process.env.ROUTINE_BAO_NHOM !== '0',
