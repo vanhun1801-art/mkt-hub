@@ -305,13 +305,12 @@ let dongBoVeLuc = 0;
 async function dongBoVe(viecPhong, dsLP) {
   if (Date.now() - dongBoVeLuc < 60000) return;
   dongBoVeLuc = Date.now();
-  const theoMa = new Map(dsLP.map((v) => [v.id, v]));
   const phut = (x) => { const g = x ? new Date(x).getTime() : 0; return isNaN(g) ? 0 : Math.round(g / 60000); };
   const khoiCach = (x) => String(x || '').replace(/\s+/g, ' ').trim();
   let doi = 0;
   for (const t of viecPhong) {
     const ma = String(t.maLienPhong || '').trim();
-    const v = ma && theoMa.get(ma);
+    const v = ma && LP.timTrong(dsLP, ma, t);
     if (!v) continue;
     const p = {};
     if (khoiCach(v.title) && khoiCach(v.title) !== khoiCach(t.title)) p.title = v.title;
@@ -1606,10 +1605,10 @@ async function api(req, res, url) {
     if (url.searchParams.get('lienPhong') === '1') {
       /* Phần việc nào đã hoàn thành và lưu về Base phòng thì bản ghi của phòng
        * thay chỗ nó (vẫn mang dấu ⇄ nhờ cột Mã liên phòng) — không hiện hai lần. */
-      const daLuu = new Set(viecPhong.map((t) => String(t.maLienPhong || '').trim()).filter(Boolean));
+      const daLuu = LP.daGan(viecPhong);
       const tatCaLP = await LP.docHet(lark, url.searchParams.get('refresh') === '1');
       dongBoVe(viecPhong, tatCaLP).catch((e) => console.error('  [liên phòng] đồng bộ về hỏng: ' + e.message));
-      const lp = LP.lienQuan(tatCaLP, viecPhong).filter((v) => !daLuu.has(v.id));
+      const lp = LP.lienQuan(tatCaLP, viecPhong).filter((v) => !daLuu(v));
       tasks = tasks.concat(await visibleFor(lp, req));
     }
     return json(res, { tasks, fetchedAt: cache.at, lienPhongLoi: LP.loi() || undefined });
@@ -1677,8 +1676,8 @@ async function api(req, res, url) {
     /* Việc liên phòng do chính mình giao (chỉ đọc) — xem cùng chỗ với việc đã order. */
     if (url.searchParams.get('lienPhong') === '1') {
       const tatCa = records.map(toTask);
-      const daLuu = new Set(tatCa.map((t) => String(t.maLienPhong || '').trim()).filter(Boolean));
-      const lp = LP.lienQuan(await LP.docHet(lark), tatCa).filter((v) => !daLuu.has(v.id));
+      const daLuu = LP.daGan(tatCa);
+      const lp = LP.lienQuan(await LP.docHet(lark), tatCa).filter((v) => !daLuu(v));
       tasks = tasks.concat(lp.filter((t) => t.requester.some((u) => u && u.id === me.id)));
     }
     /* ?gan=1: CHỈ Bảng công việc xin thêm việc mình được gắn @ trong Trao đổi

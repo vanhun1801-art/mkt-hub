@@ -352,7 +352,43 @@ const goTep = async (lark, v, token, dinhKem) => {
 };
 const taiVe = (lark, v, token, slug) => lark.downloadAttachment(v.nguonRec, token, slug, NGUON.table, NGUON.base);
 /** Tìm việc liên phòng theo mã (mã riêng từng người). */
-async function tim(lark, id) { return (await docHet(lark)).find((v) => v.id === id) || null; }
+/* Đuôi mã riêng lấy từ open_id, mà open_id KHÁC nhau theo từng app Lark: Hub trên
+ * Render và lark-cli trên máy là hai app, nên cùng một người ra hai đuôi khác nhau
+ * (04/11/2026: 26 việc gắn từ máy bị hiện trùng trên Render). Mã không khớp thẳng
+ * thì so theo bản ghi công ty + tên người nhận, việc một người nhận thì theo bản ghi. */
+const banGhiCuaMa = (ma) => String(ma || '').trim().replace(/x(?:[A-Za-z0-9]{12}|khuyet)$/, '');
+const tenChuan = (s) => String(s || '').normalize('NFC').trim().toLowerCase();
+const khoaGhep = (rec, ten) => rec + '|' + tenChuan(ten);
+
+/** ds việc liên phòng + mã (+ việc phòng đang giữ mã, nếu có) → đúng một việc, hoặc null. */
+function timTrong(ds, ma, t) {
+  const m = String(ma || '').trim();
+  if (!m) return null;
+  const dung = ds.find((v) => v.id === m);
+  if (dung) return dung;
+  const rec = banGhiCuaMa(m);
+  if (rec === m) return null;
+  const cung = ds.filter((v) => v.nguonRec === rec);
+  if (cung.length === 1) return cung[0];
+  const ten = new Set(((t && t.owner) || []).map((u) => tenChuan(u && u.name)).filter(Boolean));
+  const theoTen = cung.filter((v) => (v.owner || []).some((u) => ten.has(tenChuan(u.name))));
+  return theoTen.length === 1 ? theoTen[0] : null;
+}
+
+/** Việc phòng → hàm hỏi "việc liên phòng này đã có bản trong Base phòng chưa". */
+function daGan(viecPhong) {
+  const ma = new Set();
+  const khoa = new Set();
+  for (const t of viecPhong) {
+    const m = String(t.maLienPhong || '').trim();
+    if (!m) continue;
+    ma.add(m);
+    for (const u of t.owner || []) if (u && u.name) khoa.add(khoaGhep(banGhiCuaMa(m), u.name));
+  }
+  return (v) => ma.has(v.id) || (v.owner || []).some((u) => u && khoa.has(khoaGhep(v.nguonRec, u.name)));
+}
+
+async function tim(lark, id) { return timTrong(await docHet(lark), id); }
 
 module.exports = { docHet, lienQuan, sangViec, tachTheoNguoi, maRieng, NGUON, bat, loi: () => dem.loi,
-  batDau, nop, capNhat, suaNguoiGiao, UU_TIEN_GOC, taiLen, goTep, taiVe, tim, quen };
+  batDau, nop, capNhat, suaNguoiGiao, UU_TIEN_GOC, taiLen, goTep, taiVe, tim, timTrong, daGan, quen };

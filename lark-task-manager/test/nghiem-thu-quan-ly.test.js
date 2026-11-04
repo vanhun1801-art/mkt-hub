@@ -29,7 +29,7 @@ async function orders({ manager = false, guest = false, query = '?nghiemThu=1', 
     laKhach: () => guest, isManager: async () => manager,
     DONG_HAN: ['Hoàn thành', 'Hủy'], cache: { at: 1 },
     json: (_res, data) => data,
-    LP: { docHet: async () => [], lienQuan: () => [] }, lark: {},
+    LP: { docHet: async () => [], lienQuan: () => [], daGan: require('../lien-phong').daGan }, lark: {},
   });
   return vm.runInContext('(async () => {\n' + sv.slice(start, end) + '\n})()', ctx);
 }
