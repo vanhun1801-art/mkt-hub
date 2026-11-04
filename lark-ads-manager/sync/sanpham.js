@@ -85,18 +85,22 @@ function soTien(v) {
   return Number.isFinite(n) && String(v).match(/\d/) ? n : null;
 }
 
-const KHOA_TIEN_DV = ['total_payment', 'total_price', 'total_amount', 'total', 'revenue',
-  'price_out', 'selling_price', 'amount'];
-
-/** Tiền bán của một dịch vụ trong đơn Tourwell thô. null nếu không đọc được. */
+/**
+ * Tiền bán của một dịch vụ trong đơn Tourwell thô = cộng `grand_total` mọi dòng
+ * giá của nó. null nếu không có dòng giá nào đọc được.
+ *
+ * KHÔNG dùng `financial_summary.total_amount`: đo 04/11/2026 trên RT18228 và
+ * RT18277 nó bằng 0 ở mọi dịch vụ. Cộng grand_total thì khớp đúng tổng đơn
+ * (RT18228: 24,1 + 5,1 + 6,0 = 35,2 triệu = total_payment).
+ */
 function tienDichVu(s) {
-  const fs = s && s.financial_summary;
-  if (!fs || typeof fs !== 'object') return null;
-  for (const k of KHOA_TIEN_DV) {
-    const x = soTien(fs[k]);
-    if (x != null) return x;
-  }
-  return null;
+  const ps = Array.isArray(s && s.prices) ? s.prices : [];
+  let co = false, tong = 0;
+  ps.forEach((p) => {
+    const x = soTien(p && p.grand_total);
+    if (x != null) { co = true; tong += x; }
+  });
+  return co ? tong : null;
 }
 
 /**
@@ -109,7 +113,13 @@ function dichVuTuDonTho(r) {
   return (Array.isArray(r && r.services) ? r.services : []).map((s) => {
     const it = (s && s.item_info) || {};
     const si = (s && s.service_info) || {};
-    const ten = chu(it.description) || chu(it.name)
+    /* Mã nằm ở chỗ khác nhau tuỳ loại dịch vụ (đo 04/11/2026):
+     *   tour ghép: name = "*G4 - TOUR GHÉP…", description = "Tour ghép khách"
+     *   combo:     name = "Combo du lịch",   description = "*CB3N - …"
+     *   khách sạn: name = "Khách sạn tại Việt Nam", description = "Tên khách sạn PITO…"
+     * Nên lấy ô nào mang mã trước, không có thì description. */
+    const ung = [it.tour_info && it.tour_info.name, it.name, it.description].map(chu).filter(Boolean);
+    const ten = ung.find((x) => maTuTen(x)) || chu(it.description) || chu(it.name)
       || chu(s && s.prices && s.prices[0] && s.prices[0].object && s.prices[0].object.title)
       || chu(si.name);
     const dv = { loai: chu(si.name), ten, tien: tienDichVu(s) };

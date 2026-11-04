@@ -39,20 +39,34 @@ console.log('— tên khách sạn');
 t('vé máy bay không có khoá', sp.khoaDichVu({ loai: 'Vé máy bay', ten: 'Vé máy bay' }).khoa === '');
 
 console.log('— đọc đơn Tourwell thô');
+/* Hình dạng THẬT, chép từ RT18228 và RT18277 (đọc API 04/11/2026). Bẫy đã gặp:
+ * tour ghép để mã ở item_info.name, description chỉ là "Tour ghép khách";
+ * financial_summary.total_amount bằng 0 ở mọi dịch vụ. */
+const fs0 = { total_amount: 0, total_amount_cost: 0, total_amount_profit: '5,555,556' };
 const tho = {
   services: [
-    { service_info: { name: 'Combo du lịch' }, item_info: { description: '*CB3N - DỊCH VỤ THAM QUAN TRỌN GÓI' },
-      financial_summary: { total_payment: { base: 20000000 } } },
-    { service_info: { name: 'Khách sạn' }, item_info: { description: 'Tên khách sạn PITO HOTEL HÒN THƠM' },
-      financial_summary: { total_payment: '7,200,000' } },
+    { service_info: { name: 'Combo du lịch' }, financial_summary: fs0,
+      item_info: { name: 'Combo du lịch', description: '*CB3N - DỊCH VỤ THAM QUAN TRỌN GÓI' },
+      prices: [{ object: { title: 'DỊCH VỤ THAM QUAN TRỌN GÓI 3N2Đ' }, grand_total: { original: '24,100,000', forex: 0 } },
+        { object: { title: 'NGƯỜI LỚN' }, grand_total: { original: '0', forex: 0 } }] },
+    { service_info: { name: 'Khách sạn' }, financial_summary: fs0,
+      item_info: { name: 'Khách sạn tại Việt Nam', description: 'Tên khách sạn PITO HOTEL HÒN THƠM' },
+      prices: [{ object: { title: 'DỊCH VỤ ĐẶT PHÒNG KHÁCH SẠN PITO' }, grand_total: { original: '6,000,000', forex: 0 } }] },
+    { service_info: { name: 'Tour ghép lẻ' }, financial_summary: fs0,
+      item_info: { name: '*G4 - TOUR GHÉP THAM QUAN ĐẢO BẰNG CANO', description: 'Tour ghép khách',
+        tour_info: { code: 'TD21884', name: '*G4 - TOUR GHÉP THAM QUAN ĐẢO BẰNG CANO' } },
+      prices: [{ object: { title: 'Người lớn' }, grand_total: { original: '2,100,000', forex: 0 } },
+        { object: { title: 'Trẻ em (1m < 1m4)' }, grand_total: { original: '350,000', forex: 0 } }] },
     { service_info: { name: 'Vé máy bay' }, item_info: {} },
   ],
 };
 const dv = sp.dichVuTuDonTho(tho);
-t('ba dịch vụ', dv.length === 3, dv.length);
-t('CB3N có mã và tiền', dv[0].khoa === 'CB3N' && dv[0].tien === 20000000, JSON.stringify(dv[0]));
-t('PITO là khách sạn, tiền chuỗi đọc được', dv[1].khoa === 'PITO' && dv[1].kieu === 'ks' && dv[1].tien === 7200000, JSON.stringify(dv[1]));
-t('không có financial_summary thì tiền là null, không phải 0', dv[2].tien === null);
+t('bốn dịch vụ', dv.length === 4, dv.length);
+t('CB3N có mã, tiền = cộng grand_total', dv[0].khoa === 'CB3N' && dv[0].tien === 24100000, JSON.stringify(dv[0]));
+t('PITO là khách sạn, tiền 6 triệu', dv[1].khoa === 'PITO' && dv[1].kieu === 'ks' && dv[1].tien === 6000000, JSON.stringify(dv[1]));
+t('tour ghép lấy mã G4 từ item_info.name', dv[2].khoa === 'G4' && dv[2].tien === 2450000, JSON.stringify(dv[2]));
+t('total_amount = 0 không bị đọc thành tiền 0', dv[0].tien !== 0);
+t('không có dòng giá thì tiền là null, không phải 0', dv[3].tien === null);
 t('không bao giờ ra [object Object]', !JSON.stringify(dv).includes('[object'));
 
 console.log('— đoán sản phẩm từ tên quảng cáo');
