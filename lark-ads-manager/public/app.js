@@ -1876,6 +1876,33 @@ async function roasVe() {
   if (RS.kq) roasBang();
 }
 
+/* Ô "Đúng sản phẩm" của bảng ROAS từng quảng cáo — xem sync/sanpham.js.
+ * Trả lời hai câu: bao nhiêu đơn mua đúng thứ quảng cáo bán, và khách thật ra
+ * mua gì. Anh Hùng phải lên Tourwell soát tay mới thấy quảng cáo PITO ra bốn
+ * đơn mà không đơn nào có PITO (04/11/2026). */
+function oDungSP(x, ty) {
+  const s = x.sanPham;
+  if (!s) return '—';
+  const muaGi = (s.muaGi || []).slice(0, 3).map((m) => `${esc(m.khoa)} ×${int(m.so)}`).join(', ')
+    + ((s.muaGi || []).length > 3 ? '…' : '');
+  const dongMua = muaGi ? `<span class="sub-line">Khách mua: ${muaGi}</span>` : '';
+  if (!s.tuKhoa || !s.tuKhoa.length) {
+    return `<span class="tag warn">chưa biết bán gì</span>
+      <span class="sub-line">Nối sản phẩm cho chiến dịch trên Base</span>${dongMua}`;
+  }
+  const trung = s.dung + s.kem;
+  const mau = trung ? (s.khac ? 'warn' : 'good') : 'bad';
+  const chiTiet = [s.dung ? `${int(s.dung)} đúng` : '', s.kem ? `${int(s.kem)} có kèm` : '',
+    s.khac ? `${int(s.khac)} mua thứ khác` : '', s.khongRo ? `${int(s.khongRo)} chưa rõ` : '']
+    .filter(Boolean).join(' · ');
+  const tien = trung
+    ? ` · ${vnd(s.tienDung)}${s.tienDungDu ? '' : '+'}${x.roasDungSP != null ? ' · ROAS ' + ty(x.roasDungSP) : ''}`
+    : '';
+  return `<span class="tag ${mau}">${int(trung)}/${int(x.don)} đơn</span>
+    <span class="sub-line">${chiTiet}${tien}</span>
+    <span class="sub-line">Sản phẩm: ${s.tuKhoa.map(esc).join(', ')}${s.nguon === 'doan' ? ' (tự đoán)' : ''}</span>${dongMua}`;
+}
+
 function roasBang() {
   const r = RS.kq;
   const el = $('#rsKetQua');
@@ -1939,8 +1966,11 @@ function roasBang() {
       { key: 'don', label: 'Đơn', num: true, render: (x) => int(x.don) },
       { key: 'tien', label: 'Doanh thu', num: true, render: (x) => `<b>${vnd(x.tien)}</b>` },
       { key: 'roas', label: 'ROAS', num: true, render: (x) => `<span class="tag ${mauRoas(x.roas)}">${ty(x.roas)}</span>` },
+      { key: 'dungSP', label: 'Đúng sản phẩm', render: (x) => oDungSP(x, ty) },
       { key: 'treTB', label: 'Trễ TB', num: true, render: (x) => (x.treTB == null ? '—' : x.treTB + ' ngày') },
-    ], r.rows, { sort: { key: 'tien', dir: 'desc' }, empty: 'Không ghép được dòng nào' })}</div>
+    ], r.rows.map((x) => ({ ...x,
+      dungSP: x.sanPham ? x.sanPham.dung + x.sanPham.kem : -1 })),
+    { sort: { key: 'tien', dir: 'desc' }, empty: 'Không ghép được dòng nào' })}</div>
 
     <div class="help" style="margin-top:12px">
       <b>Đọc con số này cho đúng.</b> ROAS chia cho <b>toàn bộ</b> chi tiêu của kênh, nhưng doanh thu
@@ -1948,6 +1978,13 @@ function roasBang() {
       Cột <b>Phủ</b> cho biết bao nhiêu phần chi tiêu có ghép được.
       <br>Dòng <b>khoá cứng</b> đi qua đơn POS mang cả <code>ad_id</code> lẫn mã lead, không phải đoán.
       Dòng <b>số điện thoại</b> yếu hơn: một số có thể thuộc nhiều lead.
+      <br><b>Đúng sản phẩm</b> đếm đơn có mua sản phẩm quảng cáo đó bán, so theo mã trên đơn Tourwell
+      (G4, CB1N…) và tên khách sạn (PITO…). Cột <b>Doanh thu</b> vẫn cộng mọi đơn của khách đến từ
+      quảng cáo, kể cả khi khách mua thứ khác. Sản phẩm của quảng cáo lấy từ cột <i>Sản phẩm &amp; Tour</i>
+      của chiến dịch trên Base; cột đó trống thì đoán từ tên chiến dịch và ghi rõ là tự đoán.
+      Số tiền có dấu <b>+</b> là còn đơn có kèm mà Tourwell không cho tách tiền từng dịch vụ.
+      ${r.tong && r.tong.tienDungSP != null ? `<br>Tiền bán đúng sản phẩm quảng cáo cả kỳ:
+        <b>${vnd(r.tong.tienDungSP)}</b> trên ${vnd(r.tong.tien)} doanh thu ghi công.` : ''}
       ${r.donKhongGhep && r.donKhongGhep.so ? `<br>Còn <b>${int(r.donKhongGhep.so)} đơn</b>
         (${vnd(r.donKhongGhep.tien)}) không ghép được về quảng cáo nào, phần lớn là khách không đến từ quảng cáo.` : ''}
       ${r.nhat && r.nhat.nhapNhangHoiThoai ? `<br>${int(r.nhat.nhapNhangHoiThoai)} hội thoại mang nhiều

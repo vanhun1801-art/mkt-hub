@@ -396,3 +396,13 @@ Anh Hùng: "kế toán đang có nhu cầu in mấy cái này, bổ sung vào c�
 - PDF dựng từng trang thành ảnh bằng pdf.js (cdnjs, chỉ nạp khi có PDF; worker dựng từ blob vì khác origin). Link Drive cũ và tệp không phải ảnh/PDF thì bỏ qua và **nói ra là bỏ mấy tệp**; tệp tải hỏng vẫn có một trang ghi lý do, không lặng lẽ thiếu.
 - **Quá 40 tệp thì hỏi trước** ("In 210 chứng từ?"), vì giấy in ra là thật.
 - In bằng khung ẩn riêng (`#khungIn`), không in cả trang app.
+
+## 29. Doanh thu quảng cáo phải tách "đúng sản phẩm" (04/11/2026, Quảng cáo)
+
+Anh Hùng soát tay trên Tourwell: bốn đơn ghi cho quảng cáo PITO không đơn nào có PITO. Khách bấm quảng cáo PITO rồi mua tour khác.
+
+- **Doanh thu ghi công giữ nguyên nghĩa**: mọi đơn của khách đến từ quảng cáo. Cạnh nó luôn có cột **Đúng sản phẩm**: bao nhiêu đơn mua đúng thứ quảng cáo bán, tiền của phần đúng, ROAS đúng sản phẩm, và khách thật ra mua gì.
+- Nhận sản phẩm trong đơn bằng **mã trước dấu gạch** (`*G4 - …` → G4) và **tên khách sạn** (`Tên khách sạn PITO HOTEL…` → PITO). Khách sạn không có mã; sales bán PITO bằng CB3N + một dòng khách sạn.
+- Sản phẩm của quảng cáo lấy từ cột **Sản phẩm & Tour** của chiến dịch trên Base quảng cáo. Trống thì đoán từ tên chiến dịch, nhóm, quảng cáo và **ghi rõ "tự đoán"**.
+- Đơn có kèm sản phẩm khác chỉ cộng tiền dịch vụ đúng; không tách được tiền thì hiện dấu **+**, không bịa số.
+- Mã ở `lark-ads-manager/sync/sanpham.js`, test `test/san-pham-dung.test.js`.

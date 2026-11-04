@@ -27,6 +27,7 @@
  * không phải biết dữ liệu đến từ đường nào.
  */
 const { request, scrub, hideSecret } = require('./http');
+const sanPham = require('./sanpham');
 
 const NHAN = 'Tourwell';
 const MOI_TRANG = 100;      // xin nhiều nhất có thể, máy chủ tự cắt nếu vượt
@@ -376,6 +377,9 @@ async function docDon(conf, from, to, log = () => {}) {
     trangThai: chu(lay(r, 'status')),
     ban: (Array.isArray(r.sales_person) ? r.sales_person : [])
       .map((s) => chu(lay(s, 'name'))).filter(Boolean).join(', '),
+    /* Khách mua GÌ — để biết đơn ghi cho quảng cáo có đúng sản phẩm quảng cáo
+     * đó bán không (sync/sanpham.js). Bản Excel không có cột này. */
+    dichVu: sanPham.dichVuTuDonTho(r),
   })).filter((r) => r.ma);
   return { rows, khoaThay, tuApi: true };
 }

@@ -35,6 +35,7 @@
 
 const { chuanTen } = require('./pancake');
 const { docMaQC } = require('./noiquangcao');
+const sanPham = require('./sanpham');
 
 /* Hội thoại phải sinh ra lead trong BAO NHIÊU NGÀY thì mới coi là nó sinh ra.
  *
@@ -177,7 +178,7 @@ function tinh({ posRows = [], hoiThoaiRows = [], leadRows = [], donRows = [], da
 
   const layO = (adId, duong) => {
     const k = `${adId}|${duong}`;
-    if (!theoAd.has(k)) theoAd.set(k, { adId, duong, lead: 0, don: 0, tien: 0, thu: 0, treTong: 0 });
+    if (!theoAd.has(k)) theoAd.set(k, { adId, duong, lead: 0, don: 0, tien: 0, thu: 0, treTong: 0, dsDon: [] });
     return theoAd.get(k);
   };
 
@@ -199,6 +200,7 @@ function tinh({ posRows = [], hoiThoaiRows = [], leadRows = [], donRows = [], da
         hoiThoaiId: hoiThoaiId || '',
       });
       o.don += 1;
+      o.dsDon.push(d);
       /* ÉP SỐ. Một đơn thiếu ô tiền làm `o.tien` thành NaN, NaN lan ra tổng, rồi
        * JSON.stringify biến NaN thành `null` — nên màn hình hiện trống chứ không
        * báo gì, và không ai biết con số đã chết. Bắt được 07/10/2026 lúc soát. */
@@ -423,11 +425,45 @@ function tinh({ posRows = [], hoiThoaiRows = [], leadRows = [], donRows = [], da
     lyDoTheoDon.set(String(d.ma), 'lead-chua-ghep-qc');
   });
 
+  /* ---------- đơn có mua ĐÚNG sản phẩm quảng cáo bán không ----------
+   * Xem sync/sanpham.js. Không đổi một đồng nào của các cột ở trên: "doanh thu"
+   * vẫn là mọi đơn khách đó mua. Đây là con số thứ hai đứng cạnh. */
+  const tdSP = sanPham.tuDien(donRows, data.products || []);
+  const spTheoQC = sanPham.sanPhamTheoQC(data, tdSP);
+  const xepTheoDon = new Map();   // mã đơn → kết quả xepDon
+  const tomSP = (o) => {
+    const sp = spTheoQC.get(String(o.adId)) || { tuKhoa: [], nguon: '' };
+    const dem = { dung: 0, kem: 0, khac: 0, 'khong-ro': 0, 'chua-khai': 0 };
+    let tienDung = 0;
+    let tienDungDu = true;   // mọi đơn "kèm" đều tách được tiền
+    const muaGi = new Map();
+    o.dsDon.forEach((d) => {
+      const x = sanPham.xepDon(d, sp.tuKhoa);
+      xepTheoDon.set(String(d.ma), x);
+      dem[x.nhom] += 1;
+      if (x.nhom === 'dung' || x.nhom === 'kem') {
+        if (x.tienDung == null) tienDungDu = false;
+        else tienDung += x.tienDung;
+      }
+      x.khoa.forEach((k) => muaGi.set(k, (muaGi.get(k) || 0) + 1));
+    });
+    return {
+      tuKhoa: sp.tuKhoa, nguon: sp.nguon,
+      dung: dem.dung, kem: dem.kem, khac: dem.khac,
+      khongRo: dem['khong-ro'], chuaKhai: dem['chua-khai'],
+      tienDung, tienDungDu,
+      muaGi: [...muaGi.entries()].sort((a, b) => b[1] - a[1]).map(([khoa, so]) => ({ khoa, so })),
+    };
+  };
+
   /* ---------- bảng ---------- */
   const rows = [...theoAd.values()].map((o) => {
     const a = adTheoExt.get(String(o.adId)) || {};
     const spend = chiAd.get(String(o.adId)) || 0;
+    const sp = tomSP(o);
     return {
+      sanPham: sp,
+      roasDungSP: spend && sp.tuKhoa.length ? sp.tienDung / spend : null,
       adId: o.adId,
       ten: a.name || '',
       coTrongBase: !!a.name,
@@ -489,14 +525,20 @@ function tinh({ posRows = [], hoiThoaiRows = [], leadRows = [], donRows = [], da
       lead: rows.reduce((a, r) => a + r.lead, 0),
       roas: tongChiKy ? tongTien / tongChiKy : null,
       roasThu: tongChiKy ? tongThu / tongChiKy : null,
+      /* Tiền bán đúng sản phẩm quảng cáo, chỉ trên các quảng cáo đã biết bán gì. */
+      tienDungSP: rows.reduce((a, r) => a + (r.sanPham.tuKhoa.length ? r.sanPham.tienDung : 0), 0),
+      donDungSP: rows.reduce((a, r) => a + r.sanPham.dung + r.sanPham.kem, 0),
+      donChuaKhaiSP: rows.reduce((a, r) => a + r.sanPham.chuaKhai, 0),
     },
     nhat,
     /* Kèm tên và nền tảng để người gọi không phải tự tra lại — và để chỉ có MỘT
      * chỗ định nghĩa "đơn này thuộc kênh nào". */
     ghiCongDon: [...ghiCongDon.entries()].map(([ma, g]) => {
       const a = adTheoExt.get(String(g.adId)) || {};
+      const x = xepTheoDon.get(ma);
       return { ma, adId: g.adId, ten: a.name || '', nenTang: a.platform || '',
-        duong: g.duong, maLead: g.maLead, leadId: g.leadId, hoiThoaiId: g.hoiThoaiId || '' };
+        duong: g.duong, maLead: g.maLead, leadId: g.leadId, hoiThoaiId: g.hoiThoaiId || '',
+        khopSP: x ? x.nhom : '', khoaSP: x ? x.khoa : [] };
     }),
     donKhongGhep: {
       so: donRows.length - daDungDon.size,
