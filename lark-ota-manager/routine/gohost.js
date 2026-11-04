@@ -200,6 +200,11 @@ function docAgoda(tieuDe, than) {
   o.traPhong = ngayAgoda(sauNhan(dong, 'Trả phòng'));
   const nguoi = /(\d+)\s*Adults?(?:\s*,?\s*(\d+)\s*Child)?/i.exec(s);
   if (nguoi) { o.nguoiLon = Number(nguoi[1]); o.treEm = Number(nguoi[2] || 0); }
+  /* Loại phòng đứng ngay sau tiêu đề cột "Số Giường Thêm :" của bảng phòng; gói giá
+   * (kèm vé cáp treo hay không) ở dòng "Tên chính sách giá: …". Lễ tân cần cả hai. */
+  o.loaiPhongOta = sauNhan(dong, 'Số Giường Thêm :');
+  const goi = /Tên chính sách giá:\s*(.+)/.exec(s);
+  if (goi) o.goiGia = goi[1].replace(/\(\s*\)\s*$/, '').trim();
   const yc = s.split(/khi khách hàng nhận phòng\.\s*\r?\n\s*\)\s*/)[1];
   if (yc) o.yeuCau = yc.split(/\r?\n\s*\r?\n/)[0].trim();
   o.giaBan = tienSauNhan(dong, 'Reference sell rate (incl. taxes & fees)');

@@ -122,6 +122,7 @@ function boSungAgoda(b, luc, su, chiAgoda = false) {
   if (su.treEm != null) b.treEm = su.treEm;
   if (b.soKhach == null && su.nguoiLon) b.soKhach = su.nguoiLon + (su.treEm || 0);
   dat(b, 'yeuCau', su.yeuCau);
+  if (su.loaiPhongOta && !b.hangPhong) b.hangPhong = su.loaiPhongOta + (su.goiGia ? ' (' + su.goiGia + ')' : '');
   dat(b, 'giaBan', su.giaBan);
   dat(b, 'hoaHong', su.hoaHong);
   if (chiAgoda) {

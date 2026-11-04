@@ -99,6 +99,15 @@ Thiếu thì tab báo "Lần đọc thư gần nhất bị lỗi"; booking cũ t
 03/11/2026: lỗi `1230002` "pito@routinehospitality.vn permission denied" là do phạm vi dữ liệu thư chỉ có **Member Range contains Lê Văn Hùng**. pito@ là **hộp thư chung** (PUBLIC_MAILBOX), không thuộc thành viên nào, nên phải thêm riêng. Cách đúng: Permissions & Scopes → Configure (cột Data access scope) → Email → Resources-Email Message → Configure → **+ Add OR Condition Group** → `Public Mailbox contains pito@routinehospitality.vn` → Save → Create Version → Publish.
 Đặt hai điều kiện **chung một nhóm** thì Lark hiểu là phải thoả cả hai và vẫn báo 1230002; phải là hai nhóm nối bằng **OR**. Không chọn "All PublicMailbox" (app sẽ đọc được sales@, marketing@, cmo@…). Bản 1.0.29 trở đi đúng; Render đọc được thư từ 11:01 03/11/2026. Cấp scope mà chưa phát hành version: lỗi `99991672`.
 
+### A2c. Bot báo booking vào nhóm "Booking KS" (04/11/2026)
+
+Sau mỗi lượt đọc hộp pito@, app Booking OTA gửi tin booking mới vào nhóm Lark **Booking KS** (`oc_e4ffee6b15cbf4458ae1e8c79521a293`) và trả lời vào luồng khi khách huỷ, OTA sửa đơn, đổi phòng. Cần:
+
+1. Mời bot **Marketing Hub** vào nhóm Booking KS (Cài đặt nhóm → Bot → Thêm bot). Thiếu thì tab Routine báo "Chưa gửi được tin vào nhóm Booking KS".
+2. Scope `im:message` (đã có từ 10/09/2026).
+
+Chỉ bản Render gửi; máy cá nhân không tự đọc thư nữa để khỏi gửi trùng. Biến: `ROUTINE_NHOM_CHAT_ID` (đổi nhóm), `ROUTINE_BAO_NHOM=0` (tắt), `ROUTINE_BAO_TU` (chỉ báo đơn đặt từ mốc này, mặc định 2026-11-04 11:00).
+
 ### A2a. Base nào mở cho CẢ PHÒNG — khai bằng biến, không bằng nút
 
 Nút **Mở cả phòng** / **Đóng lại** trong *Cài đặt → Base trong panel* ghi vào

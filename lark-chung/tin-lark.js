@@ -53,8 +53,12 @@ function tao(c) {
     return kho.token;
   }
 
-  async function goi(body, tk, kieu) {
-    const r = await fetch(host() + '/open-apis/im/v1/messages?receive_id_type=' + kieu, {
+  async function goi(body, tk, kieu, traLoi) {
+    /* Trả lời vào một tin có sẵn: đường khác, không có receive_id. */
+    const url = traLoi
+      ? host() + '/open-apis/im/v1/messages/' + encodeURIComponent(traLoi) + '/reply'
+      : host() + '/open-apis/im/v1/messages?receive_id_type=' + kieu;
+    const r = await fetch(url, {
       method: 'POST',
       headers: {
         Authorization: 'Bearer ' + tk,
@@ -72,7 +76,12 @@ function tao(c) {
    * `khoa` đi vào trường `uuid` của Lark để chống gửi trùng. Cũng vì thế KHÔNG
    * được retry mù ở đây.
    */
-  async function gui({ chatId, userId, email, text, card, khoa }) {
+  /*
+   * `post`   nội dung tin dạng bài (rich text) của Lark: { zh_cn: { title, content } }.
+   * `traLoi` message_id của tin cần trả lời; `trongLuong` = trả lời thành luồng
+   *          (thread) dưới tin đó, như người dùng bấm "Trả lời" trong nhóm.
+   */
+  async function gui({ chatId, userId, email, text, card, post, khoa, traLoi, trongLuong }) {
     if (!co()) return { ok: false, loi: 'Chưa khai App ID / App Secret của app gửi tin' };
     try {
       /* Ba cách chỉ đích, khác nhau ở receive_id_type — sai một chữ là Lark trả
@@ -84,19 +93,19 @@ function tao(c) {
        * `99992361 open_id cross app`. Email chung cho cả tenant nên chắc nhất. */
       const kieu = email ? 'email' : (userId ? 'open_id' : 'chat_id');
       const body = {
-        receive_id: email || userId || chatId,
-        msg_type: card ? 'interactive' : 'text',
-        content: JSON.stringify(card || { text: String(text || '') }),
+        msg_type: card ? 'interactive' : post ? 'post' : 'text',
+        content: JSON.stringify(card || post || { text: String(text || '') }),
       };
+      if (traLoi) { if (trongLuong) body.reply_in_thread = true; } else body.receive_id = email || userId || chatId;
       if (khoa) body.uuid = String(khoa).slice(0, 50);
 
-      let d = await goi(body, await token(), kieu);
+      let d = await goi(body, await token(), kieu, traLoi);
       /* Token cất sẵn có thể đã bị thu hồi (đổi App Secret chẳng hạn) — thử lại
        * ĐÚNG MỘT LẦN. Lỗi này xảy ra TRƯỚC khi Lark nhận tin nên không sinh
        * tin trùng; mọi lỗi khác thì không được gửi lại. */
       if (d.code === 99991663 || d.code === 99991661 || d.code === 99991664) {
         xoaToken();
-        d = await goi(body, await token(), kieu);
+        d = await goi(body, await token(), kieu, traLoi);
       }
       if (d.code === 0) return { ok: true, msgId: (d.data && d.data.message_id) || '' };
 

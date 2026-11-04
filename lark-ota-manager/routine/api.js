@@ -9,59 +9,16 @@
  *   GET   /api/routine/export.csv   xuất danh sách đang lọc
  */
 const cfg = require('../config');
-const lark = cfg.mode === 'api' ? require('../larkapi') : require('../lark');
 const { dongBo } = require('./dong-bo');
 const TK = require('./thongke');
+const bang = require('./bang');
+const baoNhom = require('./bao-nhom');
 
 const R = cfg.routine;
-const TTL = 30000;
 
-const tinhTrang = { dangChay: false, lan: null, loi: '', luc: null };
-let cache = { luc: 0, rows: null, cot: null };
-
-/* Base Routine đặt múi UTC và app ghi giờ Việt Nam dạng chuỗi trần, nên phần
- * ngày giờ đọc về đúng là giờ Việt Nam: lấy nguyên chữ, không quy đổi. */
-function gio(v) {
-  if (v == null || v === '') return '';
-  if (typeof v === 'number') return new Date(v).toISOString().slice(0, 16).replace('T', ' ');
-  return String(v).slice(0, 16).replace('T', ' ');
-}
-const chu = (v) => (Array.isArray(v) ? v.map((x) => (x && (x.text || x.name)) || x).join(', ') : v == null ? '' : String(v));
-const so = (v) => (v == null || v === '' || !Number.isFinite(Number(v)) ? null : Number(v));
-
-const COT = {
-  ma: 'Mã đặt phòng', kenh: 'Kênh', maOta: 'Mã OTA', tenKhach: 'Tên khách', trangThai: 'Trạng thái',
-  ngayDat: 'Ngày đặt', nhanPhong: 'Nhận phòng', traPhong: 'Trả phòng', soDem: 'Số đêm', phong: 'Phòng',
-  hangPhong: 'Hạng phòng', soKhach: 'Số khách', quocGia: 'Quốc gia', soTien: 'Số tiền',
-  hoaHong: 'Hoa hồng OTA', giaBan: 'Giá bán OTA', daThanhToan: 'Đã thanh toán', daSua: 'OTA đã sửa',
-  ghiChu: 'Yêu cầu / ghi chú', lichSu: 'Lịch sử', capNhat: 'Thư mới nhất',
-  chamSoc: 'Chăm sóc', ghiChuChamSoc: 'Ghi chú chăm sóc', nguoiChamSoc: 'Người chăm sóc', chamSocLuc: 'Chăm sóc lúc',
-};
-const KIEU_GIO = new Set(['ngayDat', 'nhanPhong', 'traPhong', 'capNhat', 'chamSocLuc']);
-const KIEU_SO = new Set(['soDem', 'soKhach', 'soTien', 'hoaHong', 'giaBan', 'daThanhToan']);
+const tinhTrang = { dangChay: false, lan: null, loi: '', luc: null, baoNhom: null };
 const TIEN = ['soTien', 'hoaHong', 'giaBan', 'daThanhToan'];
-
-async function docBooking({ force = false } = {}) {
-  if (!force && cache.rows && Date.now() - cache.luc < TTL) return cache.rows;
-  const { rows, cot } = await lark.voiBase(R.baseToken, async () => {
-    const ds = await lark.listFields(R.tableId);
-    const idCot = Object.fromEntries(Object.entries(COT).map(([k, ten]) => [k, (ds.find((c) => c.name === ten) || {}).id]));
-    const rows = (await lark.listAll(R.tableId)).map((r) => {
-      const b = { id: r.id };
-      for (const [k, fid] of Object.entries(idCot)) {
-        const v = fid ? r.c[fid] : null;
-        b[k] = KIEU_GIO.has(k) ? gio(v) : KIEU_SO.has(k) ? so(v) : k === 'daSua' ? !!v : chu(v);
-      }
-      b.nhanPhong = b.nhanPhong.slice(0, 10);
-      b.traPhong = b.traPhong.slice(0, 10);
-      return b;
-    });
-    return { rows, cot: idCot };
-  });
-  rows.sort((a, b) => ((a.ngayDat || a.capNhat) < (b.ngayDat || b.capNhat) ? 1 : -1));
-  cache = { luc: Date.now(), rows, cot };
-  return rows;
-}
+const docBooking = (o) => bang.doc(o);
 
 function cheTien(b) {
   const ra = { ...b };
@@ -100,7 +57,9 @@ async function chayDongBo() {
   try {
     tinhTrang.lan = await dongBo();
     tinhTrang.loi = '';
-    if (tinhTrang.lan.them || tinhTrang.lan.sua) cache.rows = null;
+    if (tinhTrang.lan.them || tinhTrang.lan.sua) bang.xoaCache();
+    /* Báo nhóm Booking KS sau khi Base đã có đơn mới. Lỗi báo nhóm không làm hỏng lượt đọc thư. */
+    if (baoNhom.batBao()) tinhTrang.baoNhom = { ...(await baoNhom.chay()), luc: new Date().toISOString() };
   } catch (e) {
     tinhTrang.loi = e.message || String(e);
     console.error('[routine] đồng bộ hỏng:', tinhTrang.loi);
@@ -170,15 +129,14 @@ async function xuLy(req, res, u, { ok, fail, send, quyenCua, readBody, nguoiDung
     const doi = {};
     if (body.chamSoc !== undefined) {
       if (body.chamSoc && !TK.CHAM_SOC.includes(body.chamSoc)) { fail(res, 400, 'Trạng thái chăm sóc không hợp lệ'); return true; }
-      doi[COT.chamSoc] = body.chamSoc || null;
+      doi.chamSoc = body.chamSoc || null;
     }
-    if (body.ghiChuChamSoc !== undefined) doi[COT.ghiChuChamSoc] = String(body.ghiChuChamSoc || '').slice(0, 2000);
+    if (body.ghiChuChamSoc !== undefined) doi.ghiChuChamSoc = String(body.ghiChuChamSoc || '').slice(0, 2000);
     if (!Object.keys(doi).length) { fail(res, 400, 'Không có gì để lưu'); return true; }
     const ai = await nguoiDung(req).catch(() => null);
-    doi[COT.nguoiChamSoc] = (ai && ai.name) || '';
-    doi[COT.chamSocLuc] = gioVN();
-    await lark.voiBase(R.baseToken, () => lark.updateRecord(R.tableId, m[1], doi));
-    cache.rows = null;
+    doi.nguoiChamSoc = (ai && ai.name) || '';
+    doi.chamSocLuc = gioVN();
+    await bang.ghi(m[1], doi);
     const b = TK.danhDau(await docBooking({ force: true })).find((x) => x.id === m[1]);
     ok(res, b ? (quyenCua(req).chiPhi ? b : cheTien(b)) : { id: m[1] });
     return true;

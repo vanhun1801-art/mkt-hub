@@ -80,6 +80,8 @@ function sangDong(b) {
     'Phòng': b.phong,
     'Hạng phòng': b.hangPhong,
     'Số khách': b.soKhach,
+    'Người lớn': b.nguoiLon,
+    'Trẻ em': b.treEm,
     'Quốc gia': b.quocGia,
     'Số tiền': b.soTien,
     'Hoa hồng OTA': b.hoaHong,

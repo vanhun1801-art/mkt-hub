@@ -177,5 +177,50 @@ console.log('— thư Agoda bổ sung ngày trả cho đơn chỉ có thư nhậ
   t('nối theo tên + ngày nhận, lấy ngày trả', b.traPhong === '2026-11-02' && b.soDem === 1 && b.maOta === '1792200000', JSON.stringify(b));
 }
 
+console.log('— báo nhóm Booking KS');
+{
+  process.env.ROUTINE_BAO_TU = '2026-11-01 00:00';
+  const BN = require('../routine/bao-nhom');
+  const b = {
+    ma: 'PIOAAAAA1', maOta: '1793490711', kenh: 'Agoda', tenKhach: 'Nguyen Van A', quocGia: 'Vietnam',
+    nhanPhong: '2026-11-13', traPhong: '2026-11-14', soDem: 1, phong: '202',
+    hangPhong: 'Superior Double Room (Room + 2 Cable Car & Water Park Tickets)', nguoiLon: 2, treEm: 1,
+    soTien: 2137806, ghiChu: 'NonSmoke, LargeBed', ngayDat: '2026-11-03 16:58', trangThai: 'Đã đặt',
+    lichSu: '2026-11-03 16:57 · Agoda xác nhận\n2026-11-03 16:58 · Đơn mới',
+  };
+  const bai = BN.soanBai(b, { link: 'https://hub.example/#/m/ota' }).zh_cn;
+  const chu = bai.content.map((d) => d.map((x) => x.text).join('')).join('\n');
+  t('tiêu đề "Agoda - Khách Việt Nam"', bai.title === 'Agoda - Khách Việt Nam', bai.title);
+  t('mã booking + mã GoHost', chu.includes('Mã booking: 1793490711  (GoHost PIOAAAAA1)'));
+  t('thời gian lưu trú', chu.includes('Thời gian lưu trú: 13/11/2026 - 14/11/2026 (1 đêm)'));
+  t('loại phòng + gói + số phòng', chu.includes('Loại phòng: Superior Double Room (Room + 2 Cable Car & Water Park Tickets), phòng 202'));
+  t('02 NL + 01 TE', chu.includes('Số lượng khách: 02 NL + 01 TE'));
+  t('số tiền Agoda thanh toán', chu.includes('Số tiền: 2.137.806 đ (Agoda thanh toán)'), chu);
+  t('đặt trước 10 ngày', chu.includes('Đặt lúc: 16:58 03/11, trước 10 ngày'));
+  t('link Marketing Hub', bai.content.some((d) => d.some((x) => x.tag === 'a')));
+  t('quốc gia lạ giữ nguyên', BN.tenQuocGia('Kazakhstan') === 'Kazakhstan' && BN.tenQuocGia('South Korea') === 'Hàn Quốc');
+
+  const nay = Date.parse('2026-11-03T17:05:00+07:00');
+  t('đơn mới trong 24h → gửi', (BN.canBao(b, nay) || {}).loai === 'moi');
+  t('đơn đã huỷ → không gửi tin mới', BN.canBao({ ...b, trangThai: 'Đã huỷ' }, nay) === null);
+  t('đơn cũ hơn 24h → không gửi', BN.canBao(b, nay + 2 * 864e5) === null);
+  t('đơn đặt trước mốc bật tính năng → không gửi', BN.canBao({ ...b, ngayDat: '2026-10-31 23:00' }, Date.parse('2026-11-01T08:00:00+07:00')) === null);
+  t('Agoda chưa có thư Agoda, mới 3 phút → đợi', BN.canBao({ ...b, quocGia: '' }, Date.parse('2026-11-03T17:01:00+07:00')) === null);
+
+  const daGui = { ...b, tinNhom: 'om_1', daBaoNhom: b.lichSu };
+  t('đã gửi, không có gì mới → im', BN.canBao(daGui, nay) === null);
+  const huy = { ...daGui, trangThai: 'Đã huỷ', lichSu: b.lichSu + '\n2026-11-03 19:00 · Agoda báo huỷ\n2026-11-03 19:00 · Huỷ' };
+  const v = BN.canBao(huy, nay);
+  t('huỷ → trả lời trong luồng, chỉ một câu dù có hai thư huỷ', v && v.loai === 'traLoi' && v.canNoi.length === 1 && v.dongs.length === 2, JSON.stringify(v));
+  t('câu trả lời huỷ', /^Khách đã huỷ đặt phòng \(Agoda báo lúc 19:00 03\/11\)\.$/.test(BN.soanTraLoi(huy, v.canNoi)), BN.soanTraLoi(huy, v.canNoi));
+  const huy2 = { ...huy, daBaoNhom: b.lichSu + '\n2026-11-03 19:00 · Agoda báo huỷ' };
+  const v2 = BN.canBao(huy2, nay);
+  t('đã báo huỷ rồi → thư huỷ thứ hai chỉ đánh dấu', v2 && v2.canNoi.length === 0 && v2.dongs.length === 1);
+  const sua = { ...daGui, nhanPhong: '2026-12-24', traPhong: '2027-01-12', soDem: 19, soTien: 16552800,
+    lichSu: b.lichSu + '\n2026-11-03 20:00 · OTA sửa đơn\n2026-11-03 20:05 · Đổi phòng 201 → 601' };
+  const tl = BN.soanTraLoi(sua, BN.canBao(sua, nay).canNoi);
+  t('OTA sửa + đổi phòng', tl.includes('OTA sửa đơn lúc 20:00 03/11. Hiện tại: 24/12/2026 - 12/01/2027 (19 đêm), 16.552.800 đ.') && tl.includes('Đổi phòng 201 → 601 lúc 20:05 03/11.'), tl);
+}
+
 console.log(`\n${pass} pass · ${fail} fail`);
 process.exit(fail ? 1 : 0);

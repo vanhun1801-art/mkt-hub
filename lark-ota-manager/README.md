@@ -324,6 +324,8 @@ Hai tab, dùng chung bộ lọc với Rooty Trip (khoảng thời gian theo ngà
 
 Bốn cột chăm sóc (Chăm sóc, Ghi chú chăm sóc, Người chăm sóc, Chăm sóc lúc) do nhân viên cập nhật trong app; bộ đọc thư không bao giờ ghi vào. Cần xử lý tính ở `routine/thongke.js`. Xuất CSV theo bộ lọc đang chọn.
 
+**Báo nhóm Booking KS** (`routine/bao-nhom.js`, từ 04/11/2026): booking mới gửi một tin dạng bài vào nhóm theo khuôn anh Hùng gửi tay (Kênh - Khách <quốc gia>; mã booking, tên, ngày ở, loại phòng + gói vé + số phòng, số khách NL/TE, số tiền, yêu cầu, lúc đặt). Khách huỷ, OTA sửa, đổi phòng thì trả lời vào luồng tin đó. Nhớ đã báo gì ở hai cột Base "Tin nhóm", "Đã báo nhóm". Chỉ bản Render gửi.
+
 Đọc thư ở đâu:
 
 | Nơi chạy | Cách đọc |

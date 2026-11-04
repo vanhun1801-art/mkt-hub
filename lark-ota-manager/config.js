@@ -84,8 +84,17 @@ module.exports = {
     baseToken: process.env.ROUTINE_BASE_TOKEN || 'LoK6bSFptaMRFwsDnA8l5pKWg2e',
     tableId: process.env.ROUTINE_TABLE_ID || 'tblQeITmu24D9URY',
     soThu: Number(process.env.ROUTINE_SO_THU || 200),
-    /* Chu kỳ tự đọc thư mới. 0 = tắt (chỉ đọc khi bấm). */
-    chuKyMs: Math.max(0, Number(process.env.ROUTINE_CHU_KY_MS ?? 300000)),
+    /* Chu kỳ tự đọc thư mới. 0 = tắt (chỉ đọc khi bấm). Mặc định chỉ bản chạy chung
+     * (Render, chế độ api) tự đọc và báo nhóm: máy anh Hùng cũng chạy thì hai nơi
+     * cùng tạo một đơn, cùng gửi một tin. */
+    chuKyMs: Math.max(0, Number(process.env.ROUTINE_CHU_KY_MS ??
+      ((process.env.LARK_MODE || ((process.env.LARK_APP_ID && process.env.LARK_APP_SECRET) ? 'api' : 'cli')) === 'api' ? 300000 : 0))),
+    /* Nhóm Lark nhận tin booking mới (Booking KS). Bot Marketing Hub phải ở trong nhóm. */
+    nhomChatId: process.env.ROUTINE_NHOM_CHAT_ID ?? 'oc_e4ffee6b15cbf4458ae1e8c79521a293',
+    baoNhom: process.env.ROUTINE_BAO_NHOM !== '0',
+    /* Chỉ báo đơn đặt từ lúc bật tính năng (giờ VN). Đơn trước đó anh Hùng đã gửi
+     * tay vào nhóm; báo lại là trùng. */
+    baoTu: process.env.ROUTINE_BAO_TU || '2026-11-04 11:00',
     get baseUrl() { return 'https://rootytrip2.sg.larksuite.com/base/' + this.baseToken + '?table=' + this.tableId; },
   },
 

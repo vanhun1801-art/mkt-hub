@@ -33,6 +33,11 @@ const Routine = (() => {
       html += `<div class="canhbao xau"><div class="noi"><b>Lần đọc thư gần nhất bị lỗi</b>
         <p>${esc(gonLoi(db.loi))}</p></div></div>`;
     }
+    const bn = db.baoNhom;
+    if (bn && bn.loi && bn.loi.length) {
+      html += `<div class="canhbao xau"><div class="noi"><b>Chưa gửi được tin vào nhóm Booking KS</b>
+        <p>${esc(gonLoi(bn.loi[0]))}${bn.loi.length > 1 ? ' (và ' + (bn.loi.length - 1) + ' đơn khác)' : ''}</p></div></div>`;
+    }
     const gio = db.luc ? new Date(db.luc).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '';
     html += `<div class="nhap-mot-lan">
       <div><b>Thư từ ${esc(db.hop || 'pito@')}</b>
