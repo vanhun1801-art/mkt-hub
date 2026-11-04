@@ -16,6 +16,7 @@ const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) =>
 
 const S = {
   hop: [], chinh: '', ngan: [], ai: false,
+  tat: [],             // hộp anh tự tắt: không đọc, không hiện
   hoiAi: false,        // ô Hỏi AI: có khoá API, hoặc Claude Code của chủ máy
   thu: [], loi: [], luc: 0,
   cho: [],             // thư anh gửi đi mà bên kia chưa hồi âm (từ thư mục Đã gửi)
@@ -164,7 +165,7 @@ function gioHen(ms) {
 
 async function napHop() {
   const d = await api('hop');
-  Object.assign(S, { hop: d.hop, chinh: d.chinh, ngan: d.ngan, ai: d.ai, hoiAi: Boolean(d.hoiAi) });
+  Object.assign(S, { hop: d.hop, chinh: d.chinh, ngan: d.ngan, ai: d.ai, hoiAi: Boolean(d.hoiAi), tat: d.tat || [] });
 }
 
 /* Bản danh sách lần trước, giữ trong trình duyệt theo hộp chính (03/11/2026:
@@ -403,7 +404,49 @@ function menuHop(nut) {
       '</button>';
   };
   moMenu(nut, '<div class="ghi">Số bên phải là thư chưa đọc</div>' + dong('', 'Mọi hộp thư') +
-    S.hop.map((h) => dong(h.email, h.email)).join(''), (b) => { S.loc.hop = b.dataset.hop; ve(); }, 'trai');
+    hopBat().map((h) => dong(h.email, h.email)).join('') +
+    '<button class="nut-tat-hop" data-tat-hop="1"><span>Bật tắt hộp thư</span>' +
+    (S.tat.length ? '<span class="so-tat">Đang tắt ' + S.tat.length + '</span>' : '') + '</button>',
+  (b) => { if (b.dataset.tatHop) { moTatHop(); return; } S.loc.hop = b.dataset.hop; ve(); }, 'trai');
+}
+
+/* Bật tắt từng hộp (04/11/2026, anh Hùng: "bật tắt từng email được liên kết").
+ * Hộp tắt thì app không đọc, không hiện, không dò thư mới; Lark không đổi gì.
+ * Lưu theo từng người trong sổ Hộp thư trên Base. */
+const hopBat = () => S.hop.filter((h) => !S.tat.includes(h.email.toLowerCase()));
+function moTatHop() {
+  const tat = new Set(S.tat);
+  const hang = (h) => {
+    const bat = !tat.has(h.email.toLowerCase());
+    return '<div class="hang-tat">' +
+      '<span class="ten-tat" data-no-i18n>' + esc(h.email) + '</span>' + (h.chinh ? '<span class="nhan-chinh">Hộp chính</span>' : '') +
+      '<button class="cong-tac" role="switch" aria-checked="' + bat + '" data-email="' + esc(h.email.toLowerCase()) + '" ' +
+      'aria-label="' + esc(h.email) + '"><i></i></button></div>';
+  };
+  moNho({
+    tieu: 'Bật tắt hộp thư',
+    than: '<p class="ghi-nho">Hộp tắt thì app không đọc và không hiện thư của hộp đó. Thư trên Lark vẫn giữ nguyên, bật lại lúc nào cũng được.</p>' +
+      '<div class="ds-tat">' + S.hop.map(hang).join('') + '</div>',
+    ok: async () => {
+      const ds = [...tat];
+      if (ds.length >= S.hop.length) throw new Error('Phải bật ít nhất một hộp thư');
+      const r = await api('tat-hop', { body: { tat: ds } });
+      S.tat = r.tat;
+      if (S.loc.hop && S.tat.includes(S.loc.hop.toLowerCase())) S.loc.hop = '';
+      ve();
+      bao('Đã lưu, đang đọc lại hộp thư', 'ok');
+      napThu(true).catch((e) => bao(e.message, 'loi'));
+    },
+  });
+  $('#hopNhoThan').onclick = (e) => {
+    const b = e.target.closest('.cong-tac');
+    if (!b) return;
+    const bat = b.getAttribute('aria-checked') !== 'true';
+    b.setAttribute('aria-checked', String(bat));
+    if (bat) tat.delete(b.dataset.email); else tat.add(b.dataset.email);
+    $('#hopNhoLyDo').textContent = tat.size >= S.hop.length ? 'Phải bật ít nhất một hộp thư' : '';
+    $('#hopNhoOk').disabled = tat.size >= S.hop.length;
+  };
 }
 
 function dongThu(t) {
@@ -1441,6 +1484,7 @@ $('#hopGuiThan').addEventListener('change', (e) => {
 let nhoOk = null;
 function moNho({ tieu, than, nutOk = 'Lưu', ok }) {
   nhoOk = ok;
+  $('#hopNhoThan').onclick = null;          // hộp trước có thể gắn xử lý bấm riêng (moTatHop)
   $('#hopNhoTieu').textContent = tieu;
   $('#hopNhoThan').innerHTML = than;
   $('#hopNhoOk').textContent = nutOk;

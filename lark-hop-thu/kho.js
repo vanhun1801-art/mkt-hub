@@ -67,6 +67,7 @@ function chuanSo(d) {
   for (const k of ['luat', 'hen', 'tt']) if (d[k] && typeof d[k] === 'object' && !Array.isArray(d[k])) s[k] = d[k];
   if (Array.isArray(d.nhom)) s.nhom = d.nhom;
   if (typeof d.chuKy === 'string') s.chuKy = d.chuKy;
+  if (Array.isArray(d.tatHop)) s.tatHop = d.tatHop.filter((x) => typeof x === 'string');
   if (d.lo && typeof d.lo === 'object' && !Array.isArray(d.lo)) s.lo = d.lo;
   return s;
 }
@@ -289,6 +290,14 @@ module.exports = {
   chuKy: (nguoi = '') => so(nguoi).chuKy,
   datChuKy(chu, nguoi = '') {
     so(nguoi).chuKy = String(chu || '').slice(0, 1000);
+    luuSo(nguoi);
+  },
+
+  /* Hộp người này tắt (04/11/2026, anh Hùng: "bật tắt từng email được liên
+   * kết"): app không đọc, không hiện. Chỉ là lựa chọn riêng, Lark không đổi gì. */
+  tatHop: (nguoi = '') => so(nguoi).tatHop || [],
+  datTatHop(ds, nguoi = '') {
+    so(nguoi).tatHop = [...new Set(ds.map((x) => String(x || '').toLowerCase().trim()).filter(Boolean))].slice(0, 50);
     luuSo(nguoi);
   },
 

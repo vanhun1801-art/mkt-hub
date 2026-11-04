@@ -115,6 +115,22 @@ server.listen(0, '127.0.0.1', async () => {
     ok('lần đọc thường sau đó cũng thấy thư mới', (await hoi('GET', '/api/thu')).j.thu.length === 3);
     THU.shift();
     gia.danhSach = dsGoc;
+
+    console.log('\nBật tắt từng hộp');
+    ok('tắt hết mọi hộp: 400', (await hoi('POST', '/api/tat-hop', { than: { tat: ['hunglv@rootytrip.com', 'sales@rootytrip.com'] } })).ma === 400);
+    const tat = await hoi('POST', '/api/tat-hop', { than: { tat: ['SALES@rootytrip.com', 'la@x.com'] } });
+    ok('tắt sales@: lưu chữ thường, bỏ hộp không được cấp', tat.ma === 200 && JSON.stringify(tat.j.tat) === '["sales@rootytrip.com"]');
+    ok('/api/hop báo hộp đang tắt', JSON.stringify((await hoi('GET', '/api/hop')).j.tat) === '["sales@rootytrip.com"]');
+    const sauTat = (await hoi('GET', '/api/thu')).j.thu;
+    ok('danh sách không còn thư của hộp tắt', sauTat.length > 0 && sauTat.every((t) => t.hop !== 'sales@rootytrip.com'));
+    const doc = [];
+    gia.danhSach = async (hop, max, tk, thuMuc) => { doc.push(hop); return dsGoc(hop, max, tk, thuMuc); };
+    await hoi('GET', '/api/thu?moi=1');
+    ok('dò thư mới không đọc hộp tắt', doc.length > 0 && !doc.includes('sales@rootytrip.com'), doc.join(','));
+    gia.danhSach = dsGoc;
+    ok('vẫn mở được thư của hộp tắt (tắt là ẩn, không mất quyền)', (await hoi('GET', duong('sales@rootytrip.com', 'bbbbbbbbbb=='))).ma === 200);
+    await hoi('POST', '/api/tat-hop', { than: { tat: [] } });
+    ok('bật lại: thư của hộp đó hiện lại', (await hoi('GET', '/api/thu')).j.thu.some((t) => t.hop === 'sales@rootytrip.com'));
     ok('mới nhất trước', ds[0].id === 'bbbbbbbbbb==');
     const sep = ds.find((t) => t.id === 'aaaaaaaaaa==');
     ok('thư Ban giám đốc vào Cần trả lời, có cờ sep', sep.ngan === 'xu-ly' && sep.sep === true);

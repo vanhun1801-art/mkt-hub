@@ -78,6 +78,13 @@ async function cacHop(n) {
   return ds;
 }
 const hopChinh = (ds) => (ds.find((h) => h.chinh) || ds[0] || {}).email || '';
+/* Hộp được đọc: mọi hộp được cấp trừ hộp người này tự tắt (kho.tatHop). Quyền
+ * (xem, trả lời thư) vẫn tính theo cacHop: tắt là ẩn đi, không phải mất quyền. */
+const tatCua = (n) => new Set(kho.tatHop(n.nguoi));
+async function hopDoc(n) {
+  const tat = tatCua(n);
+  return (await cacHop(n)).filter((h) => !tat.has(h.email.toLowerCase()));
+}
 
 /* ---------------- ai đang gọi ---------------- */
 
@@ -186,7 +193,7 @@ async function docTheoNgay(hop, thuMuc, { dau, ngay, tran }, tk) {
 async function docHetMot(n, ep, max, maxGui) {
   const c = dsDem.get(n.khoa);
   if (!ep && c && c.ds && c.max >= max && Date.now() - c.luc < (c.du ? DEM_DU_MS : DEM_MS)) return c;
-  const hop = await cacHop(n);
+  const hop = await hopDoc(n);
   const loiHop = [];
   /* Nhịp đầu đọc số thư cố định để trang hiện ngay; nhịp sau (du) đọc theo
    * số ngày, tới khi phủ đủ (docTheoNgay). */
@@ -269,7 +276,7 @@ function docMoi(n) {
 }
 
 async function docMoiMot(n) {
-  const hop = await cacHop(n);
+  const hop = await hopDoc(n);
   const viec = [];
   for (const h of hop) {
     for (const thuMuc of ['INBOX', 'SENT']) {
@@ -378,7 +385,12 @@ function lamGiau(ds, hop, nguoi = '') {
 const coHoiAi = (n) => ai.coKhoa() || (!n.tk && ai.coClaudeCode());
 
 /** Danh sách đã gom chủ đề, xếp ngăn, ghép với Đã gửi: dùng chung cho /api/thu và /api/hoi-thu. */
-async function ghepDs(n, d) {
+async function ghepDs(n, d0) {
+  /* Bản đệm có thể còn thư của hộp vừa tắt (lượt đọc chạy trước lúc tắt). */
+  const tat = tatCua(n);
+  const d = tat.size ? Object.assign({}, d0, {
+    ds: d0.ds.filter((t) => !tat.has(t.hop.toLowerCase())), gui: (d0.gui || []).filter((t) => !tat.has(t.hop.toLowerCase())),
+  }) : d0;
   const hop = await cacHop(n);
   /* Gắn mã chủ đề lên bản sao, không sửa bộ đệm danh sách. */
   /* Đơn khách đặt không gom theo tiêu đề: mỗi đơn một khách (chu-de.js). */
@@ -543,7 +555,21 @@ async function api(req, res, url) {
 
   if (p === '/api/hop' && m === 'GET') {
     const hop = await cacHop(n);
-    return json(res, { hop, chinh: hopChinh(hop), ngan: NGAN, ai: ai.coKhoa(), hoiAi: coHoiAi(n), model: cfg.ai.model });
+    return json(res, { hop, chinh: hopChinh(hop), ngan: NGAN, ai: ai.coKhoa(), hoiAi: coHoiAi(n), model: cfg.ai.model,
+      tat: [...tatCua(n)].filter((e) => hop.some((h) => h.email.toLowerCase() === e)) });
+  }
+
+  /* Bật tắt từng hộp: gửi cả danh sách hộp tắt. Phải còn ít nhất một hộp bật. */
+  if (p === '/api/tat-hop' && m === 'POST') {
+    const b = await docThan(req);
+    const hop = await cacHop(n);
+    const coThat = new Set(hop.map((h) => h.email.toLowerCase()));
+    const tat = (Array.isArray(b.tat) ? b.tat : []).map((x) => String(x || '').toLowerCase().trim()).filter((x) => coThat.has(x));
+    if (hop.length && tat.length >= hop.length) return loi(res, 400, 'Phải bật ít nhất một hộp thư');
+    kho.datTatHop(tat, n.nguoi);
+    /* Bật lại một hộp thì phải đọc lại mới có thư của nó. */
+    dsDem.delete(n.khoa);
+    return json(res, { ok: true, tat });
   }
 
   if (p === '/api/thu' && m === 'GET') {
