@@ -181,8 +181,30 @@ function docDem() {
   try { const d = JSON.parse(localStorage.getItem(khoaDs()) || 'null'); return d && Array.isArray(d.thu) ? d : null; } catch (_) { return null; }
 }
 
+/* Dấu anh vừa bấm (Xong, Bỏ qua, Đưa về, đã đọc, sao), giữ 3 phút trên trang.
+ * Anh Hùng 04/11/2026: "cứ hiện lại cái anh đã xử lý rồi". Lượt dò thư mới
+ * mất 7 đến 8 giây; bấm Xong giữa lúc đó thì bản danh sách lượt ấy mang về
+ * là bản tính TRƯỚC khi bấm, vẽ đè làm thư hiện lại. Nên mọi bản danh sách
+ * mới về (dò, đọc đủ, bản lần trước) đều được áp lại các dấu này. Sau 3 phút
+ * máy chủ chắc chắn đã có, thôi giữ. */
+const DAU_GIU = 180000;
+const dauVua = new Map();                       // khoá thư → { trường: giá trị, luc }
+function nhoDau(t, doi) {
+  dauVua.set(khoa(t), Object.assign({}, dauVua.get(khoa(t)), doi, { luc: Date.now() }));
+}
+function apDau(ds) {
+  const nay = Date.now();
+  for (const [k, v] of dauVua) if (nay - v.luc > DAU_GIU) dauVua.delete(k);
+  if (!dauVua.size) return;
+  for (const t of ds || []) {
+    const v = dauVua.get(khoa(t));
+    if (v) for (const f of Object.keys(v)) if (f !== 'luc') t[f] = v[f];
+  }
+}
+
 /** Đổ một bản danh sách (từ máy chủ hoặc từ bản lần trước) vào trạng thái. */
 function apDs(d) {
+  apDau(d.thu);
   S.thu = d.thu; S.loi = d.loi || []; S.luc = d.luc;
   S.cho = (d.cho || []).map((g) => Object.assign({ daGui: true, tu: { ten: 'Anh gửi', email: g.hop } }, g));
   S.gui = (d.gui || []).map((g) => Object.assign({ daGui: true, tu: { ten: 'Anh gửi', email: g.hop } }, g));
@@ -1594,7 +1616,14 @@ async function danhDau(t, thay, im) {
   if ('daDoc' in thay) t.chuaDoc = !thay.daDoc;
   if ('sao' in thay) t.sao = thay.sao;
   veNgan(); veHop(); veDs(); if (!im) veDoc();
-  try { await api(duongThu(t, 'doi'), { body: thay }); }
+  try {
+    await api(duongThu(t, 'doi'), { body: thay });
+    const dau = {};
+    if ('daDoc' in thay) dau.chuaDoc = !thay.daDoc;
+    if ('sao' in thay) dau.sao = thay.sao;
+    nhoDau(t, dau);
+    apDau(S.thu);
+  }
   catch (e) {
     Object.assign(t, cu);
     ve(); if (!im) veDoc();
@@ -1622,7 +1651,8 @@ async function luuTru(t, boQua = false) {
   const ca = [t].concat(cungChuDe(t).filter((x) => khoa(x) !== k && !daRoi(x)));
   try {
     await Promise.all(ca.map((x) => api(duongThu(x, 'doi'), { body: { [truong]: true } })));
-    for (const x of ca.concat(timThu(k) || [])) x[truong] = Date.now();
+    for (const x of ca) { x[truong] = Date.now(); nhoDau(x, { [truong]: x[truong] }); }
+    apDau(S.thu);                    // S.thu có thể đã là bản mới, cả chủ đề phải nhận dấu
   }
   catch (e) {
     S.daLuu.delete(k); ve();
@@ -1668,7 +1698,8 @@ async function boXong(t) {
   try {
     const ca = [t].concat(cungChuDe(t).filter((x) => khoa(x) !== khoa(t) && daRoi(x)));
     await Promise.all(ca.map((x) => api(duongThu(x, 'doi'), { body: { xong: false, boQua: false } })));
-    for (const x of ca.concat(timThu(khoa(t)) || [])) { x.xong = 0; x.boQua = 0; }
+    for (const x of ca) { x.xong = 0; x.boQua = 0; nhoDau(x, { xong: 0, boQua: 0 }); }
+    apDau(S.thu);
     ve(); if (S.chon === khoa(t) && S.ct) veDoc();
     bao('Thư đã quay lại ngăn', 'ok');
   } catch (e) { bao('Chưa đưa thư về được: ' + e.message, 'loi'); }

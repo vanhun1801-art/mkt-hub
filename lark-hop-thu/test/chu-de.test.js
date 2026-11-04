@@ -68,5 +68,24 @@ const gc = ghepChuoi(den.map(gan), gui.map(gan));
 ok('trả lời ở chuỗi khác vẫn tính là đã trả lời cả chủ đề', gc.daTraLoi.has('pito@x|a1') && gc.daTraLoi.has('pito@x|a2'));
 ok('tin khách nhắn sau lần trả lời thì chưa trả lời', !gc.daTraLoi.has('pito@x|a3'));
 
+/* keoXong: bấm Xong ở thư mới nhất lúc đó thì thư cũ hơn của chủ đề (lượt
+ * đọc thêm mới mang về) cũng là xong; tin nhắn sau mốc đó vẫn hiện. */
+const { keoXong } = require('../server');
+const kx = keoXong([
+  { hop: 'h', id: 'c1', cd: 'A', ngay: '2026-11-04 09:00' },
+  { hop: 'h', id: 'c2', cd: 'A', ngay: '2026-11-04 10:00', xong: 111 },
+  { hop: 'h', id: 'c3', cd: 'A', ngay: '2026-11-04 11:00' },
+  { hop: 'h', id: 'b1', cd: 'B', ngay: '2026-11-04 08:00' },
+  { hop: 'h', id: 'b2', cd: 'B', ngay: '2026-11-04 09:00', boQua: 222 },
+  { hop: 'k', id: 'c0', cd: 'A', ngay: '2026-11-04 08:00' },
+  { hop: 'h', id: 'd1', cd: 'D', ngay: '2026-11-04 08:00' },
+]);
+const kxa = (id) => kx.find((t) => t.id === id);
+ok('thư cũ hơn thư đã xong trong cùng chủ đề cũng xong', kxa('c1').xong === 111);
+ok('tin nhắn sau thư đã xong vẫn hiện', !kxa('c3').xong && !kxa('c3').boQua);
+ok('bỏ qua cũng kéo về thư cũ hơn, không thành xong', kxa('b1').boQua === 222 && !kxa('b1').xong);
+ok('cùng mã chủ đề ở hộp khác không bị kéo theo', !kxa('c0').xong);
+ok('chủ đề chưa ai đánh dấu giữ nguyên', !kxa('d1').xong && !kxa('d1').boQua);
+
 console.log('\n' + pass + ' pass · ' + fail + ' fail');
 process.exit(fail ? 1 : 0);

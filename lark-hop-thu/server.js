@@ -399,8 +399,32 @@ async function ghepDs(n, d0) {
   const gan = (t) => Object.assign({}, t, { cd: maCd.get(t.hop + '|' + t.id) });
   const den = d.ds.map(gan), daGui = (d.gui || []).map(gan);
   const { daTraLoi, cho } = ghepChuoi(den, daGui);
-  const ds = lamGiau(den, hop, n.nguoi).map((t) => (daTraLoi.has(t.hop + '|' + t.id) ? Object.assign(t, { daTraLoi: true }) : t));
+  const ds = keoXong(lamGiau(den, hop, n.nguoi).map((t) => (daTraLoi.has(t.hop + '|' + t.id) ? Object.assign(t, { daTraLoi: true }) : t)));
   return { ds, den, daGui, cho };
+}
+
+/**
+ * Xong / Bỏ qua tính cho cả phần chủ đề tới thư được đánh dấu: thư cũ hơn
+ * trong cùng chủ đề cũng coi là đã xử lý. Anh Hùng 04/11/2026: "cứ hiện lại
+ * cái anh đã xử lý rồi". Bấm Xong chỉ gắn dấu được những thư đang có trên
+ * trang; lượt đọc thêm thư cũ mang về thư cũ hơn của cùng chủ đề chưa có dấu,
+ * thế là cả chủ đề quay lại ngăn. Thư MỚI hơn thư đã xong thì vẫn hiện, vì
+ * đó là tin khách vừa nhắn thêm.
+ */
+function keoXong(ds) {
+  const moc = new Map();                 // hộp|chủ đề → thư đã rời ngăn mới nhất
+  for (const t of ds) {
+    if (!t.xong && !t.boQua) continue;
+    const k = t.hop + '|' + (t.cd || khoaChuoi(t));
+    if (!moc.has(k) || moc.get(k).ngay < t.ngay) moc.set(k, t);
+  }
+  if (!moc.size) return ds;
+  return ds.map((t) => {
+    if (t.xong || t.boQua) return t;
+    const m = moc.get(t.hop + '|' + (t.cd || khoaChuoi(t)));
+    if (!m || !(t.ngay < m.ngay)) return t;
+    return Object.assign(t, m.xong ? { xong: m.xong } : { boQua: m.boQua });
+  });
 }
 
 /* Mã ngắn cố định của một thư cho hỏi đáp AI: cùng thư thì cùng mã qua mọi
@@ -839,4 +863,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { server, aiGoi, lamGiau, ghepChuoi, docTheoNgay };
+module.exports = { server, aiGoi, lamGiau, ghepChuoi, keoXong, docTheoNgay };
