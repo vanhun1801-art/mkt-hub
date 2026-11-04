@@ -212,4 +212,31 @@ function docAgoda(tieuDe, than) {
   return o;
 }
 
-module.exports = { docGoHost, docAgoda, tenKenh, soTien, ngay, khoangNgay, cacDong, OTA };
+/**
+ * Thư tin nhắn của khách qua Agoda (notifications@agoda-messaging.com):
+ *   "Reply from <tên> (…)"                 khách nhắn trong cuộc trò chuyện của một đơn
+ *   "Special Request for Booking ID <mã> …" yêu cầu đặc biệt
+ * → { maOta, noiDung } chỉ lấy TIN MỚI NHẤT (thư còn chép lại cả các tin cũ bên dưới).
+ * "Inquiry by …" là khách hỏi trước khi đặt, chưa có đơn để nối → null.
+ */
+function docAgodaTin(tieuDe, than) {
+  const td = String(tieuDe || '');
+  if (/^Inquiry by/i.test(td) || !/Reply from|Message from|Special Request|Booking ID/i.test(td)) return null;
+  const s = String(than || '');
+  const ma = (/Booking ID (\d+)/i.exec(td) || /Mã số đặt phòng:\s*(\d+)/.exec(s) || [])[1];
+  if (!ma) return null;
+  let noi = '';
+  const sauMa = s.split(/Mã số đặt phòng:\s*\d+\s*\r?\n/)[1];
+  if (sauMa) noi = sauMa.split(/\r?\n\s*(Nội dung trên được tự động dịch|Did you know\?)/)[0];
+  else {
+    const sauChao = s.split(/Kính gửi [^\n]*,\s*\r?\n/)[1];
+    if (sauChao) noi = sauChao.split(/\r?\n\s*(Vui lòng xác nhận|Google dịch|Did you know\?)/)[0];
+  }
+  noi = noi.split(/\r?\n/).map((x) => x.trim()).filter(Boolean).join(' / ').replace(/\s+/g, ' ').trim();
+  /* "Requested: Non-smoking, Large bed" là câu Agoda tự sinh từ ô chọn lúc đặt, đã có
+   * ở dòng Yêu cầu của tin booking; nhắc lại là thừa. */
+  if (!noi || /^Requested:/i.test(noi)) return null;
+  return { maOta: ma, kenh: 'Agoda', noiDung: noi.length > 500 ? noi.slice(0, 497) + '…' : noi };
+}
+
+module.exports = { docGoHost, docAgoda, docAgodaTin, tenKenh, soTien, ngay, khoangNgay, cacDong, OTA };

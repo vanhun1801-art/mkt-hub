@@ -222,5 +222,37 @@ console.log('— báo nhóm Booking KS');
   t('OTA sửa + đổi phòng', tl.includes('OTA sửa đơn lúc 20:00 03/11. Hiện tại: 24/12/2026 - 12/01/2027 (19 đêm), 16.552.800 đ.') && tl.includes('Đổi phòng 201 → 601 lúc 20:05 03/11.'), tl);
 }
 
+console.log('— tin khách nhắn qua Agoda');
+{
+  const BN = require('../routine/bao-nhom');
+  const reply = ['Reply from KIM MINSU (Nov 1-2, 2026)',
+    'Xin chào, Pito Hotel\n\nThắc mắc mới từ KIM MINSU\n\nKIM MINSU\nthg 10 31, 09:53 CH ICT\n\nMã số đặt phòng: 1792200000\n\n' +
+    'Mấy giờ có xe đón ở bến cáp treo?\n\nNội dung trên được tự động dịch lại (qua Google Dịch) từ nội dung ban đầu như sau:\n\n케이블카 픽업 몇시?\n\n' +
+    'Did you know?\n\nKIM MINSU\nthg 10 31, 09:51 CH ICT\n\nTin cũ không được lấy'];
+  const tin = G.docAgodaTin(...reply);
+  t('Reply from: lấy mã đơn + tin mới nhất', tin && tin.maOta === '1792200000' && tin.noiDung === 'Mấy giờ có xe đón ở bến cáp treo?', JSON.stringify(tin));
+  t('Inquiry (chưa có đơn) → bỏ', G.docAgodaTin('Inquiry by A (Nov 22-24, 2026)', 'Tin nhắn: hỏi giá') === null);
+  t('Special Request tự sinh → bỏ', G.docAgodaTin('Special Request for Booking ID 1 (Dec 25-26, 2026)',
+    'Kính gửi Pito,\n\nRequested: Non-smoking, Large bed\n\nVui lòng xác nhận') === null);
+  const sr = G.docAgodaTin('Special Request for Booking ID 17 (Dec 25-26, 2026)', 'Kính gửi Pito,\n\nCho mình phòng tầng cao nhé\n\nVui lòng xác nhận');
+  t('Special Request khách tự viết → giữ', sr && sr.maOta === '17' && sr.noiDung === 'Cho mình phòng tầng cao nhé');
+
+  const [b] = gop([
+    { luc: '2026-10-31 02:26', su: { maOta: '1792200000', kenh: 'Agoda', trangThaiAgoda: 'CONFIRMED', tenKhach: 'KIM MINSU', nhanPhong: '2026-11-01', traPhong: '2026-11-02', nguon: 'agoda' } },
+    { luc: '2026-10-31 21:53', su: { ...tin, nguon: 'agoda-tin' } },
+    { luc: '2026-10-31 22:00', su: { maOta: '9999', kenh: 'Agoda', noiDung: 'đơn lạ', nguon: 'agoda-tin' } },
+  ]);
+  t('tin khách vào lịch sử của đúng đơn', b.suKien.includes('2026-10-31 21:53 · Khách nhắn: Mấy giờ có xe đón ở bến cáp treo?'), JSON.stringify(b.suKien));
+  t('tin của mã lạ không tự tạo đơn', gop([{ luc: '2026-10-31 22:00', su: { maOta: '9999', noiDung: 'x', nguon: 'agoda-tin' } }]).length === 0);
+
+  const don = { ma: 'PIOK1', maOta: '1792200000', kenh: 'Agoda', quocGia: 'South Korea', trangThai: 'Đã đặt', ngayDat: '2026-11-04 12:00',
+    lichSu: '2026-11-04 11:59 · Agoda xác nhận\n2026-11-04 12:00 · Đơn mới\n2026-11-04 12:01 · Khách nhắn: Có ghế trẻ em không?' };
+  const v = BN.canBao(don, Date.parse('2026-11-04T12:20:00+07:00'));
+  t('gửi tin booking: tin khách chưa tính là đã báo', v.loai === 'moi' && v.dongs.length === 2);
+  const daGui = { ...don, tinNhom: 'om_1', daBaoNhom: v.dongs.join('\n') };
+  const v2 = BN.canBao(daGui, Date.parse('2026-11-04T12:25:00+07:00'));
+  t('lượt sau trả lời tin khách vào luồng', v2.loai === 'traLoi' && BN.soanTraLoi(daGui, v2.canNoi) === 'Khách nhắn lúc 12:01 04/11: Có ghế trẻ em không?', BN.soanTraLoi(daGui, v2.canNoi));
+}
+
 console.log(`\n${pass} pass · ${fail} fail`);
 process.exit(fail ? 1 : 0);

@@ -37,7 +37,9 @@ function gop(thu) {
     return theoMa.get(ma);
   };
 
+  const tinKhach = [];            // tin nhắn của khách qua OTA, nối sau cùng theo mã OTA
   for (const { luc, su } of ds) {
+    if (su.nguon === 'agoda-tin') { tinKhach.push({ luc, su }); continue; }
     if (su.nguon === 'agoda') { choOta.push({ luc, su }); continue; }
     if (su.maGoHost && su.maOta) otaVeMa.set(su.maOta, su.maGoHost);
     const ma = su.maGoHost || otaVeMa.get(su.maOta);
@@ -56,6 +58,13 @@ function gop(thu) {
       continue;
     }
     apDung(lay(ma || 'OTA-' + su.maOta), luc, su);
+  }
+
+  /* Tin khách nhắn: chỉ ghi vào đơn đã có (theo mã OTA), không tự tạo đơn. Một dòng
+   * lịch sử "Khách nhắn: …" để bộ báo nhóm trả lời vào luồng tin booking. */
+  for (const { luc, su } of tinKhach) {
+    const b = [...theoMa.values()].find((x) => x.maOta === su.maOta);
+    if (b) b.suKien.push(luc + ' · Khách nhắn: ' + su.noiDung);
   }
 
   for (const b of theoMa.values()) {

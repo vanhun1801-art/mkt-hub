@@ -40,6 +40,7 @@ function loaiDong(dong) {
   if (/· (Huỷ|Agoda báo huỷ)$/.test(dong)) return 'huy';
   if (/· OTA sửa đơn$/.test(dong)) return 'sua';
   if (/· Đổi phòng /.test(dong)) return 'doi-phong';
+  if (/· Khách nhắn: /.test(dong)) return 'hoi';
   return '';
 }
 
@@ -92,6 +93,8 @@ function soanTraLoi(b, dongs) {
     } else if (loai === 'doi-phong') {
       const m = /Đổi phòng (.+)$/.exec(d);
       cau.push('Đổi phòng ' + (m ? m[1] : '') + ' lúc ' + luc + '.');
+    } else if (loai === 'hoi') {
+      cau.push('Khách nhắn lúc ' + luc + ': ' + d.split('· Khách nhắn: ')[1]);
     }
   }
   return cau.join('\n');
@@ -112,7 +115,8 @@ function canBao(b, nay = Date.now()) {
     const tuoi = nay - Date.parse(b.ngayDat.replace(' ', 'T') + ':00+07:00');
     if (!(tuoi >= 0 && tuoi <= 24 * 3600e3)) return null;
     if (b.kenh === 'Agoda' && !b.quocGia && tuoi < 10 * 60e3) return null;
-    return { loai: 'moi', dongs };
+    /* Tin khách nhắn trước lúc gửi tin booking chưa tính là đã báo: lượt sau trả lời vào luồng. */
+    return { loai: 'moi', dongs: dongs.filter((d) => loaiDong(d) !== 'hoi') };
   }
   const chua = dongs.filter((d) => loaiDong(d) && !daBao.has(d));
   if (!chua.length) return null;
@@ -176,7 +180,12 @@ async function guiThu({ userId, ma = '', guiTin = tin() }) {
   const bai = soanBai(b);
   bai.zh_cn.title = '[Thử] ' + bai.zh_cn.title;
   const r = await guiTin.gui({ userId, post: bai });
-  return { ...r, ma: b.ma };
+  if (!r.ok) return { ...r, ma: b.ma };
+  /* Thử luôn phần trả lời trong luồng bằng tối đa 3 dòng huỷ/sửa/khách nhắn gần nhất. */
+  const dongs = String(b.lichSu || '').split('\n').filter((d) => loaiDong(d)).slice(-3);
+  let traLoi = null;
+  if (dongs.length) traLoi = await guiTin.gui({ traLoi: r.msgId, trongLuong: true, text: soanTraLoi(b, dongs) });
+  return { ...r, ma: b.ma, traLoi };
 }
 
 module.exports = { soanBai, soanTraLoi, canBao, tieuDe, tenQuocGia, chay, batBao, guiThu };

@@ -26,6 +26,8 @@ const BO_DEM = path.join(__dirname, '.thu-da-doc.json');
 const LA_GOHOST = (t) => /@gohost\.vn$/.test(t.tu.email) &&
   /đơn đặt phòng mới|hủy đặt phòng|huỷ đặt phòng|đã nhận phòng|đã trả phòng|đã thêm thanh toán|đã đổi phòng|Đơn OTA có sửa đổi/i.test(t.tieuDe);
 const LA_AGODA = (t) => /@agoda\.com$/.test(t.tu.email) && /Agoda Booking ID \d+ - (CONFIRMED|CANCELLED)/i.test(t.tieuDe);
+/* Tin khách nhắn qua Agoda (có mã đơn). "Inquiry by" là hỏi trước khi đặt, chưa có đơn. */
+const LA_AGODA_TIN = (t) => /@agoda-messaging\.com$/.test(t.tu.email) && /Reply from|Message from|Special Request/i.test(t.tieuDe);
 
 /* Sự kiện đã đọc theo mã thư: thư không đổi nên không đọc lại thân. Mất tệp (Render
  * khởi động lại) thì chỉ chậm lần đầu. */
@@ -47,11 +49,12 @@ async function docThu() {
   const ra = [];
   let moi = 0;
   for (const t of ds) {
-    const nguon = LA_GOHOST(t) ? 'gohost' : LA_AGODA(t) ? 'agoda' : '';
+    const nguon = LA_GOHOST(t) ? 'gohost' : LA_AGODA(t) ? 'agoda' : LA_AGODA_TIN(t) ? 'agoda-tin' : '';
     if (!nguon) continue;
     if (!(t.id in boDem)) {
       const d = await thu.doc(R.hop, t.id, tk);
-      const su = nguon === 'gohost' ? G.docGoHost(d.tieuDe, d.noiDung) : G.docAgoda(d.tieuDe, d.noiDung);
+      const su = nguon === 'gohost' ? G.docGoHost(d.tieuDe, d.noiDung)
+        : nguon === 'agoda' ? G.docAgoda(d.tieuDe, d.noiDung) : G.docAgodaTin(d.tieuDe, d.noiDung);
       boDem[t.id] = su ? { luc: t.ngay, su: { ...su, nguon } } : null;
       moi++;
     }
