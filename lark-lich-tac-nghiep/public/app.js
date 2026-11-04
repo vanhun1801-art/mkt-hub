@@ -1958,6 +1958,33 @@ function openItem(id, mo) {
   renderDrawer();
   $('#drawer').classList.add('on');
   $('#mask').classList.add('on');
+  napTuyChon();
+}
+
+/* Danh mục lựa chọn (vé FOC, phương tiện…) quản lý thêm thẳng trên Base, kể cả
+ * lúc trang đang mở. Trang chỉ lấy danh mục khi nạp, còn nhịp 60 giây bỏ qua
+ * lúc đang mở cửa sổ; thế nên vé vừa thêm (Rạch Vẹm, 04/11) không hiện. Mở cửa
+ * sổ nào là hỏi lại; có gì khác thì chỉ thay khối chip, không dựng lại chỗ
+ * người ta đang gõ dở. */
+async function napTuyChon() {
+  let moi;
+  try { moi = (await api('/api/tuy-chon')).options || {}; } catch (_) { return; }
+  if (JSON.stringify(moi) === JSON.stringify(S.options || {})) return;
+  S.options = moi;
+
+  // cửa sổ chi tiết: dòng chip chọn nhiều
+  if (S.sel) {
+    document.querySelectorAll('#drawer .frm-row').forEach((row) => {
+      const nut = row.querySelector('[data-multi]');
+      if (!nut || !moi[nut.dataset.multi]) return;
+      row.outerHTML = fieldMulti(nut.dataset.multi, row.querySelector('label').textContent, moi[nut.dataset.multi]);
+    });
+  }
+  // form đăng ký: bảng chọn FOC (đang mở thì để yên, người ta đang chọn)
+  const pk = document.querySelector('#mdBody .pk[data-pk="foc"]:not(.mo)');
+  if (pk && moi.foc) {
+    pk.outerHTML = pickerMoi('foc', moi.foc.map((x) => ({ id: x, name: x })), false, pk.dataset.ph, false);
+  }
 }
 
 function closeDrawer() {
@@ -3095,6 +3122,7 @@ function openCreate(preDate) {
   };
   renderCreate();
   $('#modal').classList.add('on');
+  napTuyChon();
 }
 
 function closeModal() {
@@ -4427,7 +4455,22 @@ function datChoBangChon(pn) {
   // kẹp trong màn hình: ô nhập có thể đang nằm ngoài vùng nhìn thấy (khung vừa
   // cuộn, hoặc màn hình thấp) — bảng vẫn phải hiện trọn vẹn
   const y = len ? a.top - cao - 5 : a.bottom + 5;
-  pn.style.top = Math.round(Math.max(8, Math.min(y, window.innerHeight - cao - 8))) + 'px';
+  const X = Math.max(8, Math.min(a.left, window.innerWidth - a.width - 8));
+  const Y = Math.max(8, Math.min(y, window.innerHeight - cao - 8));
+  pn.style.left = Math.round(X) + 'px';
+  pn.style.top = Math.round(Y) + 'px';
+
+  /* position:fixed chỉ bám màn hình khi KHÔNG tổ tiên nào có transform,
+   * filter hay backdrop-filter. Lớp kính iOS và hoạt ảnh nảy của cửa sổ đăng
+   * ký gắn mấy thứ đó lên .modal-box, thế là toạ độ bị tính từ góc cửa sổ: bảng
+   * FOC văng sang phải, xuống dưới, bị cắt ở mép (04/11). Đo chỗ bảng thật sự
+   * nằm rồi bù phần lệch, khỏi phải đoán lớp nào đang làm mốc. */
+  const r = pn.getBoundingClientRect();
+  const dx = r.left - X, dy = r.top - Y;
+  if (Math.abs(dx) > 1 || Math.abs(dy) > 1) {
+    pn.style.left = Math.round(X - dx) + 'px';
+    pn.style.top = Math.round(Y - dy) + 'px';
+  }
 }
 
 /* Bấm ra ngoài là đóng. Bắt ở pha capture của pointerdown nên không phụ thuộc
@@ -4471,6 +4514,14 @@ if (oChiTiet) {
     const mo = bangDangMo();
     if (mo) datChoBangChon(mo.querySelector('.pk-panel'));
     if (NG) datChoLich();
+  });
+}
+// cửa sổ đăng ký nảy lên bằng hoạt ảnh (lớp iOS): xong thì đặt lại chỗ bảng chọn
+const oDangKy = $('#modal');
+if (oDangKy) {
+  oDangKy.addEventListener('animationend', () => {
+    const mo = bangDangMo();
+    if (mo) datChoBangChon(mo.querySelector('.pk-panel'));
   });
 }
 

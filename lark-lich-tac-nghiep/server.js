@@ -899,6 +899,13 @@ async function api(req, res, url) {
     return res.end(ra.than);
   }
 
+  /* Chỉ danh mục lựa chọn (vé FOC, phương tiện…), đọc thẳng từ Base không qua
+   * cache. Quản lý thêm vé mới trên Base lúc trang đang mở; mở cửa sổ là giao
+   * diện hỏi lại chỗ này, nên vé mới hiện ngay chứ không chờ nạp lại trang. */
+  if (p === '/api/tuy-chon' && req.method === 'GET') {
+    return json(res, { options: collectOptions(await getFields(true)) });
+  }
+
   if (p === '/api/meta' && req.method === 'GET') {
     const force = url.searchParams.get('refresh') === '1';
     const fields = await getFields(force);
