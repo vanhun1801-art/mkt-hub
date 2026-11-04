@@ -188,7 +188,7 @@ console.log('— báo nhóm Booking KS');
     soTien: 2137806, ghiChu: 'NonSmoke, LargeBed', ngayDat: '2026-11-03 16:58', trangThai: 'Đã đặt',
     lichSu: '2026-11-03 16:57 · Agoda xác nhận\n2026-11-03 16:58 · Đơn mới',
   };
-  const bai = BN.soanBai(b, { link: 'https://hub.example/#/m/ota' }).zh_cn;
+  const bai = BN.soanBai(b).zh_cn;
   const chu = bai.content.map((d) => d.map((x) => x.text).join('')).join('\n');
   t('tiêu đề "Agoda - Khách Việt Nam"', bai.title === 'Agoda - Khách Việt Nam', bai.title);
   t('mã booking + mã GoHost', chu.includes('Mã booking: 1793490711  (GoHost PIOAAAAA1)'));
@@ -197,7 +197,7 @@ console.log('— báo nhóm Booking KS');
   t('02 NL + 01 TE', chu.includes('Số lượng khách: 02 NL + 01 TE'));
   t('số tiền Agoda thanh toán', chu.includes('Số tiền: 2.137.806 đ (Agoda thanh toán)'), chu);
   t('đặt trước 10 ngày', chu.includes('Đặt lúc: 16:58 03/11, trước 10 ngày'));
-  t('link Marketing Hub', bai.content.some((d) => d.some((x) => x.tag === 'a')));
+  t('không kèm link vào app', !bai.content.some((d) => d.some((x) => x.tag === 'a')) && !chu.includes('Marketing Hub'));
   t('quốc gia lạ giữ nguyên', BN.tenQuocGia('Kazakhstan') === 'Kazakhstan' && BN.tenQuocGia('South Korea') === 'Hàn Quốc');
 
   const nay = Date.parse('2026-11-03T17:05:00+07:00');

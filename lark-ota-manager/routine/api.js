@@ -113,6 +113,16 @@ async function xuLy(req, res, u, { ok, fail, send, quyenCua, readBody, nguoiDung
     return true;
   }
 
+  /* Gửi thử tin nhóm cho RIÊNG người bấm (quản lý), không vào nhóm. ?ma=<mã> để chọn đơn. */
+  if (p === '/api/routine/thu-tin' && req.method === 'POST') {
+    if (!quyenCua(req).quanLy) { fail(res, 403, 'Chỉ quản lý được gửi thử tin nhóm.'); return true; }
+    const ai = await nguoiDung(req).catch(() => null);
+    if (!ai || !ai.id) { fail(res, 400, 'Không biết bạn là ai để gửi thử. Mở app qua Marketing Hub.'); return true; }
+    const kq = await baoNhom.guiThu({ userId: ai.id, ma: u.searchParams.get('ma') || '' });
+    if (kq.ok) ok(res, kq); else fail(res, 502, kq.loi || 'Gửi thử không được');
+    return true;
+  }
+
   if (p === '/api/routine/dong-bo' && req.method === 'POST') {
     await chayDongBo();
     if (tinhTrang.loi) fail(res, 502, tinhTrang.loi);

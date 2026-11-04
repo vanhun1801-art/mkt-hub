@@ -53,7 +53,7 @@ function tieuDe(b) {
 const ghiChuSach = (s) => String(s || '').split('\n').filter((x) => x.trim() && !/^OTA Commission:/i.test(x.trim())).join('; ');
 
 /** Booking → nội dung tin dạng bài của Lark. */
-function soanBai(b, { link = '' } = {}) {
+function soanBai(b) {
   const dong = [];
   const them = (nhan, gt) => { if (gt) dong.push([{ tag: 'text', text: '• ' }, { tag: 'text', text: nhan + ': ', style: ['bold'] }, { tag: 'text', text: gt }]); };
 
@@ -75,7 +75,7 @@ function soanBai(b, { link = '' } = {}) {
     them('Đặt lúc', b.ngayDat.slice(11, 16) + ' ' + b.ngayDat.slice(8, 10) + '/' + b.ngayDat.slice(5, 7)
       + (truoc > 0 ? ', trước ' + truoc + ' ngày' : truoc === 0 ? ', nhận phòng trong ngày' : ''));
   }
-  if (link) dong.push([{ tag: 'text', text: 'Cập nhật chăm sóc trên ' }, { tag: 'a', text: 'Marketing Hub', href: link }]);
+  /* Không kèm link vào app: nhóm chỉ cần tin để đọc và trả lời (anh Hùng, 04/11/2026). */
   return { zh_cn: { title: tieuDe(b), content: dong } };
 }
 
@@ -131,11 +131,6 @@ function tin() {
 /** Có bật báo nhóm ở máy này không. Mặc định chỉ bản chạy chung (Render) gửi. */
 const batBao = () => Boolean(R.nhomChatId && R.baoNhom && cfg.appId && cfg.appSecret);
 
-const linkHub = () => {
-  const goc = process.env.PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || '';
-  return goc ? goc.replace(/\/+$/, '') + '/#/m/ota' : '';
-};
-
 /** Chạy một lượt: gửi mọi tin còn thiếu. Trả { gui, loi[] }. Không ném. */
 async function chay({ guiTin = tin() } = {}) {
   const kq = { gui: 0, loi: [] };
@@ -147,7 +142,7 @@ async function chay({ guiTin = tin() } = {}) {
     if (!viec) continue;
     try {
       if (viec.loai === 'moi') {
-        const r = await guiTin.gui({ chatId: R.nhomChatId, post: soanBai(b, { link: linkHub() }), khoa: 'rt-moi-' + b.ma });
+        const r = await guiTin.gui({ chatId: R.nhomChatId, post: soanBai(b), khoa: 'rt-moi-' + b.ma });
         if (!r.ok) { kq.loi.push(b.ma + ': ' + r.loi); continue; }
         await bang.ghi(b.id, { tinNhom: r.msgId, daBaoNhom: viec.dongs.join('\n') });
         kq.gui++;
@@ -169,4 +164,19 @@ async function chay({ guiTin = tin() } = {}) {
   return kq;
 }
 
-module.exports = { soanBai, soanTraLoi, canBao, tieuDe, tenQuocGia, chay, batBao };
+/**
+ * Gửi thử tin của một đơn cho RIÊNG một người (open_id theo app Marketing Hub),
+ * không vào nhóm, không ghi gì vào Base. Mặc định lấy đơn chưa huỷ đặt gần nhất.
+ */
+async function guiThu({ userId, ma = '', guiTin = tin() }) {
+  if (!cfg.appId || !cfg.appSecret) return { ok: false, loi: 'Máy này không có khoá app Marketing Hub. Gửi thử trên bản chạy chung.' };
+  const rows = await bang.doc();
+  const b = ma ? rows.find((x) => x.ma === ma || x.maOta === ma) : rows.find((x) => x.trangThai !== 'Đã huỷ' && x.ngayDat);
+  if (!b) return { ok: false, loi: 'Không tìm thấy đơn ' + ma };
+  const bai = soanBai(b);
+  bai.zh_cn.title = '[Thử] ' + bai.zh_cn.title;
+  const r = await guiTin.gui({ userId, post: bai });
+  return { ...r, ma: b.ma };
+}
+
+module.exports = { soanBai, soanTraLoi, canBao, tieuDe, tenQuocGia, chay, batBao, guiThu };

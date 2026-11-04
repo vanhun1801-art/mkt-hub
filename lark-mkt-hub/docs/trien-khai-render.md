@@ -106,7 +106,7 @@ Sau mỗi lượt đọc hộp pito@, app Booking OTA gửi tin booking mới v�
 1. Mời bot **Marketing Hub** vào nhóm Booking KS (Cài đặt nhóm → Bot → Thêm bot). Thiếu thì tab Routine báo "Chưa gửi được tin vào nhóm Booking KS".
 2. Scope `im:message` (đã có từ 10/09/2026).
 
-Chỉ bản Render gửi; máy cá nhân không tự đọc thư nữa để khỏi gửi trùng. Biến: `ROUTINE_NHOM_CHAT_ID` (đổi nhóm), `ROUTINE_BAO_NHOM=0` (tắt), `ROUTINE_BAO_TU` (chỉ báo đơn đặt từ mốc này, mặc định 2026-11-04 11:00).
+Chỉ bản Render gửi; máy cá nhân không tự đọc thư nữa để khỏi gửi trùng. Tin chỉ để đọc và trả lời, không kèm link vào app (anh Hùng chốt 04/11/2026). Quản lý gửi thử tin của đơn mới nhất cho riêng mình: `POST /m/ota/api/routine/thu-tin` (thêm `?ma=<mã>` để chọn đơn); tin thử có chữ [Thử], không vào nhóm, không ghi Base. Biến: `ROUTINE_NHOM_CHAT_ID` (đổi nhóm), `ROUTINE_BAO_NHOM=0` (tắt), `ROUTINE_BAO_TU` (chỉ báo đơn đặt từ mốc này, mặc định 2026-11-04 11:00).
 
 ### A2a. Base nào mở cho CẢ PHÒNG — khai bằng biến, không bằng nút
 
