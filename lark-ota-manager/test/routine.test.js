@@ -254,5 +254,18 @@ console.log('— tin khách nhắn qua Agoda');
   t('lượt sau trả lời tin khách vào luồng', v2.loai === 'traLoi' && BN.soanTraLoi(daGui, v2.canNoi) === 'Khách nhắn lúc 12:01 04/11: Có ghế trẻ em không?', BN.soanTraLoi(daGui, v2.canNoi));
 }
 
-console.log(`\n${pass} pass · ${fail} fail`);
-process.exit(fail ? 1 : 0);
+(async () => {
+  console.log('— song song hai ngôn ngữ');
+  const BN = require('../routine/bao-nhom');
+  const dongs = ['2026-11-04 12:01 · Khách nhắn: 아침 9시까진 부탁드립니다', '2026-11-04 12:02 · Khách nhắn: Có ghế trẻ em không?', '2026-11-04 12:03 · Huỷ'];
+  const banDich = await BN.dichTin(dongs, { dichFn: async () => 'Nhờ sắp xếp trước 9 giờ sáng.' });
+  t('dịch tin tiếng nước ngoài', banDich[dongs[0]] === 'Nhờ sắp xếp trước 9 giờ sáng.');
+  t('tin tiếng Việt không dịch', !(dongs[1] in banDich));
+  const tl = BN.soanTraLoi({ kenh: 'Agoda' }, dongs.slice(0, 2), banDich);
+  t('gốc rồi bản Việt ngay dưới', tl === 'Khách nhắn lúc 12:01 04/11: 아침 9시까진 부탁드립니다\n→ Nhờ sắp xếp trước 9 giờ sáng.\nKhách nhắn lúc 12:02 04/11: Có ghế trẻ em không?', tl);
+  const loi = await BN.dichTin(dongs, { dichFn: async () => { throw new Error('hết khoá'); } });
+  t('dịch lỗi vẫn gửi bản gốc', Object.keys(loi).length === 0);
+
+  console.log(`\n${pass} pass · ${fail} fail`);
+  process.exit(fail ? 1 : 0);
+})();

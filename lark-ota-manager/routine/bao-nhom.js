@@ -80,8 +80,8 @@ function soanBai(b) {
   return { zh_cn: { title: tieuDe(b), content: dong } };
 }
 
-/** Các dòng lịch sử mới cần báo → một câu trả lời (chữ thường). */
-function soanTraLoi(b, dongs) {
+/** Các dòng lịch sử mới cần báo → một câu trả lời (chữ thường). `banDich`: dòng → tiếng Việt. */
+function soanTraLoi(b, dongs, banDich = {}) {
   const cau = [];
   for (const d of dongs) {
     const luc = d.slice(11, 16) + ' ' + d.slice(8, 10) + '/' + d.slice(5, 7);
@@ -94,10 +94,35 @@ function soanTraLoi(b, dongs) {
       const m = /Đổi phòng (.+)$/.exec(d);
       cau.push('Đổi phòng ' + (m ? m[1] : '') + ' lúc ' + luc + '.');
     } else if (loai === 'hoi') {
-      cau.push('Khách nhắn lúc ' + luc + ': ' + d.split('· Khách nhắn: ')[1]);
+      /* Song song hai ngôn ngữ (anh Hùng, 04/11/2026): tin gốc, rồi bản tiếng Việt. */
+      cau.push('Khách nhắn lúc ' + luc + ': ' + d.split('· Khách nhắn: ')[1] + (banDich[d] ? '\n→ ' + banDich[d] : ''));
     }
   }
   return cau.join('\n');
+}
+
+/* Có chữ cái riêng của tiếng Việt thì coi là tiếng Việt, không dịch. */
+const laTiengViet = (s) => /[ăâđêôơưạảấầẩẫậắằẳẵặẹẻẽếềểễệỉịọỏốồổỗộớờởỡợụủứừửữựỳỵỷỹ]/i.test(s);
+
+/**
+ * Dịch tin khách sang tiếng Việt bằng Claude API (hàm dịch của app Hộp thư).
+ * Chưa có ANTHROPIC_API_KEY hoặc dịch lỗi thì bỏ qua: tin gốc vẫn được gửi.
+ */
+async function dichTin(dongs, { dichFn } = {}) {
+  const ra = {};
+  let ai = null;
+  if (!dichFn) {
+    try { ai = require('../../lark-hop-thu/ai'); } catch (_) { return ra; }
+    if (!ai.coKhoa()) return ra;
+    dichFn = (chu) => ai.dich(chu, 'vi');
+  }
+  for (const d of dongs) {
+    if (loaiDong(d) !== 'hoi') continue;
+    const goc = d.split('· Khách nhắn: ')[1] || '';
+    if (!goc || laTiengViet(goc)) continue;
+    try { const vi = String(await dichFn(goc)).trim(); if (vi && vi !== goc) ra[d] = vi.replace(/\s*\n\s*/g, ' / '); } catch (_) { /* gửi bản gốc */ }
+  }
+  return ra;
 }
 
 /**
@@ -152,7 +177,7 @@ async function chay({ guiTin = tin() } = {}) {
         kq.gui++;
       } else {
         if (viec.canNoi.length) {
-          const text = soanTraLoi(b, viec.canNoi);
+          const text = soanTraLoi(b, viec.canNoi, await dichTin(viec.canNoi));
           const khoa = 'rt-tl-' + b.ma + '-' + viec.canNoi.map((d) => d.slice(0, 16).replace(/\D/g, '')).join('').slice(-30);
           const r = await guiTin.gui({ traLoi: b.tinNhom, trongLuong: true, text, khoa });
           if (!r.ok) { kq.loi.push(b.ma + ': ' + r.loi); continue; }
@@ -184,8 +209,8 @@ async function guiThu({ userId, ma = '', guiTin = tin() }) {
   /* Thử luôn phần trả lời trong luồng bằng tối đa 3 dòng huỷ/sửa/khách nhắn gần nhất. */
   const dongs = String(b.lichSu || '').split('\n').filter((d) => loaiDong(d)).slice(-3);
   let traLoi = null;
-  if (dongs.length) traLoi = await guiTin.gui({ traLoi: r.msgId, trongLuong: true, text: soanTraLoi(b, dongs) });
+  if (dongs.length) traLoi = await guiTin.gui({ traLoi: r.msgId, trongLuong: true, text: soanTraLoi(b, dongs, await dichTin(dongs)) });
   return { ...r, ma: b.ma, traLoi };
 }
 
-module.exports = { soanBai, soanTraLoi, canBao, tieuDe, tenQuocGia, chay, batBao, guiThu };
+module.exports = { soanBai, soanTraLoi, canBao, tieuDe, tenQuocGia, chay, batBao, guiThu, dichTin, laTiengViet };
