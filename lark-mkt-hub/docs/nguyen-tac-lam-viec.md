@@ -403,6 +403,7 @@ Anh Hùng soát tay trên Tourwell: bốn đơn ghi cho quảng cáo PITO không
 
 - **Doanh thu ghi công giữ nguyên nghĩa**: mọi đơn của khách đến từ quảng cáo. Cạnh nó luôn có cột **Đúng sản phẩm**: bao nhiêu đơn mua đúng thứ quảng cáo bán, tiền của phần đúng, ROAS đúng sản phẩm, và khách thật ra mua gì.
 - Nhận sản phẩm trong đơn bằng **mã trước dấu gạch** (`*G4 - …` → G4) và **tên khách sạn** (`Tên khách sạn PITO HOTEL…` → PITO). Khách sạn không có mã; sales bán PITO bằng CB3N + một dòng khách sạn.
+- Trên API Tourwell, mã tour ghép nằm ở `item_info.name`, mã combo ở `item_info.description`. Tiền từng dịch vụ = cộng `prices[].grand_total`; `financial_summary.total_amount` luôn bằng 0, đừng dùng.
 - Sản phẩm của quảng cáo lấy từ cột **Sản phẩm & Tour** của chiến dịch trên Base quảng cáo. Trống thì đoán từ tên chiến dịch, nhóm, quảng cáo và **ghi rõ "tự đoán"**.
 - Đơn có kèm sản phẩm khác chỉ cộng tiền dịch vụ đúng; không tách được tiền thì hiện dấu **+**, không bịa số.
 - Mã ở `lark-ads-manager/sync/sanpham.js`, test `test/san-pham-dung.test.js`.
