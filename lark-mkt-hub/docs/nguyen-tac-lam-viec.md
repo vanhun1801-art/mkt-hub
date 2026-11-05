@@ -167,6 +167,7 @@ Anh Hùng (10/10/2026): nhân sự xuất được báo cáo, nhưng **xuất đ
 - **Bài trống ô Người đăng và bài là phiên LIVE** (05/11/2026): bài trùng ID một phiên LIVE không tính làm bài viết (LIVE là của Khánh). Bài trống tên ở FB MICE tính cho Thư, TikTok Cuộc sống tại Phú Quốc cho Hằng, TikTok Rooty Trip chia đều ba bạn content.
 - **KPI của Khánh** (05/11/2026, anh Hùng): chịu tác động bởi (1) số video, đếm task Edit Video hoàn thành trên Bảng công việc; (2) view bán hàng TikTok và Facebook Rooty Trip, mức do anh Hùng đặt; (3) view và tỷ trọng các phiên LIVE Khánh đảm nhận. Khối chung 70%: số video 30%, view bán hàng FB 35%, TikTok 35%. MICE và Instagram không tính cho Khánh. Mục tiêu và tỷ trọng riêng của Khánh anh Hùng tự chỉnh ở tab Mục tiêu & thứ luật.
 - **Phiếu KPI và CSV của tháng chưa chốt đọc số mới từ các app**, cùng số với màn KPI (05/11/2026, anh Hùng: "xuất phiếu KPI lỗi"; phiếu Khánh ra 17% vì dùng số đổ về từ trước). Tháng đã chốt giữ đúng số đã chốt.
+- **Kênh chưa đo được bỏ khỏi mẫu số** (05/11/2026, anh Hùng: "Bỏ khỏi mẫu số"). Phần tỷ trọng của kênh không có số (như LIVE TikTok) chia lại cho các kênh đo được, ở cả phiếu lẫn màn KPI. Áp từ tháng 10/2026. Mục chấm tay chưa chấm vẫn tính 0 trên phiếu.
 - **Không đặt trần điểm cho chỉ số** (05/11/2026, anh Hùng: "Không đặt trần 100 nha em"). Chỉ số vượt mục tiêu được tính đúng phần vượt.
 - **Đổi tab thì giữ chiều cao cũ và đưa về đầu trang.** Để trang co lại là thanh cuộn biến mất, nội dung xê ngang, và vị trí cuộn bị kẹp về 0 một cách khó đoán.
 

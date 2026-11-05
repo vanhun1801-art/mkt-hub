@@ -132,7 +132,7 @@ function chamNhom(nhom, soLieu, canhBao) {
 }
 
 /** Điểm phần "ăn theo kênh" của một người = Σ (tỷ trọng kênh × điểm nhóm). */
-function diemTheoKenh(nguoi, banNhom, canhBao) {
+function diemTheoKenh(nguoi, banNhom, canhBao, chiaLai) {
   const pb = nguoi.kenh || {};
   const chiTiet = [];
   let diem = 0;
@@ -159,14 +159,29 @@ function diemTheoKenh(nguoi, banNhom, canhBao) {
     chiTiet.push({ khoa, ten: n.ten, tyTrong: ty, diemNhom: n.diem, diem: d, boQua: false });
   });
 
+  /* KÊNH CHƯA ĐO ĐƯỢC BỎ KHỎI MẪU SỐ. Anh Hùng 05/11/2026: "Bỏ khỏi mẫu số".
+   * Ba kênh LIVE TikTok không có nguồn số (20% của Khánh) từng bị tính 0 nên
+   * phiếu ra 20% trong khi màn KPI ghi 80%. Phần tỷ trọng đó chia lại cho các
+   * kênh đo được. Áp từ tháng 10/2026, tháng trước giữ cách tính đã trả lương. */
+  const tongTy = chiTiet.reduce((s, k) => s + k.tyTrong, 0);
+  const coTy = chiTiet.filter((k) => !k.boQua).reduce((s, k) => s + k.tyTrong, 0);
+  const daChia = !!chiaLai && coTy > 0 && coTy < tongTy;
+  if (daChia) {
+    const he = tongTy / coTy;
+    chiTiet.forEach((k) => { if (!k.boQua) k.diem *= he; });
+    diem *= he;
+  }
+
   if (tyTrongMat > 0) {
     canhBao.push({
       muc: 'canhBao', o: nguoi.ten || nguoi.ma,
-      viec: pt(tyTrongMat) + ' tỷ trọng kênh không chấm được, điểm của người này bị thiếu đúng phần đó',
+      viec: pt(tyTrongMat) + (daChia
+        ? ' tỷ trọng kênh chưa đo được, đã chia lại cho các kênh đo được'
+        : ' tỷ trọng kênh không chấm được, điểm của người này bị thiếu đúng phần đó'),
     });
   }
   chiTiet.sort((a, b) => b.tyTrong - a.tyTrong);
-  return { diem, chiTiet, tyTrongMat };
+  return { diem, chiTiet, tyTrongMat, daChia };
 }
 
 /**
@@ -186,7 +201,7 @@ function chamThang(luat, soLieu, chamTay, thang) {
   const banNhom = new Map(nhom.map((n) => [n.khoa, n]));
 
   const nguoi = (luat.nguoi || []).map((ng) => {
-    const theoKenh = diemTheoKenh(ng, banNhom, canhBao);
+    const theoKenh = diemTheoKenh(ng, banNhom, canhBao, !thang || thang >= '2026-10');
     const tay = chamTay[ng.ma] || {};
     const dong = [];
     let tong = 0;
@@ -265,7 +280,7 @@ function chamThang(luat, soLieu, chamTay, thang) {
 
     return {
       ma: ng.ma, ten: ng.ten || ng.ma, viTri: ng.viTri || '',
-      tieuChi: dong, kenh: theoKenh.chiTiet,
+      tieuChi: dong, kenh: theoKenh.chiTiet, chiaLaiKenh: theoKenh.daChia,
       tong, tongTrongSo, thieuCham,
       dayDu: dong.every((d) => !d.chuaCo) && theoKenh.tyTrongMat === 0,
     };

@@ -977,7 +977,9 @@ async function api(req, res, u) {
             const co = (ng.kenh || []).filter((k) => !k.boQua)
               .reduce((s, k) => s + k.tyTrong, 0);
             const tong = (ng.kenh || []).reduce((s, k) => s + k.tyTrong, 0);
-            phu = tong > 0 ? co / tong : 0;
+            /* Điểm kênh đã tự chia lại phần chưa đo được (tinh.js) thì đừng
+             * chia lần nữa ở đây, không là % bị thổi lên. */
+            phu = ng.chiaLaiKenh ? (co > 0 ? 1 : 0) : (tong > 0 ? co / tong : 0);
           } else {
             phu = x.chuaCo ? 0 : 1;
           }

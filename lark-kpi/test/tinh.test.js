@@ -115,6 +115,21 @@ t('thiếu điểm chấm tay thì chặn chốt và đánh dấu chưa đủ', 
   assert.ok(!chotDuoc(luat(), r).duoc, 'chưa chốt được');
 });
 
+t('kênh chưa đo được bỏ khỏi mẫu số từ tháng 10/2026, tháng trước vẫn tính 0', () => {
+  /* Kênh thứ hai không có số nào: 20% tỷ trọng. Kênh thứ nhất đạt đủ 100%. */
+  const l = () => {
+    const x = luat();
+    x.nhom.push({ kenh: 'Tiktok', tenKenh: 'B', loai: 'Live', tieuChi: [
+      { ma: 'lv', ten: 'LIVE-view', nguon: 'tt.b.live', mucTieu: 100, tyTrong: 1 }] });
+    x.nguoi[0].kenh = { [KHOA]: 0.8, 'Tiktok|B|Live': 0.2 };
+    return x;
+  };
+  const so = { 'fb.rt.view': 5000000, 'fb.rt.follow': 12000, 'fb.rt.lead': 1500 };
+  const hq = (th) => chamThang(l(), so, {}, th).nguoi[0].tieuChi.find((x) => x.ma === 'hieuQua').diem;
+  gan(hq('2026-10'), 1, 'tháng 10: chia lại cho kênh đo được');
+  gan(hq('2026-07'), 0.8, 'tháng 7: giữ cách tính đã trả lương');
+});
+
 t('người ăn chỉ số đơn lẻ (Hân, Hùng) chấm cùng một khuôn', () => {
   const l = luat({
     nguoi: [{
