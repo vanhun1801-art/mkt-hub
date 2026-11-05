@@ -1244,29 +1244,57 @@ function moChonTha(dich, keo) {
   dongXemNhanh();
   const lop = el('div', 'xn-lop');
   lop.id = 'xnLop';
-  const hop = el('div', 'xn-hop');
+  const hop = el('div', 'xn-hop ct-hop');
   const dau = el('div', 'xn-dau');
-  dau.appendChild(el('b', '', keo.title || '(chưa có tên)'));
+  dau.appendChild(el('b', '', 'Thả việc lên việc khác'));
   const nutX = el('button', 'xn-x', '✕');
   nutX.type = 'button';
+  nutX.setAttribute('aria-label', 'Đóng');
   const dong = () => { dongXemNhanh(); render(); };
   nutX.onclick = dong;
   dau.appendChild(nutX);
   hop.appendChild(dau);
-  const than = el('div', 'cvl');
-  than.appendChild(el('div', 'cvl-dau', 'Thả lên: ' + (dich.title || '(chưa có tên)')));
-  const ds = el('div', 'cvl-ds');
-  const nut = (chu, phu, lam) => {
-    const b = el('button', 'cvl-o');
+  const ten = (x) => x.title || '(chưa có tên)';
+  const than = el('div', 'ct');
+  /* Hai thẻ việc xếp dọc, mũi tên ở giữa: nhìn là biết việc nào đang kéo,
+   * việc nào bị thả lên. */
+  const the = (nhan, x) => {
+    const d = el('div', 'ct-viec');
+    d.appendChild(el('span', 'ct-nhan', nhan));
+    d.appendChild(el('span', 'ct-ten', ten(x)));
+    return d;
+  };
+  const cap = el('div', 'ct-cap');
+  cap.appendChild(the('Đang kéo', keo));
+  cap.appendChild(el('span', 'ct-mui', '↓'));
+  cap.appendChild(the('Thả lên', dich));
+  than.appendChild(cap);
+  const ds = el('div', 'ct-ds');
+  const ICON = {
+    doi: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 7h11m0 0-3-3m3 3-3 3M15 13H4m0 0 3-3m-3 3 3 3"/></svg>',
+    gom: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 4v7a2 2 0 0 0 2 2h8m0 0-3-3m3 3-3 3"/></svg>',
+  };
+  const nut = (lop, chu, phu, lam) => {
+    const b = el('button', 'ct-o ' + lop);
     b.type = 'button';
-    b.appendChild(el('span', 'cvl-ten', chu));
-    b.appendChild(el('span', 'cvl-so', phu));
+    const ic = el('span', 'ct-ic');
+    ic.innerHTML = ICON[lop];
+    b.appendChild(ic);
+    const chuB = el('span', 'ct-chu');
+    chuB.appendChild(el('span', 'ct-ten-o', chu));
+    chuB.appendChild(phu);
+    b.appendChild(chuB);
+    b.appendChild(el('span', 'ct-toi', '›'));
     b.onclick = () => { dongXemNhanh(); lam(); };
     ds.appendChild(b);
   };
-  nut('Hoán đổi deadline', fmtDate(keo.deadline1, true) + ' ⇄ ' + fmtDate(dich.deadline1, true),
-    () => hoanDoiDeadline(keo, dich));
-  nut('Gom làm việc con', 'vào việc này', () => gomVaoViec(dich, keo));
+  const phuDoi = el('span', 'ct-phu ct-han');
+  phuDoi.appendChild(el('span', '', fmtDate(keo.deadline1, true)));
+  phuDoi.appendChild(el('span', 'ct-mui-nho', '⇄'));
+  phuDoi.appendChild(el('span', '', fmtDate(dich.deadline1, true)));
+  nut('doi', 'Hoán đổi deadline', phuDoi, () => hoanDoiDeadline(keo, dich));
+  nut('gom', 'Gom làm việc con', el('span', 'ct-phu', 'Việc đang kéo nằm trong việc được thả lên'),
+    () => gomVaoViec(dich, keo));
   than.appendChild(ds);
   hop.appendChild(than);
   lop.appendChild(hop);

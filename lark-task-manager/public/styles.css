@@ -2892,7 +2892,7 @@ body.dang-keo-the .wc-gap { pointer-events: none; }
 .vc-doi-cha:hover { background: var(--surface-3); color: var(--text); }
 
 /* Cửa sổ chọn việc lớn mới */
-.cvl { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+.cvl { display: flex; flex-direction: column; gap: 10px; min-height: 0; padding: 12px 16px 16px; }
 .cvl-dau { font-size: 13px; color: var(--text-2); }
 .cvl-tim {
   width: 100%; padding: 9px 12px; border-radius: 9px;
@@ -2912,6 +2912,41 @@ body.dang-keo-the .wc-gap { pointer-events: none; }
 .cvl-so { flex: 0 0 auto; font-size: 12.5px; color: var(--text-2); font-variant-numeric: tabular-nums; }
 .cvl-nhan { flex: 0 0 auto; font-size: 12px; color: var(--text-3); }
 .cvl-tach { color: var(--text-2); border-bottom: 1px solid var(--line); border-radius: 9px 9px 0 0; }
+/* Hộp chọn khi thả thẻ lên việc cùng loại: hai thẻ việc trên, hai lựa chọn
+   dạng thẻ bấm dưới. Hẹp hơn Xem nhanh vì chỉ có hai nút. */
+.xn-hop.ct-hop { width: min(460px, 100%); }
+.xn-dau .xn-x { margin-left: auto; }
+.ct { display: flex; flex-direction: column; gap: 14px; padding: 14px 16px 16px; overflow-y: auto; min-height: 0; }
+.ct-cap { display: flex; flex-direction: column; align-items: stretch; gap: 2px; }
+.ct-viec {
+  display: flex; flex-direction: column; gap: 2px; min-width: 0;
+  padding: 8px 12px; border-radius: 10px; background: var(--surface-2);
+}
+.ct-nhan { font-size: 12px; color: var(--text-3); }
+.ct-ten { font-size: 14px; font-weight: 600; color: var(--text); overflow-wrap: anywhere; line-height: 1.4; }
+.ct-mui { align-self: center; font-size: 13px; line-height: 1; color: var(--text-3); padding: 1px 0; }
+.ct-ds { display: flex; flex-direction: column; gap: 8px; }
+.ct-o {
+  display: flex; align-items: center; gap: 12px; width: 100%; min-height: 60px;
+  padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px;
+  background: var(--surface); font: inherit; color: var(--text); text-align: left; cursor: pointer;
+  transition: background var(--cd-deu, .16s ease), border-color var(--cd-deu, .16s ease);
+}
+.ct-o:hover { background: var(--surface-2); border-color: var(--border-strong, var(--border)); }
+.ct-o:focus-visible { outline: 2px solid var(--ios-xanh, var(--blue)); outline-offset: 2px; }
+.ct-ic {
+  flex: 0 0 auto; width: 34px; height: 34px; border-radius: 10px;
+  display: grid; place-items: center;
+}
+.ct-ic svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.ct-o.doi .ct-ic { background: var(--blue-bg, rgba(43, 92, 255, .1)); color: var(--blue, #2b5cff); }
+.ct-o.gom .ct-ic { background: var(--green-bg, rgba(22, 163, 74, .1)); color: var(--green, #16a34a); }
+.ct-chu { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.ct-ten-o { font-size: 14px; font-weight: 600; }
+.ct-phu { font-size: 12.5px; color: var(--text-2); line-height: 1.4; }
+.ct-han { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
+.ct-mui-nho { color: var(--text-3); }
+.ct-toi { flex: 0 0 auto; font-size: 20px; line-height: 1; color: var(--text-3); }
 /* Ô gõ nhanh việc con: một dòng như danh sách, bấm vào là gõ được ngay. */
 .vc-them {
   display: flex; align-items: center; gap: 10px; margin: 2px 0 0; padding: 0 8px;
