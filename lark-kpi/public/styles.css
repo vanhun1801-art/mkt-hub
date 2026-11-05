@@ -558,6 +558,9 @@ tr.phu td { background: var(--trang-2); }
   position: sticky; top: 30px; z-index: 2;
 }
 .bang-cham tbody tr.hang-nguoi:first-child > td { border-top: 0; }
+/* Đầu bảng hai tầng (tên người ở trên, Mục tiêu · Kết quả · % ở dưới): tầng
+ * dưới bám ngay dưới tầng trên, không đè lên nó khi cuộn. */
+.bang-2tang thead tr + tr th { top: 31px; }
 .bang-cham .ten-nguoi { font-weight: 750; font-size: 14px; letter-spacing: -.01em; }
 .bang-cham .hang-nguoi .nhan-o { margin-left: 10px; }
 .bang-cham .hang-cham > td:first-child { padding-left: 26px; }
