@@ -492,21 +492,22 @@ body { display: flex; flex-direction: column; overflow: hidden; }
    dọc chữ xoay để "Ít quan trọng" không gãy dòng. Bốn ô nằm trên một nền kẻ,
    cách nhau 1px nên chữ thập tự hiện ra, không cần border từng ô. Ô đang chọn
    có dấu tick, các ô còn lại lùi nhẹ; chưa chọn thì cả bốn đều rõ màu.
-   Mở/đóng đều có hiệu ứng (nguyên tắc mục 3). */
-.mt-uu {
-  --mt-ke: color-mix(in srgb, var(--text) 14%, transparent);
-  display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto 1fr;
-  margin: -4px 0 14px; padding: 8px 10px 10px 8px;
-  border-radius: 14px; background: var(--surface-2, var(--surface));
-  box-shadow: inset 0 0 0 1px var(--mt-ke);
-  transform-origin: top center;
-  animation: mt-mo .3s var(--cd-vao, cubic-bezier(.2, .9, .25, 1.05)) both;
+   Mở/đóng: chonUuTien() co giãn chiều cao .mt-uu bằng Web Animations nên
+   form bên dưới trượt theo; .mt-khung là khung nhìn thấy. */
+.mt-uu { margin: -4px 0 14px; overflow: hidden; }
+/* Ô chọn phía trên sáng viền khi ma trận đang mở, như ô đang được chạm. */
+select.mt-dang-mo:not(#_):not(#__):not(#___) {
+  border-color: var(--ios-xanh, var(--blue)) !important;
+  box-shadow: 0 0 0 3px var(--ios-xanh-nhat, color-mix(in srgb, var(--blue) 22%, transparent)) !important;
 }
 .mt-uu[hidden] { display: none; }
-.mt-uu.mt-dong { animation: mt-dong .22s var(--cd-ra, cubic-bezier(.4, 0, 1, 1)) both; pointer-events: none; }
-@keyframes mt-mo { from { opacity: 0; transform: translateY(-6px) scale(.985); } }
-@keyframes mt-dong { to { opacity: 0; transform: translateY(-4px) scale(.985); } }
-@media (prefers-reduced-motion: reduce) { .mt-uu, .mt-uu.mt-dong { animation-duration: .01s; } }
+.mt-khung {
+  --mt-ke: color-mix(in srgb, var(--text) 14%, transparent);
+  display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto 1fr;
+  padding: 8px 10px 10px 8px;
+  border-radius: 14px; background: var(--surface-2, var(--surface));
+  box-shadow: inset 0 0 0 1px var(--mt-ke);
+}
 
 .mt-dau, .mt-ben { display: grid; font-size: 11.5px; font-weight: 500; color: var(--text-3, var(--text-2)); letter-spacing: .01em; }
 .mt-dau { grid-template-columns: 1fr 1fr; column-gap: 1px; padding: 0 0 6px; text-align: center; }
@@ -521,7 +522,7 @@ body { display: flex; flex-direction: column; overflow: hidden; }
   position: relative; display: flex; flex-direction: column; justify-content: center; gap: 2px;
   min-height: 56px; padding: 9px 30px 9px 12px; border: 0; border-radius: 0;
   text-align: left; cursor: pointer; font: inherit; font-size: 12px; line-height: 1.3;
-  transition: opacity .16s var(--cd-deu, ease), background-color .16s var(--cd-deu, ease);
+  transition: opacity .2s var(--cd-deu, ease), filter .16s var(--cd-deu, ease);
 }
 .mt-o b { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; }
 .mt-o b::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex: none; }
@@ -545,7 +546,11 @@ body { display: flex; flex-direction: column; overflow: hidden; }
   content: ''; position: absolute; left: 6px; top: 3.5px; width: 4px; height: 8px;
   border: solid var(--surface, #fff); border-width: 0 2px 2px 0; transform: rotate(45deg);
 }
-.mt-o.on .mt-tick { opacity: 1; transform: none; }
+.mt-o.on .mt-tick { opacity: 1; transform: none; animation: mt-tick-nay .34s cubic-bezier(.34, 1.56, .64, 1); }
+@keyframes mt-tick-nay { 0% { transform: scale(.4); } 60% { transform: scale(1.15); } 100% { transform: none; } }
+/* Nhấn: tối nhẹ tại chỗ, không thu nhỏ (ô nằm khít trong lưới). */
+.mt-o:not(:disabled):active { filter: brightness(.94); transition-duration: .06s; }
+@media (prefers-reduced-motion: reduce) { .mt-o.on .mt-tick { animation: none; } }
 .mt-luoi.co-chon .mt-o:not(.on) { opacity: .7; }
 .mt-o:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
 @media (hover: hover) and (pointer: fine) {
@@ -558,7 +563,7 @@ body { display: flex; flex-direction: column; overflow: hidden; }
   .mt-o .mt-y { padding-left: 0; }
   /* Điện thoại hẹp: trục dọc xoay chữ cho đỡ tốn bề ngang; ô ở đây cao hơn
      (lời khuyên xuống dòng) nên chữ xoay vẫn nằm gọn trong hàng. */
-  .mt-uu { padding-left: 4px; }
+  .mt-khung { padding-left: 4px; }
   .mt-dau, .mt-ben { font-size: 12px; }
   .mt-ben span { justify-content: center; padding-right: 4px; writing-mode: vertical-rl; transform: rotate(180deg); }
 }

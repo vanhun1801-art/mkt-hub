@@ -4294,29 +4294,47 @@ const MA_TRAN = [
 ];
 function chonUuTien(value, options, onChange) {
   const s = selectInput(value, options, (v) => { onChange(v); to(v); });
+  /* Hai lớp: .mt-uu chỉ để co giãn chiều cao (form bên dưới trượt theo, không
+   * bị giật xuống/giật lên), .mt-khung bên trong là cái khung nhìn thấy. */
   const mt = el('div', 'mt-uu');
+  const khung = el('div', 'mt-khung');
+  mt.appendChild(khung);
   mt.hidden = true;
-  /* Đóng cũng có hiệu ứng như lúc mở (nguyên tắc mục 3): gắn .mt-dong, chờ
-   * animation chạy xong mới ẩn hẳn. */
-  let henDong = 0;
+  let mo1 = false, hoat = [], henChon = 0;
+  const dung = () => { hoat.forEach((a) => a.cancel()); hoat = []; };
+  /* Mở: giãn cao theo nhịp trượt (--cd-truot, không nảy) rồi khung hiện dần.
+   * Đóng: ngắn hơn, nhanh hơn (nguyên tắc mục 3: cái gì mở có hiệu ứng thì đóng cũng có). */
   const mo = (bat) => {
-    clearTimeout(henDong);
+    clearTimeout(henChon);
+    if (bat === mo1) return;
+    mo1 = bat;
     s.classList.toggle('mt-dang-mo', bat);
-    if (bat) { mt.classList.remove('mt-dong'); mt.hidden = false; return; }
-    if (mt.hidden) return;
-    mt.classList.add('mt-dong');
-    henDong = setTimeout(() => { mt.hidden = true; mt.classList.remove('mt-dong'); }, 220);
+    const hienCao = mt.hidden ? 0 : mt.getBoundingClientRect().height;
+    dung();
+    if (bat) mt.hidden = false;
+    if (itChuyenDong() || !mt.animate) { mt.hidden = !bat; return; }
+    const cao = bat ? khung.offsetHeight : 0;
+    const t = bat ? 340 : 230;
+    const em = bat ? 'cubic-bezier(.32, .72, 0, 1)' : 'cubic-bezier(.4, 0, .6, 1)';
+    const mep = (h) => ({ height: h + 'px', marginTop: (h ? -4 : 0) + 'px', marginBottom: (h ? 14 : 0) + 'px' });
+    const a = mt.animate([mep(hienCao || (bat ? 0 : khung.offsetHeight)), mep(cao)],
+      { duration: t, easing: em, fill: 'both' });
+    const b = khung.animate(bat
+      ? [{ opacity: 0, transform: 'translateY(-6px)' }, { opacity: 1, transform: 'none' }]
+      : [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(-4px)' }],
+    { duration: bat ? 260 : 170, delay: bat ? 50 : 0, easing: bat ? 'cubic-bezier(.2, .8, .2, 1)' : 'ease-in', fill: 'both' });
+    hoat = [a, b];
+    a.onfinish = () => { if (hoat[0] !== a) return; dung(); if (!bat) mt.hidden = true; };
   };
-  const dangMo = () => !mt.hidden && !mt.classList.contains('mt-dong');
-  s.addEventListener('mousedown', (e) => { e.preventDefault(); s.focus(); mo(!dangMo()); });
+  s.addEventListener('mousedown', (e) => { e.preventDefault(); s.focus(); mo(!mo1); });
   s.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); mo(!dangMo()); }
-    else if (e.key === 'Escape' && dangMo()) { e.stopPropagation(); mo(false); }
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); mo(!mo1); }
+    else if (e.key === 'Escape' && mo1) { e.stopPropagation(); mo(false); }
   });
   /* Bấm ra ngoài thì gập lại, như mọi bảng chọn khác. */
   const ngoai = (e) => {
     if (!mt.isConnected) { document.removeEventListener('pointerdown', ngoai, true); return; }
-    if (!dangMo() || mt.contains(e.target) || s.contains(e.target)) return;
+    if (!mo1 || mt.contains(e.target) || s.contains(e.target)) return;
     mo(false);
   };
   document.addEventListener('pointerdown', ngoai, true);
@@ -4328,21 +4346,30 @@ function chonUuTien(value, options, onChange) {
   ben.appendChild(el('span', '', 'Quan trọng'));
   ben.appendChild(el('span', '', 'Ít quan trọng'));
   const luoi = el('div', 'mt-luoi');
-  mt.appendChild(el('span', 'mt-goc', ''));
-  mt.appendChild(dau);
-  mt.appendChild(ben);
-  mt.appendChild(luoi);
+  khung.appendChild(el('span', 'mt-goc', ''));
+  khung.appendChild(dau);
+  khung.appendChild(ben);
+  khung.appendChild(luoi);
   const o = {};
   MA_TRAN.forEach((m) => {
     const c = el('button', 'mt-o ' + ['p-high', 'p-qt', 'p-mid', 'p-low'][m.hang]);
     c.type = 'button';
-    const ten = el('b', '', m.ten);
-    c.appendChild(ten);
+    /* Ô nằm khít trong lưới: kiểu nhấn chung của lớp iOS (thu nhỏ cả nút) làm
+     * lộ khe xám, lệch góc bo. Ô tự có phản hồi riêng (tối nhẹ + tick nảy). */
+    c.setAttribute('data-khong-nhan', '');
+    c.appendChild(el('b', '', m.ten));
     c.appendChild(el('span', 'mt-y', m.y));
     c.appendChild(el('i', 'mt-tick', ''));
     const gt = (options || []).find((x) => hangUuTien(x) === m.hang);
-    if (gt) c.onclick = () => { s.value = gt; onChange(gt); to(gt); mo(false); };
-    else c.disabled = true;
+    if (gt) {
+      c.onclick = () => {
+        const doi = s.value !== gt;
+        if (doi) { s.value = gt; onChange(gt); to(gt); }
+        /* Cho người chọn thấy tick nảy lên một nhịp rồi mới gập lại. */
+        clearTimeout(henChon);
+        henChon = setTimeout(() => mo(false), doi && !itChuyenDong() ? 260 : 0);
+      };
+    } else c.disabled = true;
     o[m.hang] = c;
     luoi.appendChild(c);
   });
