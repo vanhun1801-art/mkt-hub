@@ -1012,6 +1012,14 @@ async function api(req, res, u) {
           khoa: n.khoa, ten: n.ten, phanTram: n.diem,
           tieuChi: (n.tieuChi || []).map((tc) => ({
             ten: tc.ten, ketQua: tc.ketQua, mucTieu: tc.mucTieu,
+            /* Cho dòng tổng phòng: mã cả kênh và số cả kênh. Ba bạn cùng giữ
+             * một kênh thì kênh đó chỉ được cộng MỘT lần. */
+            maKenh: nguon.boNguoi(tc.nguon) || tc.nguon,
+            theoNguoi: !!nguon.boNguoi(tc.nguon),
+            ketQuaKenh: sl[nguon.boNguoi(tc.nguon) || tc.nguon],
+            /* Dòng THEO DÕI (tỷ trọng 0) mượn mục tiêu của dòng quy đổi —
+             * không phải mục tiêu của chính nó, nên tổng phòng không so %. */
+            theoDoi: tc.tyTrongGoc === 0,
             datMucTieu: tc.datMucTieu, boQua: !!tc.boQua, tyTrong: tc.tyTrong,
             /* Chiều của chỉ số phải đi kèm con số. Thiếu nó thì "CPA 22.400 ·
              * đạt 89%" đọc ra là chưa đạt, trong khi đó là tiêu ít hơn dự
