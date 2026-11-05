@@ -4280,6 +4280,49 @@ function textInput(value, onChange, type) {
   return i;
 }
 
+/**
+ * Ô chọn Độ ưu tiên kèm ma trận Eisenhower giải thích (anh Hùng 05/11/2026:
+ * "thêm giải thích ma trận kế bên khi nhân sự chọn"). Trả về [ô chọn, ma trận].
+ * Ma trận ẩn sẵn cho gọn; bấm vào ô chọn thì nó mở ra THAY cho danh sách xổ
+ * xuống (anh Hùng: "ấn vào chọn thì mới hiện"). Bấm một ô là chọn và đóng lại.
+ */
+const MA_TRAN = [
+  { hang: 0, ten: 'Khẩn cấp', y: 'Làm ngay' },
+  { hang: 1, ten: 'Quan trọng', y: 'Lên lịch làm kỹ' },
+  { hang: 2, ten: 'Gấp', y: 'Làm nhanh, nhờ hỗ trợ' },
+  { hang: 3, ten: 'Để sau', y: 'Làm khi rảnh' },
+];
+function chonUuTien(value, options, onChange) {
+  const s = selectInput(value, options, (v) => { onChange(v); to(v); });
+  const mt = el('div', 'mt-uu');
+  mt.hidden = true;
+  const mo = (bat) => { mt.hidden = !bat; s.classList.toggle('mt-dang-mo', bat); };
+  s.addEventListener('mousedown', (e) => { e.preventDefault(); s.focus(); mo(mt.hidden); });
+  s.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); mo(mt.hidden); }
+    else if (e.key === 'Escape') mo(false);
+  });
+  mt.appendChild(el('span', 'mt-truc', ''));
+  mt.appendChild(el('span', 'mt-truc', 'Gấp'));
+  mt.appendChild(el('span', 'mt-truc', 'Chưa gấp'));
+  const o = {};
+  MA_TRAN.forEach((m, i) => {
+    if (i % 2 === 0) mt.appendChild(el('span', 'mt-truc mt-doc', i ? 'Ít quan trọng' : 'Quan trọng'));
+    const c = el('button', 'mt-o mt-g' + i + ' ' + ['p-high', 'p-qt', 'p-mid', 'p-low'][m.hang]);
+    c.type = 'button';
+    c.appendChild(el('b', '', m.ten));
+    c.appendChild(el('span', '', m.y));
+    const gt = (options || []).find((x) => hangUuTien(x) === m.hang);
+    if (gt) c.onclick = () => { s.value = gt; onChange(gt); to(gt); mo(false); };
+    else c.disabled = true;
+    o[m.hang] = c;
+    mt.appendChild(c);
+  });
+  function to(v) { for (const k of Object.keys(o)) o[k].classList.toggle('on', !!v && hangUuTien(v) === Number(k)); }
+  to(value);
+  return [s, mt];
+}
+
 function selectInput(value, options, onChange, disabledSet) {
   const s = el('select');
   /* Dòng "—" nghĩa là BỎ TRỐNG, nên value phải là chuỗi rỗng.
@@ -4876,8 +4919,10 @@ function buildDrawer() {
 
   const r1 = el('div', 'row2');
   r1.appendChild(field('Trạng thái', selectInput(t.status, o.status, (v) => set('status', v))));
-  r1.appendChild(field('Độ ưu tiên', selectInput(t.priority, o.priority, (v) => set('priority', v))));
+  const [oUT, mtUT] = chonUuTien(t.priority, o.priority, (v) => set('priority', v));
+  r1.appendChild(field('Độ ưu tiên', oUT));
   b.appendChild(r1);
+  b.appendChild(mtUT);
 
   const r2 = el('div', 'row2');
   r2.appendChild(field('Loại công việc', selectInput(t.workType, o.workType, (v) => set('workType', v))));
@@ -5000,8 +5045,10 @@ function buildCreateForm(b, t, o) {
 
   const r1 = el('div', 'row2');
   r1.appendChild(field('Loại công việc *', selectInput(t.workType, o.workType, (v) => set('workType', v))));
-  r1.appendChild(field('Độ ưu tiên *', selectInput(t.priority, o.priority, (v) => set('priority', v))));
+  const [oUT, mtUT] = chonUuTien(t.priority, o.priority, (v) => set('priority', v));
+  r1.appendChild(field('Độ ưu tiên *', oUT));
   b.appendChild(r1);
+  b.appendChild(mtUT);
 
   const r2 = el('div', 'row2');
   const fStart = field('Ngày bắt đầu', ngayInput(t.startAt, (v) => set('startAt', v)));
