@@ -2431,7 +2431,8 @@ function daiNhiet(d, dinhCao) {
     }).join('');
 
     return '<div class="tn-hang' + (r.id ? '' : ' chua') + '">' +
-      '<div class="tn-ten" title="' + esc(r.ten) + '">' + esc(r.ten) +
+      '<div class="tn-ten' + (r.tong ? ' bam-duoc" data-ns="' + esc(r.id) + '" role="button" tabindex="0"' +
+        ' title="' + esc(r.ten) + ' · bấm để xem ' + r.tong + ' việc' : '" title="' + esc(r.ten)) + '">' + esc(r.ten) +
         (r.gap ? '<span class="tn-gap" title="việc gấp / quá hạn">' + r.gap + '</span>' : '') + '</div>' +
       '<div class="tn-dai">' + o + '</div>' +
       '<div class="tn-tong"><span class="tn-cot" style="width:' +
@@ -2513,19 +2514,68 @@ function moChiTietO(nguoiId, ngay) {
   const t = new Date(ngay + 'T00:00:00');
 
   moModal(r.ten + ' · ' + THU[t.getDay()] + ' ' + dmy(ngay),
-    '<div class="viec">' + ds.map((v) => {
-      const m = S.modules.find((x) => x.id === v.module);
-      return '<div class="viec-dong bam-duoc" data-mo="' + esc(v.module) + '" data-rec="' + esc(v.id) +
-        '" title="Bấm để mở việc này trong app">' +
-        '<span class="muc muc-' + (v.muc === 'cao' ? 'cao' : v.muc === 'vua' ? 'vua' : 'thap') + '"></span>' +
-        '<div class="noi"><div class="tieu-de">' + esc(v.tieuDe) + '</div>' +
-        '<div class="phu">' + [v.gio, v.trangThai, v.vai === 'ho-tro' ? 'hỗ trợ' : '']
-          .filter(Boolean).map(esc).join(' · ') + '</div>' +
-        ((v.the || []).length ? '<div>' + v.the.map((x) => '<span class="the-nho">' + esc(x) + '</span>').join('') + '</div>' : '') +
-        '</div>' +
-        (m ? '<span class="mod">' + esc(m.ten) + '</span>' : '') +
-        '</div>';
-    }).join('') + '</div>',
+    '<div class="viec">' + ds.map((v) => dongViecTai(v, r, d)).join('') + '</div>',
+    '<button class="btn ghost" data-close="1">Đóng</button>');
+}
+
+/**
+ * Một việc trong cửa sổ chi tiết của bảng nhiệt: tên, giờ, trạng thái, vai,
+ * thẻ, base, và ai cùng làm. Đủ để biết người đó đang gánh gì mà không phải mở
+ * app. Chỉ cho bấm mở trong app khi người xem mở được việc đó (máy chủ báo
+ * `moHet`, hoặc đây là dòng của chính mình); quyền xem tải không xuống app con.
+ */
+function dongViecTai(v, r, d) {
+  const m = S.modules.find((x) => x.id === v.module);
+  const moDuoc = !!(d.moHet || (r.id && r.id === d.toiId));
+  const khac = (ds) => (ds || []).filter((u) => u.id !== r.id).map((u) => u.name);
+  const cung = khac(v.chinh), hoTro = khac(v.hoTro);
+  return '<div class="viec-dong' + (moDuoc ? ' bam-duoc" data-mo="' + esc(v.module) + '" data-rec="' + esc(v.id) +
+      '" title="Bấm để mở việc này trong app' : '') + '">' +
+    '<span class="muc muc-' + (v.muc === 'cao' ? 'cao' : v.muc === 'vua' ? 'vua' : 'thap') + '"></span>' +
+    '<div class="noi"><div class="tieu-de">' + esc(v.tieuDe) + '</div>' +
+    '<div class="phu">' + [v.gio, v.trangThai, v.vai === 'ho-tro' ? 'hỗ trợ' : 'phụ trách']
+      .filter(Boolean).map(esc).join(' · ') + '</div>' +
+    (cung.length || hoTro.length
+      ? '<div class="phu">' + [cung.length ? 'Cùng phụ trách: ' + cung.join(', ') : '',
+          hoTro.length ? 'Hỗ trợ: ' + hoTro.join(', ') : ''].filter(Boolean).map(esc).join(' · ') + '</div>'
+      : '') +
+    ((v.the || []).length ? '<div>' + v.the.map((x) => '<span class="the-nho">' + esc(x) + '</span>').join('') + '</div>' : '') +
+    '</div>' +
+    (m ? '<span class="mod">' + esc(m.ten) + '</span>' : '') +
+    '</div>';
+}
+
+/** Bấm tên trên bảng nhiệt: mọi việc người đó đang gánh trong khoảng, xếp theo ngày. */
+function moViecNguoi(nguoiId) {
+  const d = S.lich;
+  if (!d) return;
+  const r = d.hang.find((x) => x.id === nguoiId);
+  if (!r) return;
+  const homNay = d2s(new Date());
+  const ngay = d.ngay.filter((n) => (r.o[n] || []).length);
+  const tatCa = ngay.flatMap((n) => r.o[n]);
+  const tre = tatCa.filter((v) => v.muc === 'cao').length;
+  const xong = tatCa.filter((v) => v.muc === 'xong').length;
+  const hoTro = tatCa.filter((v) => v.vai === 'ho-tro').length;
+
+  const tom = '<div class="ct-tom">' +
+    '<span class="the-nho">' + r.tong + ' việc</span>' +
+    (tre ? '<span class="the-nho ct-do">' + tre + ' gấp / quá hạn</span>' : '') +
+    (xong ? '<span class="the-nho">' + xong + ' đã xong</span>' : '') +
+    (hoTro ? '<span class="the-nho">' + hoTro + ' hỗ trợ</span>' : '') +
+    '<span class="the-nho">' + dmy(d.tu) + ' đến ' + dmy(d.den) + '</span></div>';
+
+  const than = ngay.map((n) => {
+    const t = new Date(n + 'T00:00:00');
+    const nghi = r.nghi && r.nghi[n];
+    return '<div class="ct-ngay' + (n === homNay ? ' nay' : '') + '">' + THU[t.getDay()] + ' · ' + dmy(n) +
+      (n === homNay ? ' · hôm nay' : '') +
+      (nghi ? ' · nghỉ ' + esc(nghi.ma) : '') +
+      '<span class="ct-so">' + r.o[n].length + '</span></div>' +
+      '<div class="viec">' + r.o[n].map((v) => dongViecTai(v, r, d)).join('') + '</div>';
+  }).join('');
+
+  moModal(r.ten, tom + (than || '<div class="trong">Không có việc nào trong khoảng này.</div>'),
     '<button class="btn ghost" data-close="1">Đóng</button>');
 }
 
@@ -3108,6 +3158,8 @@ document.addEventListener('click', (e) => {
 
   const o = e.target.closest('.tn-o[data-n]');
   if (o) { moChiTietO(o.dataset.nguoi, o.dataset.n); return; }
+  const ns = e.target.closest('.tn-ten[data-ns]');
+  if (ns) { moViecNguoi(ns.dataset.ns); return; }
   const xem = e.target.closest('[data-xem]');
   if (xem) {
     S.xem = xem.getAttribute('data-xem');
@@ -3242,6 +3294,9 @@ $('#railNen').onclick = () => moNganKeo(false);
 window.addEventListener('hashchange', () => moNganKeo(false));
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && document.body.classList.contains('rail-mo')) moNganKeo(false);
+  // tên trên bảng nhiệt là nút: Enter / Space mở danh sách việc như khi bấm
+  const ns = (e.key === 'Enter' || e.key === ' ') && e.target.closest && e.target.closest('.tn-ten[data-ns]');
+  if (ns) { e.preventDefault(); moViecNguoi(ns.dataset.ns); }
 });
 
 /* Điện thoại: KHÔNG đóng màn Cá nhân trước khi mở cửa sổ (09/10/2026, anh Hùng:

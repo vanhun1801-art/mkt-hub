@@ -437,7 +437,7 @@ function moFormQuyen(i, nguoiSan) {
       '<span>' + esc(x.ten) + '</span></label>').join('') +
     '</div>',
     'Chỉ mở <b>bảng nhiệt ở Tổng quan</b>: thấy đúng những người đã tick đang bận gì, ' +
-    'bấm vào ô thì thấy tên việc. Mở Bảng công việc thì vẫn chỉ thấy việc của mình. ' +
+    'bấm tên một người thì thấy mọi việc người đó đang gánh, bấm ô ngày thì thấy việc hôm đó. Mở Bảng công việc thì vẫn chỉ thấy việc của mình. ' +
     'Không tick ai thì chỉ thấy tải của chính mình.');
 
   /* Kênh Social — hai tầng phân quyền gom về một màn hình.

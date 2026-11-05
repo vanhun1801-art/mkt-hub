@@ -407,3 +407,11 @@ Anh Hùng soát tay trên Tourwell: bốn đơn ghi cho quảng cáo PITO không
 - Sản phẩm của quảng cáo lấy từ cột **Sản phẩm & Tour** của chiến dịch trên Base quảng cáo. Trống thì đoán từ tên chiến dịch, nhóm, quảng cáo và **ghi rõ "tự đoán"**.
 - Đơn có kèm sản phẩm khác chỉ cộng tiền dịch vụ đúng; không tách được tiền thì hiện dấu **+**, không bịa số.
 - Mã ở `lark-ads-manager/sync/sanpham.js`, test `test/san-pham-dung.test.js`.
+
+## 30. Bảng nhiệt: bấm tên là thấy người đó làm gì (05/11/2026, Tổng quan)
+
+Anh Hùng: người được cấp "Xem tải của ai" trong Thiết lập phải bấm vào là thấy việc chi tiết của nhân sự đó.
+
+- **Bấm tên** ở đầu hàng trên bảng nhiệt: cửa sổ liệt kê mọi việc người đó gánh trong khoảng đang lọc, nhóm theo ngày. Đầu cửa sổ tóm số việc, số gấp / quá hạn, số đã xong, số việc hỗ trợ. **Bấm một ô ngày** vẫn ra việc của riêng ngày đó.
+- Mỗi việc ghi giờ, trạng thái, vai (phụ trách / hỗ trợ), loại và mức ưu tiên, base, và **ai cùng làm**.
+- Quyền xem tải không xuống app con. Việc của người khác chỉ bấm mở trong app được khi người xem vốn thấy hết Bảng công việc (quản lý, "Xem toàn bộ"); máy chủ báo bằng `moHet` / `toiId` trong `/api/lich-chung`. Còn lại chỉ xem tại chỗ, không đẩy vào ô việc báo "không tìm thấy".

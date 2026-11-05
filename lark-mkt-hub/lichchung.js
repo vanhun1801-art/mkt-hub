@@ -345,6 +345,12 @@ async function docThat(mods, tu, den, nguoi, kh) {
     /* `chiMinh` đổi nhãn khối thành "Tải của tôi". Chỉ đúng khi thật sự còn
      * một dòng — kê thêm được hai người thì vẫn là "Tải nhân sự". */
     chiMinh: !xemHet && hangHien.length <= 1,
+    /* Bấm một việc trên bảng nhiệt thì mở nó trong app con. Quyền xem tải KHÔNG
+     * xuống app con, nên việc của người khác chỉ mở được khi người xem vốn thấy
+     * hết Bảng công việc (quản lý, "Xem toàn bộ"). Còn lại giao diện chỉ hiện
+     * chi tiết tại chỗ, không đẩy người ta vào một ô việc báo "không tìm thấy". */
+    toiId: (nguoi && nguoi.id) || '',
+    moHet: !nguoi || !!nguoi.quanLy || !!nguoi.toanBo,
     loi,
   };
   cache.set(kh, { at: Date.now(), data });

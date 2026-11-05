@@ -968,6 +968,22 @@ code { background: var(--trang-2); border: 1px solid var(--vien-mem); border-rad
   overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 6px;
 }
 .tn-hang.chua .tn-ten { color: var(--do); }
+/* Tên có việc là nút: bấm ra danh sách việc của người đó (moViecNguoi). */
+.tn-ten.bam-duoc { cursor: pointer; transition: color .16s; }
+.tn-ten.bam-duoc:hover { color: var(--xanh, #2b5cff); text-decoration: underline; text-underline-offset: 3px; }
+/* Cửa sổ "việc của một người": tóm tắt trên đầu, rồi nhóm theo ngày. */
+.ct-tom { display: flex; flex-wrap: wrap; margin: -4px 0 8px; }
+.ct-tom .ct-do { color: var(--do); }
+.ct-ngay {
+  display: flex; align-items: center; gap: 8px; margin: 14px 0 6px;
+  font-size: 13px; font-weight: 600; color: var(--chu-mo);
+}
+.ct-ngay.nay { color: var(--xanh, #2b5cff); }
+.ct-ngay .ct-so {
+  margin-left: auto; min-width: 22px; height: 20px; padding: 0 7px; border-radius: 999px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 12px; background: var(--trang-2); font-variant-numeric: tabular-nums;
+}
 .tn-gap {
   flex: 0 0 auto; min-width: 18px; height: 17px; padding: 0 5px; border-radius: 999px;
   background: var(--do-nhat); color: var(--do); font-size: 10.5px; font-weight: 700;
