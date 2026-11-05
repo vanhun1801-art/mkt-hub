@@ -124,6 +124,15 @@ const NHOM_KHAC = [
     { ma: 'liveFollow', ten: 'LIVE-theo dõi', mucTieu: 200, tyTrong: 0.6, nguon: 'Tiktok|Phú Quốc Không Phanh|Live#liveFollow' },
     { ma: 'liveComment', ten: 'LIVE-bình luận', mucTieu: 200, tyTrong: 0.1, nguon: 'Tiktok|Phú Quốc Không Phanh|Live#liveComment' },
   ] },
+  /* Khối của Trường. Tỷ lệ chỉnh ảnh đạt tính bằng %, nên mục tiêu ghi 98. */
+  { kenh: 'Thiết kế', tenKenh: 'Rooty Trip Phú Quốc', loai: 'Chung', tieuChi: [
+    { ma: 'soVideo', ten: 'Số video sản xuất', mucTieu: 10, tyTrong: 0.2,
+      nguon: 'CongViec|Edit Video|Việc|truong#viecXong' },
+    { ma: 'soThietKe', ten: 'Số thiết kế hoàn thành', mucTieu: 30, tyTrong: 0.3,
+      nguon: 'CongViec|Thiết kế|Việc|truong#viecXong' },
+    { ma: 'tyLeAnh', ten: 'Tỷ lệ lô ảnh đạt (%)', mucTieu: 98, tyTrong: 0.5,
+      nguon: 'ChinhAnh|Rooty Trip Phú Quốc|Lô|truong#tyLeDat' },
+  ] },
   /* Khối 70% của Khánh. Anh Hùng 05/11/2026: Khánh chịu tác động bởi số video
    * (task Edit Video của bạn) và view bán hàng TikTok + FB Rooty Trip. Đúng
    * khối tháng 9 trên Sheet: Số lượng 30% · FB 35% · TikTok 35%. MICE và
@@ -188,28 +197,17 @@ function dungLuat(cu) {
         'Tiktok|Cuộc sống tại Phú Quốc|Live': 0.05,
         'Tiktok|Phú Quốc Không Phanh|Live': 0.05,
       } },
-    /* TRƯỜNG — chấm bằng chỉ số rời của app Chỉnh ảnh, không qua nhóm kênh.
-     *
-     * Mã dạng `thietke.anh` chỉ đọc được ở tiêu chí `kieu: 'chiSo'`; nhét vào
-     * một nhóm kênh thì lớp thu số liệu đòi dạng `Kênh|Tên|Loại#chỉ số` và trả
-     * về "mã nguồn không đúng dạng". Đã thử và hỏng đúng như vậy.
-     *
-     * Bảng tháng 9 ghi hai tiêu chí "Số lượng thiết kế đạt = 30" và "Chỉnh ảnh
-     * = 98%". App Chỉnh ảnh chưa đo được hai cái đó — nó đếm lô ảnh, số ảnh và
-     * số video, chứ không đếm sản phẩm thiết kế lẫn tỷ lệ đạt. Dùng cái đang
-     * đo được, và ghi lại đây để ai cần thì đi bổ sung chứ không tưởng là bỏ
-     * sót. */
+    /* TRƯỜNG — anh Hùng 05/11/2026: tính số video bạn sản xuất (task Edit
+     * Video, như Khánh), số thiết kế (task Thiết kế), và chỉnh ảnh theo ĐÁNH
+     * GIÁ nghiệm thu chứ không theo số lượng. Đúng khối "Thiết kế" của bảng
+     * tháng 9 (thiết kế 30 · chỉnh ảnh 98%), thêm dòng video. Tỷ trọng và mục
+     * tiêu video là mức tạm, anh Hùng chỉnh ở tab Mục tiêu. */
     { ...nguoiCu('truong'), ma: 'truong', ten: 'TRƯỜNG',
       tieuChi: [
-        { ma: 'soAnh', ten: 'Số ảnh đã chỉnh', trongSo: 0.35, mucTieu: 15000,
-          nguon: { kieu: 'chiSo', ma: 'thietke.anh' } },
-        { ma: 'soVideo', ten: 'Số video khách', trongSo: 0.2, mucTieu: 500,
-          nguon: { kieu: 'chiSo', ma: 'thietke.video' } },
-        { ma: 'ngayCoAnh', ten: 'Số ngày có ảnh', trongSo: 0.15, mucTieu: 31,
-          nguon: { kieu: 'chiSo', ma: 'thietke.ngayCoAnh' } },
+        { ma: 'hieuQua', ten: 'Hiệu quả Công việc chính', trongSo: 0.7, nguon: { kieu: 'kenh' } },
         ...tayChung,
       ],
-      kenh: {} },
+      kenh: { 'Thiết kế|Rooty Trip Phú Quốc|Chung': 1 } },
     /* Hùng — anh Hùng 18/10/2026 chốt chấm bằng CPA, nên khai `dao`. */
     { ...nguoiCu('hung'), ma: 'hung', ten: 'HÙNG',
       tieuChi: [

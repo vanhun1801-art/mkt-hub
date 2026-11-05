@@ -1026,7 +1026,7 @@ function moNghiemThu(id) {
         <div class="note info">${esc(b.hangMuc.join(' · '))} · ${b.soAnh ? n0(b.soAnh) + ' ảnh' : ''}${b.soVideo ? ' ' + n0(b.soVideo) + ' video' : ''} · ${esc(b.nguoiLam.map((u) => u.name).join(', ') || 'chưa ghi người')}</div>
       </div>
       <div class="modal-foot">
-        <label class="oGui"><input type="checkbox" id="mGui" checked> Nhắn kết quả cho người làm</label>
+        <label class="oGui"><input type="checkbox" id="mGui" checked> Trả về sửa thì nhắn người làm</label>
         <button class="btn primary" id="mLuu">Lưu nghiệm thu</button>
       </div>`);
 
@@ -1047,7 +1047,7 @@ function moNghiemThu(id) {
           id, trangThai: kq, nhanXet: nx, gui: $('#mGui').checked,
         });
         toast('Đã nghiệm thu: ' + kq + chuGui(r.gui));
-        if ($('#mGui').checked && !r.gui.ok) toast('Không gửi được: ' + r.gui.loi, 'err');
+        if ($('#mGui').checked && !r.gui.ok && r.gui.loi) toast('Không gửi được: ' + r.gui.loi, 'err');
         dongModal();
         await napDs();
       } catch (e2) {
@@ -1135,8 +1135,7 @@ function moNghiemThu(id) {
         });
         toast((dat ? 'Đã duyệt: ' : 'Đã trả về sửa: ') + (r.baoCao ? r.baoCao.thuMuc : '')
           + chuGui(r.gui));
-        if (!r.gui.ok) toast('Không gửi được: ' + r.gui.loi, 'err');
-        else if (r.gui.loi) toast(r.gui.loi, 'err');
+        if (r.gui.loi) toast((r.gui.ok ? '' : 'Không gửi được: ') + r.gui.loi, 'err');
         /* Bỏ khỏi hàng đợi ngay, không đợi nạp lại — quản lý đang xem liên tục
          * nhiều lô, chờ một vòng gọi Base là mất nhịp. */
         S.hangDoi = S.hangDoi.filter((x) => x.id !== id);
