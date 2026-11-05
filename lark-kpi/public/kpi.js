@@ -226,8 +226,8 @@ function theChiSoKenh(cuoi) {
           const tc = d.theo[x];
           if (!tc) return '<td></td><td></td><td></td>';
           /* Dòng theo dõi không có mục tiêu riêng, chỉ hiện số. */
-          return '<td class="so nhat">' + (d.tyTrong ? gon(tc.mucTieu) : '') + '</td>'
-            + '<td class="so">' + (tc.boQua ? '<span class="nhan-o im">chưa đo được</span>' : '<b>' + gon(Math.round(tc.ketQua)) + '</b>') + '</td>'
+          return '<td class="so nhat">' + (d.tyTrong ? soDu(tc.mucTieu) : '') + '</td>'
+            + '<td class="so">' + (tc.boQua ? '<span class="nhan-o im">chưa đo được</span>' : '<b>' + soDu(tc.ketQua) + '</b>') + '</td>'
             + '<td class="so">' + (tc.boQua || !d.tyTrong ? '' : ptLon(tc.datMucTieu)) + '</td>';
         }).join('')));
     });
@@ -441,8 +441,8 @@ function moTieuChi(n, tc, banNhom) {
         + '<th class="so">Mục tiêu</th><th class="so">% đạt</th><th class="so">Tỷ trọng</th></tr></thead>'
         + '<tbody>' + ct.map((x) => '<tr><td>' + esc(x.ten)
           + (x.dao ? ' <span class="nhan-o im">thấp là tốt</span>' : '') + '</td>'
-          + '<td class="so">' + (x.boQua ? '<span class="nhan-o im">chưa đo được</span>' : gon(x.ketQua)) + '</td>'
-          + '<td class="so nhat">' + gon(x.mucTieu) + '</td>'
+          + '<td class="so">' + (x.boQua ? '<span class="nhan-o im">chưa đo được</span>' : soDu(x.ketQua)) + '</td>'
+          + '<td class="so nhat">' + soDu(x.mucTieu) + '</td>'
           + '<td class="so">' + ptLon(x.boQua ? null : x.datMucTieu) + '</td>'
           + '<td class="so nhat">' + (x.tyTrong == null ? '—' : Math.round(x.tyTrong * 100) + '%') + '</td></tr>').join('')
         + '</tbody>';

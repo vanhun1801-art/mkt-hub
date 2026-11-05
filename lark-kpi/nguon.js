@@ -314,6 +314,27 @@ async function docTuApp(thang, luat, khoangRieng, kho) {
     o.soPhien += 1;
     liveTheoKenh.set(k, o);
   });
+  /* LIVE TIKTOK ĐI ĐƯỜNG BẢN XUẤT THEO NGÀY. TikTok không mở API cho LIVE nên
+   * số về bằng tệp LIVE Center tải lên app Social, ghi vào bảng LIVE theo
+   * ngày chứ không vào bảng phiên. Tháng 10/2026 đã có 36 ngày của ba kênh mà
+   * KPI vẫn ghi "chưa đo được" vì chỉ đọc bảng phiên (anh Hùng 05/11/2026).
+   * Kênh đã có phiên thì bỏ qua bản theo ngày, không cộng hai lần. Bình luận
+   * ở đây là NGƯỜI bình luận: LIVE Center chỉ xuất số đó. */
+  const coPhien = new Set(liveTheoKenh.keys());
+  (social && social.liveNgay ? social.liveNgay : []).forEach((l) => {
+    const k = chuan(l.platform) + '|' + chuan(l.channel || '');
+    if (coPhien.has(k)) return;
+    const o = liveTheoKenh.get(k) || { views: 0, newFollows: 0, comments: 0, likes: 0, shares: 0, peak: 0, minutes: 0, soPhien: 0 };
+    o.views += Number(l.luotXem) || 0;
+    o.newFollows += Number(l.followerMoi) || 0;
+    o.comments += Number(l.nguoiBinhLuan) || 0;
+    o.likes += Number(l.thich) || 0;
+    o.shares += Number(l.chiaSe) || 0;
+    o.minutes += Math.round((Number(l.thoiLuong) || 0) / 60);
+    o.peak = Math.max(o.peak, Number(l.dinhDongThoi) || 0);
+    o.soPhien += Number(l.soPhien) || 0;
+    liveTheoKenh.set(k, o);
+  });
 
   /**
    * @param cach với số CHƯA lấy được: phải làm gì để có nó. Bốn cách khác nhau
@@ -352,7 +373,10 @@ async function docTuApp(thang, luat, khoangRieng, kho) {
   let viec = null;
   if (dsTc.some((tc) => String(tc.nguon).startsWith('CongViec|'))) {
     try {
-      const r = await goi(DIA_CHI['cong-viec'] + '/api/tasks', 60, { 'x-hub-user-manager': '1' });
+      /* Trên Render Bảng công việc chạy chế độ `api`: thiếu `x-hub-user-id` là
+       * 401 ngay, và số video thành "chưa đo được" (anh Hùng 05/11/2026). */
+      const r = await goi(DIA_CHI['cong-viec'] + '/api/tasks', 60,
+        { 'x-hub-user-id': 'kpi', 'x-hub-user-name': 'KPI', 'x-hub-user-manager': '1' });
       viec = (r && r.tasks) || [];
     } catch (e) { loiApp.viec = e.message; }
   }
