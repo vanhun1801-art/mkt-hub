@@ -714,6 +714,7 @@ function trangBaoCao(d, nx, logo) {
 
   return '<!doctype html><html lang="vi"><head><meta charset="utf-8">'
     + '<meta name="viewport" content="width=device-width,initial-scale=1">'
+    + '<meta name="hub-trang-in" content="1">'
     + '<title>Báo cáo Marketing' + (pv ? ' · ' + hEsc(pv.ten) : '')
     + ' ' + ngay(d.tu) + ' → ' + ngay(d.den) + '</title>'
     + '<style>' + CSS_BC + CSS_LUU + '</style></head><body><div class="trang">'
@@ -809,6 +810,10 @@ const CSS_VB = ':root{--vien:#e3e8f0;--mem:#eef1f6;--chu:#1a2233;--mo:#5b6779;--
 function voVanBan(o) {
   return '<!doctype html><html lang="vi"><head><meta charset="utf-8">'
     + '<meta name="viewport" content="width=device-width,initial-scale=1">'
+    /* Trang in giấy: Hub không chèn lớp iOS và giao diện tối vào đây. Thiếu thẻ
+     * này thì mở phiếu qua Hub ở chế độ tối là chữ sáng trên nền trắng, tên và
+     * số trong bảng biến mất (anh Hùng 05/11/2026). */
+    + '<meta name="hub-trang-in" content="1">'
     + '<title>' + hEsc(o.tieuDe) + ' · ' + hEsc(o.ky) + '</title>'
     + '<style>' + CSS_VB + CSS_LUU + '</style></head><body><div class="ngoai">'
     + thanhLuu(o.tenTep, o.csv)
