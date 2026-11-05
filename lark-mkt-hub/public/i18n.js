@@ -675,6 +675,13 @@
     /* Độ ưu tiên kiểu ma trận Eisenhower (05/11/2026); "Quan trọng", "Gấp" đã có ở trên. */
     'Khẩn cấp': 'Critical',
     'Để sau': 'Later',
+    /* Trục và lời khuyên trong ma trận chọn Độ ưu tiên. */
+    'Chưa gấp': 'Not urgent',
+    'Ít quan trọng': 'Less important',
+    'Làm ngay': 'Do it now',
+    'Lên lịch làm kỹ': 'Schedule it, do it well',
+    'Làm nhanh, nhờ hỗ trợ': 'Do it fast, get help',
+    'Làm khi rảnh': 'Do it when free',
 
     /* --- app Lịch tác nghiệp --- */
     'Cần xử lý': 'To handle',

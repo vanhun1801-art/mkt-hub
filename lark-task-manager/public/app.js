@@ -4296,29 +4296,61 @@ function chonUuTien(value, options, onChange) {
   const s = selectInput(value, options, (v) => { onChange(v); to(v); });
   const mt = el('div', 'mt-uu');
   mt.hidden = true;
-  const mo = (bat) => { mt.hidden = !bat; s.classList.toggle('mt-dang-mo', bat); };
-  s.addEventListener('mousedown', (e) => { e.preventDefault(); s.focus(); mo(mt.hidden); });
+  /* Đóng cũng có hiệu ứng như lúc mở (nguyên tắc mục 3): gắn .mt-dong, chờ
+   * animation chạy xong mới ẩn hẳn. */
+  let henDong = 0;
+  const mo = (bat) => {
+    clearTimeout(henDong);
+    s.classList.toggle('mt-dang-mo', bat);
+    if (bat) { mt.classList.remove('mt-dong'); mt.hidden = false; return; }
+    if (mt.hidden) return;
+    mt.classList.add('mt-dong');
+    henDong = setTimeout(() => { mt.hidden = true; mt.classList.remove('mt-dong'); }, 220);
+  };
+  const dangMo = () => !mt.hidden && !mt.classList.contains('mt-dong');
+  s.addEventListener('mousedown', (e) => { e.preventDefault(); s.focus(); mo(!dangMo()); });
   s.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); mo(mt.hidden); }
-    else if (e.key === 'Escape') mo(false);
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); mo(!dangMo()); }
+    else if (e.key === 'Escape' && dangMo()) { e.stopPropagation(); mo(false); }
   });
-  mt.appendChild(el('span', 'mt-truc', ''));
-  mt.appendChild(el('span', 'mt-truc', 'Gấp'));
-  mt.appendChild(el('span', 'mt-truc', 'Chưa gấp'));
+  /* Bấm ra ngoài thì gập lại, như mọi bảng chọn khác. */
+  const ngoai = (e) => {
+    if (!mt.isConnected) { document.removeEventListener('pointerdown', ngoai, true); return; }
+    if (!dangMo() || mt.contains(e.target) || s.contains(e.target)) return;
+    mo(false);
+  };
+  document.addEventListener('pointerdown', ngoai, true);
+
+  const dau = el('div', 'mt-dau');
+  dau.appendChild(el('span', '', 'Gấp'));
+  dau.appendChild(el('span', '', 'Chưa gấp'));
+  const ben = el('div', 'mt-ben');
+  ben.appendChild(el('span', '', 'Quan trọng'));
+  ben.appendChild(el('span', '', 'Ít quan trọng'));
+  const luoi = el('div', 'mt-luoi');
+  mt.appendChild(el('span', 'mt-goc', ''));
+  mt.appendChild(dau);
+  mt.appendChild(ben);
+  mt.appendChild(luoi);
   const o = {};
-  MA_TRAN.forEach((m, i) => {
-    if (i % 2 === 0) mt.appendChild(el('span', 'mt-truc mt-doc', i ? 'Ít quan trọng' : 'Quan trọng'));
-    const c = el('button', 'mt-o mt-g' + i + ' ' + ['p-high', 'p-qt', 'p-mid', 'p-low'][m.hang]);
+  MA_TRAN.forEach((m) => {
+    const c = el('button', 'mt-o ' + ['p-high', 'p-qt', 'p-mid', 'p-low'][m.hang]);
     c.type = 'button';
-    c.appendChild(el('b', '', m.ten));
-    c.appendChild(el('span', '', m.y));
+    const ten = el('b', '', m.ten);
+    c.appendChild(ten);
+    c.appendChild(el('span', 'mt-y', m.y));
+    c.appendChild(el('i', 'mt-tick', ''));
     const gt = (options || []).find((x) => hangUuTien(x) === m.hang);
     if (gt) c.onclick = () => { s.value = gt; onChange(gt); to(gt); mo(false); };
     else c.disabled = true;
     o[m.hang] = c;
-    mt.appendChild(c);
+    luoi.appendChild(c);
   });
-  function to(v) { for (const k of Object.keys(o)) o[k].classList.toggle('on', !!v && hangUuTien(v) === Number(k)); }
+  function to(v) {
+    const hang = v ? hangUuTien(v) : -1;
+    for (const k of Object.keys(o)) o[k].classList.toggle('on', hang === Number(k));
+    luoi.classList.toggle('co-chon', hang >= 0 && !!o[hang]);
+  }
   to(value);
   return [s, mt];
 }

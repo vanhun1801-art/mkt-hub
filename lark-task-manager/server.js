@@ -2260,7 +2260,24 @@ async function api(req, res, url) {
     const hanA = new Date(DL.msVN(a.deadline1)).toISOString();
     const hanB = new Date(DL.msVN(b.deadline1)).toISOString();
     await lark.updateRecord(a.id, toCells({ deadline1: hanB }));
-    await lark.updateRecord(b.id, toCells({ deadline1: hanA }));
+    /* Ghi B hỏng mà để nguyên A thì hai việc trùng một hạn, mốc cũ của A mất
+     * hẳn. Trả A về hạn cũ rồi mới báo lỗi. */
+    try {
+      await lark.updateRecord(b.id, toCells({ deadline1: hanA }));
+    } catch (e) {
+      console.error('  [hoán đổi] ghi ' + b.id + ' hỏng: ' + e.message);
+      const traLai = await lark.updateRecord(a.id, toCells({ deadline1: hanA })).then(() => true, (e2) => {
+        console.error('  [hoán đổi] trả hạn cũ cho ' + a.id + ' hỏng: ' + e2.message);
+        return false;
+      });
+      return json(res, {
+        error: traLai
+          ? 'Chưa hoán đổi được, hai việc vẫn giữ hạn cũ. Thử lại sau ít phút.'
+          : 'Hoán đổi bị dở: "' + (a.title || '') + '" đã nhận hạn mới nhưng việc kia chưa. Sửa lại deadline "' +
+            (a.title || '') + '" về ' + DL.nhanGio(a.deadline1) + '.',
+        code: 'HOAN_DOI',
+      }, 502);
+    }
     for (const [t, han] of [[a, hanB], [b, hanA]]) {
       const rec = cache.records && cache.records.find((r) => r.record_id === t.id);
       if (rec) applyLocal(rec, { deadline1: han });
