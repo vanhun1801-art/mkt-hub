@@ -213,4 +213,21 @@ async function guiThu({ userId, ma = '', guiTin = tin() }) {
   return { ...r, ma: b.ma, traLoi };
 }
 
-module.exports = { soanBai, soanTraLoi, canBao, tieuDe, tenQuocGia, chay, batBao, guiThu, dichTin, laTiengViet };
+/**
+ * Gửi bù tin booking vào nhóm cho đơn bị lỡ (đặt trước mốc baoTu, quá 24 giờ, hoặc
+ * lượt đọc thư hỏng). Chỉ quản lý gọi, theo từng mã. Đơn đã có tin nhóm thì không gửi
+ * lại. Mọi dòng lịch sử hiện có coi như đã báo, các thư sau mới trả lời vào luồng.
+ */
+async function guiBu({ ma, guiTin = tin() }) {
+  if (!batBao()) return { ok: false, loi: 'Máy này không gửi tin nhóm. Gửi bù trên bản chạy chung.' };
+  const rows = await bang.doc({ force: true });
+  const b = rows.find((x) => x.ma === ma || x.maOta === ma);
+  if (!b) return { ok: false, loi: 'Không tìm thấy đơn ' + ma };
+  if (b.tinNhom) return { ok: false, loi: 'Đơn ' + b.ma + ' đã có tin trong nhóm.' };
+  const r = await guiTin.gui({ chatId: R.nhomChatId, post: soanBai(b), khoa: 'rt-moi-' + b.ma });
+  if (!r.ok) return { ...r, ma: b.ma };
+  await bang.ghi(b.id, { tinNhom: r.msgId, daBaoNhom: String(b.lichSu || '').split('\n').filter(Boolean).join('\n') });
+  return { ...r, ma: b.ma };
+}
+
+module.exports = { soanBai, soanTraLoi, canBao, tieuDe, tenQuocGia, chay, batBao, guiThu, guiBu, dichTin, laTiengViet };

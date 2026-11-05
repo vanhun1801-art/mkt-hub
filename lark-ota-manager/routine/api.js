@@ -123,6 +123,15 @@ async function xuLy(req, res, u, { ok, fail, send, quyenCua, readBody, nguoiDung
     return true;
   }
 
+  if (p === '/api/routine/gui-bu' && req.method === 'POST') {
+    if (!quyenCua(req).quanLy) { fail(res, 403, 'Chỉ quản lý được gửi bù tin nhóm.'); return true; }
+    const ma = u.searchParams.get('ma') || '';
+    if (!ma) { fail(res, 400, 'Thiếu mã đơn cần gửi bù.'); return true; }
+    const kq = await baoNhom.guiBu({ ma });
+    if (kq.ok) ok(res, kq); else fail(res, 502, kq.loi || 'Gửi bù không được');
+    return true;
+  }
+
   if (p === '/api/routine/dong-bo' && req.method === 'POST') {
     await chayDongBo();
     if (tinhTrang.loi) fail(res, 502, tinhTrang.loi);
