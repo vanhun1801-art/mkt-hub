@@ -196,6 +196,17 @@ async function createField(tableId, spec) {
   return call('POST', baseUrl(tableId) + '/fields', { body });
 }
 
+/** Định nghĩa đầy đủ một cột (có options của cột chọn). */
+async function getField(tableId, fieldId) {
+  const d = await call('GET', baseUrl(tableId) + '/fields/' + encodeURIComponent(fieldId));
+  return d.field || d;
+}
+
+/** Ghi đè định nghĩa một cột (PUT đầy đủ). Chỉ dùng để thêm lựa chọn vào cột chọn. */
+async function updateField(tableId, fieldId, def) {
+  return call('PUT', baseUrl(tableId) + '/fields/' + encodeURIComponent(fieldId), { body: def });
+}
+
 async function createRecord(tableId, fields) {
   const names = Object.keys(fields);
   const d = await call('POST', baseUrl(tableId) + '/records/batch_create', {
@@ -270,7 +281,7 @@ async function quyenGhi() {
 }
 
 module.exports = {
-  cli, whoami, quyenGhi, listAll, listTables, listFields, createField,
+  cli, whoami, quyenGhi, listAll, listTables, listFields, createField, getField, updateField,
   createRecord, createMany, updateRecord, updateMany, deleteRecords,
   tenantToken, call, voiBase,
 };

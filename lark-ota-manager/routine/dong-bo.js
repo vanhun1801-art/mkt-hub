@@ -136,21 +136,73 @@ async function dongBo({ ghi = true } = {}) {
     sua[r.id] = sangDong({ ...b, suKien: gopLai });
   }
 
+  const hong = [];
   if (ghi) {
     await lark.voiBase(R.baseToken, async () => {
-      if (them.length) await lark.createMany(R.tableId, them);
-      if (Object.keys(sua).length) await lark.updateMany(R.tableId, sua);
+      const dongs = [...them, ...Object.values(sua)];
+      try { await themLuaChon(dongs); } catch (e) { console.error('[routine] thêm lựa chọn hỏng:', e.message); }
+      if (them.length) {
+        try { await lark.createMany(R.tableId, them); } catch (e) {
+          /* Một dòng hỏng (giá trị Base không nhận) không được chặn cả lượt: ghi từng
+           * dòng, dòng nào hỏng thì bỏ qua và báo, lượt sau thử lại. 04/11/2026 kênh
+           * "Zalo" chưa có trong ô chọn làm cả buổi tối không đơn nào vào nhóm. */
+          for (const d of them) {
+            try { await lark.createMany(R.tableId, [d]); } catch (e2) { hong.push(d['Mã đặt phòng'] + ': ' + e2.message); }
+          }
+        }
+      }
+      for (const [id, d] of Object.entries(sua)) {
+        try { await lark.updateMany(R.tableId, { [id]: d }); } catch (e) { hong.push(d['Mã đặt phòng'] + ': ' + e.message); }
+      }
     });
+    if (hong.length) console.error('[routine] dòng ghi hỏng:', hong.join(' | '));
   }
   return {
     soThu, thuMoi, soBooking: bookings.length,
     them: them.length, sua: Object.keys(sua).length,
     giuNguyen: bookings.length - them.length - Object.keys(sua).length,
+    hong,
     luc: new Date().toISOString(),
   };
 }
 
-module.exports = { dongBo, docThu, docBang, sangDong };
+/* Cột chọn: Base không nhận giá trị chưa có trong danh sách lựa chọn. GoHost có
+ * thêm nguồn mới (Zalo, Walk-in…) thì tự thêm lựa chọn đó, giữ nguyên các lựa chọn cũ. */
+const COT_CHON = ['Kênh', 'Trạng thái'];
+const chuanLc = (s) => String(s || '').trim().toLowerCase();
+
+/** Giá trị cột chọn chưa có trong options: { tên cột: [giá trị] }. Hàm thuần. */
+function luaChonThieu(dongs, coSan) {
+  const ra = {};
+  for (const ten of COT_CHON) {
+    const co = new Set((coSan[ten] || []).map(chuanLc));
+    const thieu = [...new Set(dongs.map((d) => d[ten]).filter((v) => typeof v === 'string' && v.trim() && v.length <= 60))]
+      .filter((v) => !co.has(chuanLc(v)));
+    if (thieu.length) ra[ten] = thieu;
+  }
+  return ra;
+}
+
+async function themLuaChon(dongs) {
+  if (!dongs.length) return;
+  const cot = await lark.listFields(R.tableId);
+  const defs = {};
+  for (const ten of COT_CHON) {
+    const c = cot.find((x) => x.name === ten);
+    if (c) defs[ten] = await lark.getField(R.tableId, c.id);
+  }
+  const coSan = Object.fromEntries(Object.entries(defs).map(([k, d]) => [k, (d.options || []).map((o) => o.name)]));
+  const thieu = luaChonThieu(dongs, coSan);
+  for (const [ten, ds] of Object.entries(thieu)) {
+    const d = defs[ten];
+    const def = { name: d.name || ten, type: 'select', multiple: !!d.multiple,
+      options: [...(d.options || []), ...ds.map((name) => ({ name }))] };
+    await lark.updateField(R.tableId, d.id || d.field_id || cot.find((x) => x.name === ten).id, def);
+    console.log('[routine] thêm lựa chọn', ten + ':', ds.join(', '));
+  }
+}
+
+module.exports = { dongBo, docThu, docBang, sangDong, luaChonThieu };
 
 /* node routine/dong-bo.js        → đồng bộ thật
  * node routine/dong-bo.js --thu  → chỉ đọc, in số dòng sẽ thêm/sửa */

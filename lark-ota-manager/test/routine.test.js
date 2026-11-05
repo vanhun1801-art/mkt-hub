@@ -266,6 +266,16 @@ console.log('— tin khách nhắn qua Agoda');
   const loi = await BN.dichTin(dongs, { dichFn: async () => { throw new Error('hết khoá'); } });
   t('dịch lỗi vẫn gửi bản gốc', Object.keys(loi).length === 0);
 
+  /* 04/11/2026: GoHost gửi nguồn "Zalo", "Walk-in" chưa có trong ô chọn Kênh → Base
+   * từ chối cả lượt ghi. Bộ đồng bộ phải nhận ra lựa chọn còn thiếu để thêm trước. */
+  const { luaChonThieu } = require('../routine/dong-bo');
+  const thieu = luaChonThieu(
+    [{ 'Kênh': 'Zalo', 'Trạng thái': 'Đã đặt' }, { 'Kênh': 'Walk-in' }, { 'Kênh': 'agoda' }, { 'Kênh': 'Zalo' }],
+    { 'Kênh': ['Agoda', 'Khác'], 'Trạng thái': ['Đã đặt'] });
+  t('kênh mới chưa có lựa chọn được nhận ra, không trùng, không phân biệt hoa thường',
+    JSON.stringify(thieu) === JSON.stringify({ 'Kênh': ['Zalo', 'Walk-in'] }), JSON.stringify(thieu));
+  t('đủ lựa chọn thì không thêm gì', Object.keys(luaChonThieu([{ 'Kênh': 'Agoda' }], { 'Kênh': ['Agoda'] })).length === 0);
+
   console.log(`\n${pass} pass · ${fail} fail`);
   process.exit(fail ? 1 : 0);
 })();

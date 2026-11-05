@@ -56,7 +56,7 @@ async function chayDongBo() {
   tinhTrang.dangChay = true;
   try {
     tinhTrang.lan = await dongBo();
-    tinhTrang.loi = '';
+    tinhTrang.loi = (tinhTrang.lan.hong || []).length ? 'Không ghi được vào Base: ' + tinhTrang.lan.hong.join(' | ') : '';
     if (tinhTrang.lan.them || tinhTrang.lan.sua) bang.xoaCache();
     /* Báo nhóm Booking KS sau khi Base đã có đơn mới. Lỗi báo nhóm không làm hỏng lượt đọc thư. */
     if (baoNhom.batBao()) tinhTrang.baoNhom = { ...(await baoNhom.chay()), luc: new Date().toISOString() };

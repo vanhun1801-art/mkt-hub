@@ -202,6 +202,18 @@ async function createField(tableId, spec) {
 }
 
 /** fields: { fieldId: cellValue } */
+/** Định nghĩa đầy đủ một cột (có options của cột chọn). */
+async function getField(tableId, fieldId) {
+  const d = await cli(['base', '+field-get', ...baseArgs(), '--table-id', tableId, '--field-id', fieldId, '--format', 'json']);
+  return d.field || d;
+}
+
+/** Ghi đè định nghĩa một cột (PUT đầy đủ). Chỉ dùng để thêm lựa chọn vào cột chọn. */
+async function updateField(tableId, fieldId, def) {
+  return cli(['base', '+field-update', ...baseArgs(), '--table-id', tableId, '--field-id', fieldId,
+    '--json', JSON.stringify(def), '--yes', '--format', 'json']);
+}
+
 async function createRecord(tableId, fields) {
   const names = Object.keys(fields);
   const data = await cli(['base', '+record-batch-create', ...baseArgs(),
@@ -256,7 +268,7 @@ async function deleteRecords(tableId, recordIds) {
 module.exports = cfg.mode === 'api'
   ? require('./larkapi')
   : {
-      cli, whoami, quyenGhi, listAll, listTables, listFields, createField,
+      cli, whoami, quyenGhi, listAll, listTables, listFields, createField, getField, updateField,
       createRecord, createMany, updateRecord, updateMany, deleteRecords,
       gonLoi, voiBase,
     };
