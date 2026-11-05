@@ -65,6 +65,14 @@ const CHI_SO_BAI = {
   baiTuongTac: 'baiTuongTac',
 };
 
+/* Kênh chỉ một người làm: bài trống ô Người đăng thì là của người đó. Anh Hùng
+ * 05/11/2026: MICE giao hết cho Thư, Cuộc sống tại Phú Quốc chỉ có Hằng. Tên
+ * ghi theo plugin Người đăng ("Phương Ái" là Thư), khoá là nền tảng|kênh không dấu. */
+const CHU_KENH = {
+  'facebook|rooty mice phu quoc': 'Phương Ái',
+  'tiktok|cuoc song tai phu quoc': 'Võ Hằng',
+};
+
 /* Nhãn mục đích trong Base, so không dấu. */
 const LA_BAN_HANG = /^ban hang/;
 const LA_TUONG_TAC = /^tuong tac/;
@@ -242,11 +250,17 @@ async function docTuApp(thang, luat, khoangRieng, kho) {
     }
     baiTheoKenh.set(khoa, o);
   };
+  /* BÀI LÀ PHIÊN LIVE THÌ KHÔNG PHẢI BÀI VIẾT. Facebook đưa video LIVE vào
+   * bảng Bài đăng, nên 33 phiên LIVE của Khánh tháng 10/2026 vừa nằm ở dòng
+   * LIVE vừa cộng vào view bài viết. Anh Hùng: LIVE là của Khánh, không tính. */
+  const idLive = new Set((social && social.live ? social.live : []).map((l) => String(l.extId || '')).filter(Boolean));
   (dsBai || []).forEach((p) => {
+    if (idLive.has(String(p.extId || '').split('_').pop())) return;
     const nen = chuan(p.platform);
     const ken = chuan(p.channel || p.channelExtId || '');
     gomBai(nen + '|' + ken, p);
-    if (p.poster) gomBai(nen + '|' + ken + '|' + chuan(p.poster), p);
+    const ai = p.poster || CHU_KENH[nen + '|' + ken];
+    if (ai) gomBai(nen + '|' + ken + '|' + chuan(ai), p);
   });
 
   /* Tên trong plugin Người đăng KHÁC tên trong bộ luật, và không giống nhau một

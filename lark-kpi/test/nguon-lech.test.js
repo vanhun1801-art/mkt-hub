@@ -23,9 +23,11 @@ const t = async (ten, fn) => {
 
 const BAI = [
   { platform: 'Facebook', channel: 'Trang A', poster: 'Phương Ái', mucDich: 'Bán hàng', views: 5000, publishedAt: '2026-10-02T09:00:00+07:00' },
+  /* Video LIVE Facebook cũng nằm trong bảng Bài đăng — không được cộng làm bài viết. */
+  { platform: 'Facebook', channel: 'Trang A', extId: 'pg_777', mucDich: 'Tương tác', views: 9000, publishedAt: '2026-10-03T20:00:00+07:00' },
 ];
 const LIVE = [
-  { platform: 'Facebook', channel: 'Trang A', views: 9000, newFollows: 0, comments: 7 },
+  { platform: 'Facebook', channel: 'Trang A', extId: '777', views: 9000, newFollows: 0, comments: 7 },
   { platform: 'Facebook', channel: 'Trang A', views: 1000, newFollows: 0, comments: 3 },
 ];
 
@@ -108,6 +110,10 @@ const LUAT = {
     assert.strictEqual(s['FB|Trang A|Bài viết|ngoc#viewQuyDoi'], 0);
     assert.strictEqual(s['FB|Trang A|Bài viết|ngoc#viewBanHang'], 0);
     assert.strictEqual(dong('FB|Trang A|Bài viết|ngoc#viewQuyDoi').trangThai, 'lay-duoc');
+  });
+
+  await t('bài là phiên LIVE không cộng vào view bài viết của kênh', () => {
+    assert.strictEqual(s['FB|Trang A|Bài viết#viewQuyDoi'], 5000);
   });
 
   may.close();
