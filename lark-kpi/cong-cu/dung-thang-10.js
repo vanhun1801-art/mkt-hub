@@ -111,30 +111,30 @@ const NHOM_KHAC = [
   ] },
   { kenh: 'Tiktok', tenKenh: 'Rooty Trip Phú Quốc', loai: 'Live', tieuChi: [
     { ma: 'liveView', ten: 'LIVE-view', mucTieu: 250000, tyTrong: 0.5, nguon: 'Tiktok|Rooty Trip Phú Quốc|Live#liveView' },
-    { ma: 'liveFollow', ten: 'LIVE-theo dõi', mucTieu: 2000, tyTrong: 0.2, nguon: 'Tiktok|Rooty Trip Phú Quốc|Live#liveFollow' },
-    { ma: 'liveComment', ten: 'LIVE-bình luận', mucTieu: 3000, tyTrong: 0.3, nguon: 'Tiktok|Rooty Trip Phú Quốc|Live#liveComment' },
+    { ma: 'liveFollow', ten: 'LIVE-theo dõi', mucTieu: 2000, tyTrong: 0.4, nguon: 'Tiktok|Rooty Trip Phú Quốc|Live#liveFollow' },
+    { ma: 'liveComment', ten: 'LIVE-bình luận', mucTieu: 3000, tyTrong: 0.1, nguon: 'Tiktok|Rooty Trip Phú Quốc|Live#liveComment' },
   ] },
   { kenh: 'Tiktok', tenKenh: 'Cuộc sống tại Phú Quốc', loai: 'Live', tieuChi: [
-    { ma: 'liveView', ten: 'LIVE-view', mucTieu: 20000, tyTrong: 0.5, nguon: 'Tiktok|Cuộc sống tại Phú Quốc|Live#liveView' },
+    { ma: 'liveView', ten: 'LIVE-view', mucTieu: 20000, tyTrong: 0.6, nguon: 'Tiktok|Cuộc sống tại Phú Quốc|Live#liveView' },
     { ma: 'liveFollow', ten: 'LIVE-theo dõi', mucTieu: 500, tyTrong: 0.2, nguon: 'Tiktok|Cuộc sống tại Phú Quốc|Live#liveFollow' },
-    { ma: 'liveComment', ten: 'LIVE-bình luận', mucTieu: 200, tyTrong: 0.3, nguon: 'Tiktok|Cuộc sống tại Phú Quốc|Live#liveComment' },
+    { ma: 'liveComment', ten: 'LIVE-bình luận', mucTieu: 200, tyTrong: 0.2, nguon: 'Tiktok|Cuộc sống tại Phú Quốc|Live#liveComment' },
   ] },
   { kenh: 'Tiktok', tenKenh: 'Phú Quốc Không Phanh', loai: 'Live', tieuChi: [
-    { ma: 'liveView', ten: 'LIVE-view', mucTieu: 10000, tyTrong: 0.5, nguon: 'Tiktok|Phú Quốc Không Phanh|Live#liveView' },
-    { ma: 'liveFollow', ten: 'LIVE-theo dõi', mucTieu: 200, tyTrong: 0.2, nguon: 'Tiktok|Phú Quốc Không Phanh|Live#liveFollow' },
-    { ma: 'liveComment', ten: 'LIVE-bình luận', mucTieu: 200, tyTrong: 0.3, nguon: 'Tiktok|Phú Quốc Không Phanh|Live#liveComment' },
+    { ma: 'liveView', ten: 'LIVE-view', mucTieu: 10000, tyTrong: 0.3, nguon: 'Tiktok|Phú Quốc Không Phanh|Live#liveView' },
+    { ma: 'liveFollow', ten: 'LIVE-theo dõi', mucTieu: 200, tyTrong: 0.6, nguon: 'Tiktok|Phú Quốc Không Phanh|Live#liveFollow' },
+    { ma: 'liveComment', ten: 'LIVE-bình luận', mucTieu: 200, tyTrong: 0.1, nguon: 'Tiktok|Phú Quốc Không Phanh|Live#liveComment' },
   ] },
-  /* Khối "view bán hàng" của Khánh — bảng tháng 9 ghi bốn dòng này. Giờ đo
-   * được thật nhờ nhãn Mục đích trên từng bài. */
+  /* Khối 70% của Khánh. Anh Hùng 05/11/2026: Khánh chịu tác động bởi số video
+   * (task Edit Video của bạn) và view bán hàng TikTok + FB Rooty Trip. Đúng
+   * khối tháng 9 trên Sheet: Số lượng 30% · FB 35% · TikTok 35%. MICE và
+   * Instagram ở Sheet để trống tỷ trọng, không phải việc của Khánh. */
   { kenh: 'Fanpage + Tiktok', tenKenh: 'Rooty Trip Phú Quốc', loai: 'Chung', tieuChi: [
-    { ma: 'vbFb', ten: 'View bán hàng FB Rooty Trip', mucTieu: 4000000, tyTrong: 0.4,
+    { ma: 'soVideo', ten: 'Số video edit xong', mucTieu: 30, tyTrong: 0.3,
+      nguon: 'CongViec|Edit Video|Việc|khanh#viecXong' },
+    { ma: 'vbFb', ten: 'View bán hàng FB Rooty Trip', mucTieu: 4000000, tyTrong: 0.35,
       nguon: 'FB|Rooty Trip Phú Quốc|Bài viết#viewBanHang' },
-    { ma: 'vbTt', ten: 'View bán hàng TikTok Rooty Trip', mucTieu: 1500000, tyTrong: 0.3,
+    { ma: 'vbTt', ten: 'View bán hàng TikTok Rooty Trip', mucTieu: 1500000, tyTrong: 0.35,
       nguon: 'Tiktok|Rooty Trip Phú Quốc|Bài viết#viewBanHang' },
-    { ma: 'vbMice', ten: 'View bán hàng FB MICE', mucTieu: 100000, tyTrong: 0.15,
-      nguon: 'FB|Rooty MICE Phú Quốc|Bài viết#viewBanHang' },
-    { ma: 'vInsta', ten: 'Lượt xem Instagram', mucTieu: 55000, tyTrong: 0.15,
-      nguon: 'Insta|Rooty Trip Phú Quốc|Bài viết#view' },
   ] },
 ];
 
