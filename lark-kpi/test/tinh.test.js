@@ -64,6 +64,13 @@ t('tiêu chí không có số bị loại và tỷ trọng chia lại cho phần
   assert.ok(co(w, 'chia lại'));
 });
 
+t('mỗi chỉ số chỉ góp tối đa 100% vào điểm, % đạt vẫn là số thật', () => {
+  /* Instagram 468% tháng 10/2026 từng kéo cả nhóm của Khánh lên 88%. */
+  const n = chamNhom(NHOM, { 'fb.rt.view': 20000000, 'fb.rt.follow': 0, 'fb.rt.lead': 0 }, []);
+  gan(n.tieuChi.find((x) => x.ma === 'view').datMucTieu, 4, 'view đạt 400%');
+  gan(n.diem, 0.4, 'view chỉ góp đủ 40% tỷ trọng của nó');
+});
+
 t('không đo được khác hẳn đạt 0', () => {
   const a = chamNhom(NHOM, { 'fb.rt.view': 5000000, 'fb.rt.follow': null, 'fb.rt.lead': 1500 }, []);
   const b = chamNhom(NHOM, { 'fb.rt.view': 5000000, 'fb.rt.follow': 0, 'fb.rt.lead': 1500 }, []);
