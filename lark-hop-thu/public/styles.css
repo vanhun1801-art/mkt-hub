@@ -917,3 +917,11 @@ svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width:
 @media (max-width: 640px) {
   html:not(#_):not(#__):not(#___) body .o-hoi textarea { min-height: 40px !important; }
 }
+
+/* Bỏ qua ra hàng nút (05/11/2026). Màn từ 360px trở xuống không đủ chỗ cho
+ * bốn nút có chữ: Giao việc vào menu ⋯, Bỏ qua và Xong vẫn ở ngoài. */
+.menu-noi .chi-hep { display: none; }
+@media (max-width: 360px) {
+  .hang-nut .nut[data-viec="viec"] { display: none; }
+  .menu-noi .chi-hep { display: block; }
+}

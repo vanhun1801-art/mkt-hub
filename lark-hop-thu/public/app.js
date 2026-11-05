@@ -593,7 +593,7 @@ function veViec() {
     (lau.length ? '<button class="dong gom lau-gom" data-mo-lau aria-expanded="' + S.moLau + '">' +
       '<span class="avt gom" aria-hidden="true">' + lau.length + '</span>' +
       '<span class="nguoi">' + lau.length + ' thư đã chờ quá 7 ngày</span><span class="gio">' + (S.moLau ? 'Thu lại' : 'Xem') + '</span>' +
-      '<span class="td">Xử lý xong thì bấm Xong. Việc của người khác thì vào ⋯ chọn Bỏ qua.</span></button>' +
+      '<span class="td">Xử lý xong thì bấm Xong. Việc của người khác thì bấm Bỏ qua.</span></button>' +
       (S.moLau ? lau.map(dongThu).join('') : '') : '') +
     (cho.length > gan.length + lau.length ? '<button class="xem-xong" data-ngan="xu-ly">' + (cho.length - gan.length - lau.length) + ' thư cũ hơn 30 ngày ở ngăn Cần trả lời</button>' : ''));
   if (donMoi) {
@@ -863,6 +863,7 @@ const nutChu = (viec, ic, nhan, lop = '') =>
 const IC_THEM = '<circle cx="5.5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="18.5" cy="12" r="1.4"/>';
 const IC_XONG = '<path d="M5 12.5l4.5 4.5L19 7.5"/>';
 const IC_VE = '<path d="M9 7L4 12l5 5"/><path d="M4 12h11a5 5 0 0 1 0 10h-2"/>';
+const IC_BO_QUA = '<path d="M5 6l7 6-7 6"/><path d="M13 6l7 6-7 6"/>';
 
 /* Hàng nhãn dưới tiêu đề thư: hộp, mức chờ, người lo, hẹn, nhóm. */
 function nhanThu(t, tom, mc) {
@@ -889,7 +890,11 @@ function veDoc(tam) {
    * những người nhận ban đầu; không có Xong vì thư không nằm trong Hộp đến. */
   $('#hangNut').innerHTML = nutChu('tra-loi', IC.traLoi, tom.daGui ? 'Nhắc lại' : 'Trả lời') +
     nutChu('viec', IC.viec, 'Giao việc') +
-    (tom.daGui ? '' : daRoi(tom) ? nutChu('bo-xong', IC_VE, 'Đưa về') : nutChu('luu', IC_XONG, 'Xong', 'chinh')) +
+    /* Bỏ qua ra hẳn ngoài (05/11/2026, anh Hùng: "nút không phải việc của tôi
+     * bỏ qua thì cho nó hiện ra bấm nhanh hơn"), đứng ngay trước Xong. */
+    (tom.daGui ? '' : daRoi(tom) ? nutChu('bo-xong', IC_VE, 'Đưa về')
+      : nutChu('bo-qua', IC_BO_QUA, 'Bỏ qua', 'bo-qua" title="Việc của người khác: rút khỏi danh sách của bạn, người khác vẫn thấy') +
+        nutChu('luu', IC_XONG, 'Xong', 'chinh')) +
     '<button class="nut-tron" data-viec="them" title="Thêm" aria-label="Thêm" aria-haspopup="menu">' +
     '<svg viewBox="0 0 24 24" aria-hidden="true">' + IC_THEM + '</svg></button>';
 
@@ -1898,6 +1903,7 @@ $('#cotDoc').addEventListener('click', (e) => {
   else if (v === 'sao') danhDau(t, { sao: !t.sao });
   else if (v === 'chua-doc') { danhDau(t, { daDoc: false }); dongDoc(); }
   else if (v === 'luu') luuTru(t);
+  else if (v === 'bo-qua') hoiBoQua(t);
   else if (v === 'bo-xong') boXong(t);
   else if (v === 'phan-tich') phanTich();
   else if (v === 'dich') dichThu();
@@ -1920,12 +1926,14 @@ function menuThem(nut, t) {
   const sau = (f) => setTimeout(f, 210);
   const nhom = nhomCuaThu(t);
   moMenu(nut,
+    /* Màn từ 360px trở xuống: Giao việc vào đây để Bỏ qua và Xong luôn nằm ngoài. */
+    '<button data-lam="viec" class="chi-hep">Giao việc</button>' +
     /* Hộp chung: nhận thư để cả phòng biết ai đang lo (sổ chung); thư người
      * khác lo thì bỏ qua, không bấm Xong thay họ. */
     (t.daGui ? '' :
       (t.lo && t.lo.minh ? '<button data-lam="tha-lo">Thôi nhận thư này</button>'
         : '<button data-lam="nhan-lo">' + (t.lo ? 'Nhận thay <span data-no-i18n>' + esc(tenGon(t.lo.ten)) + '</span>' : 'Tôi lo thư này') + '</button>') +
-      (daRoi(t) ? '' : '<button data-lam="bo-qua">Bỏ qua, việc của người khác</button>') + '<hr>') +
+      '<hr>') +
     '<button data-lam="lich">Thêm vào lịch</button>' +
     '<button data-lam="nhom">Theo dõi trong nhóm…</button>' +
     nhom.map((g) => '<button data-lam="bo-nhom" data-id="' + esc(g.id) + '">Bỏ khỏi nhóm <span data-no-i18n>' + esc(g.ten) + '</span></button>').join('') +
@@ -1939,7 +1947,7 @@ function menuThem(nut, t) {
   (x) => {
     const lam = x.dataset.lam;
     if (lam === 'nhan-lo' || lam === 'tha-lo') nhanLo(t, lam === 'nhan-lo');
-    else if (lam === 'bo-qua') sau(() => hoiBoQua(t));
+    else if (lam === 'viec') giaoViec(t);
     else if (lam === 'hen') sau(() => menuHen(nut, t));
     else if (lam === 'ngan') sau(() => menuNgan(nut, t));
     else if (lam === 'sao') danhDau(t, { sao: !t.sao });
