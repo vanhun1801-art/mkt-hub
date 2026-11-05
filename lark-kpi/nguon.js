@@ -99,6 +99,12 @@ function tach(ma) {
   };
 }
 
+/** Mã cả kênh của một mã theo người đăng; null nếu mã không gắn người. */
+function boNguoi(ma) {
+  const t = tach(ma);
+  return t && t.nguoiDang ? [t.kenh, t.tenKenh, t.loai].join('|') + '#' + t.chiSo : null;
+}
+
 function goi(url, giay = 20) {
   return new Promise((giai, tu) => {
     const mod = url.startsWith('https') ? https : http;
@@ -299,183 +305,194 @@ async function docTuApp(thang, luat, khoangRieng, kho) {
    *     'noi'  — app nguồn đã có nhưng app này chưa nối vào
    *     'luat' — sai ở bộ luật, không phải thiếu số
    */
+  /* SỐ CẢ KÊNH CHO DÒNG TỔNG PHÒNG. Bộ luật chấm view theo từng người đăng,
+   * nên cộng các dòng người lại là bỏ sót mọi bài trống ô Người đăng — tháng
+   * 10/2026 hụt gần 500k view. Đo thêm bản không-người của mỗi mã đó; chỉ để
+   * tổng phòng dùng, không chấm ai và không hiện ở nhật ký nguồn. */
+  const dsTc = (luat.nhom || []).flatMap((n) => n.tieuChi || []);
+  const coSan = new Set(dsTc.map((tc) => tc.nguon));
+  const an = new Set();
+  dsTc.slice().forEach((tc) => {
+    const m = boNguoi(tc.nguon);
+    if (m && !coSan.has(m)) { coSan.add(m); an.add(m); dsTc.push({ nguon: m }); }
+  });
+
   const ghi = (ma, nguon, so, trangThai, chuThich, cach) => {
     if (typeof so === 'number' && Number.isFinite(so)) soLieu[ma] = so;
+    if (an.has(ma)) return;
     nhatKy.push({
       ma, nguon, so: (typeof so === 'number' ? so : null), trangThai,
       ghi: chuThich || '', cach: trangThai === 'lay-duoc' ? '' : (cach || 'luat'),
     });
   };
 
-  (luat.nhom || []).forEach((n) => {
-    (n.tieuChi || []).forEach((tc) => {
-      const t = tach(tc.nguon);
-      if (!t) { ghi(tc.nguon, '', null, 'thieu', 'Mã nguồn không theo dạng Kênh|Tên|Loại#chỉ số', 'luat'); return; }
+  dsTc.forEach((tc) => {
+    const t = tach(tc.nguon);
+    if (!t) { ghi(tc.nguon, '', null, 'thieu', 'Mã nguồn không theo dạng Kênh|Tên|Loại#chỉ số', 'luat'); return; }
 
-      const nt = NEN_TANG[chuan(t.kenh)];
-      const laLive = chuan(t.loai) === 'live' || !!CHI_SO_LIVE[t.chiSo];
+    const nt = NEN_TANG[chuan(t.kenh)];
+    const laLive = chuan(t.loai) === 'live' || !!CHI_SO_LIVE[t.chiSo];
 
-      if (!nt) { ghi(tc.nguon, t.kenh, null, 'thieu', 'Nền tảng này không có trong app Social. Xuất file từ nền tảng rồi tải lên', 'file'); return; }
-      if (loiApp.social) { ghi(tc.nguon, 'Social', null, 'loi', loiApp.social, 'noi'); return; }
+    if (!nt) { ghi(tc.nguon, t.kenh, null, 'thieu', 'Nền tảng này không có trong app Social. Xuất file từ nền tảng rồi tải lên', 'file'); return; }
+    if (loiApp.social) { ghi(tc.nguon, 'Social', null, 'loi', loiApp.social, 'noi'); return; }
 
-      if (laLive) {
-        const o = liveTheoKenh.get(chuan(nt) + '|' + chuan(t.tenKenh));
-        const truong = CHI_SO_LIVE[t.chiSo];
-        if (!truong) return ghi(tc.nguon, 'Social · LIVE', null, 'thieu', 'Bộ luật gọi tên chỉ số LIVE "' + t.chiSo + '" mà app Social không có', 'luat');
-        /* Phân biệt hai chuyện mà bản trước gộp làm một:
-         *   - CẢ THÁNG không kênh nào có phiên LIVE → nguồn LIVE chưa nối, chứ
-         *     không phải phòng không livestream. LIVE của TikTok/Instagram
-         *     KHÔNG có API (app Social khai rõ ở màn Nhập tay), nên số này chỉ
-         *     có khi có người gõ vào.
-         *   - Có kênh khác live mà kênh này không → đây mới là số 0 thật.
-         * Bản trước lúc nào cũng ghi "kênh này chưa có phiên LIVE nào", đọc lên
-         * thành "bạn đó không live" trong khi sự thật là chưa ai nối nguồn. */
-        const coLiveNenTang = [...liveTheoKenh.keys()].some((x) => x.startsWith(chuan(nt) + '|'));
-        if (!o) {
-          return !coLiveNenTang
-            ? ghi(tc.nguon, 'Social · LIVE', null, 'thieu',
-              'Cả kỳ chưa kênh ' + nt + ' nào có phiên LIVE. Nhập tay ở app Social → Nhập tay', 'tay')
-            : ghi(tc.nguon, 'Social · LIVE', null, 'thieu',
-              'Kênh khác có LIVE, riêng kênh này không. Nếu đúng là không live thì đây là số 0 thật', 'base');
-        }
-        /* Facebook không trả người theo dõi mới của phiên LIVE: 23 phiên tháng
-         * 10 đều ghi 0. Có người xem mà không ai theo dõi thêm suốt cả tháng là
-         * nền tảng không đo, không phải kết quả — cùng luật với `follow`. */
-        if (truong === 'newFollows' && !o.newFollows && o.views > 0) {
-          return ghi(tc.nguon, 'Social · LIVE (' + o.soPhien + ' phiên)', null, 'thieu',
-            'Các phiên LIVE có người xem nhưng không ghi nhận người theo dõi mới nào'
-            + ' — nền tảng chưa trả số này, chưa đo được', 'tay');
-        }
-        return ghi(tc.nguon, 'Social · LIVE (' + o.soPhien + ' phiên)', o[truong], 'lay-duoc');
-      }
-
-      const k = kenhTheoTen.get(chuan(nt) + '|' + chuan(t.tenKenh));
-      if (!CHI_SO_BAI[t.chiSo]) return ghi(tc.nguon, 'Social', null, 'thieu', 'Bộ luật gọi tên chỉ số "' + t.chiSo + '" mà app Social không có', 'luat');
-      if (!k) return ghi(tc.nguon, 'Social', null, 'thieu', 'Base Social chưa có kênh "' + t.tenKenh + '" (' + nt + '). Thêm kênh rồi đồng bộ', 'base');
-      if (loiApp.bai) return ghi(tc.nguon, 'Social · Bài đăng', null, 'loi', loiApp.bai, 'noi');
-
-      /* Chọn đúng ô: cả kênh, hay riêng phần của một người. */
-      const khoaKenh = chuan(nt) + '|' + chuan(t.tenKenh);
-      let o = baiTheoKenh.get(khoaKenh);
-      let nhan = 'Social · ' + nt + ' · theo bài';
-      if (t.nguoiDang) {
-        const tens = tenDangCua(t.nguoiDang);
-        if (!tens.length) {
-          return ghi(tc.nguon, 'Social', null, 'thieu',
-            'Chưa khai tên trong plugin Người đăng cho mã "' + t.nguoiDang
-            + '". Khai ở tab Phân công kênh rồi chấm lại', 'luat');
-        }
-        o = null;
-        tens.forEach((tn) => {
-          const phan = baiTheoKenh.get(khoaKenh + '|' + tn);
-          if (!phan) return;
-          o = o || { soBai: 0, clicks: null };
-          o.soBai += phan.soBai;
-          CONG.concat(THEO_MUC_DICH).forEach((f) => { o[f] = (o[f] || 0) + (phan[f] || 0); });
-          if (phan.clicks != null) o.clicks = (o.clicks || 0) + phan.clicks;
-        });
-        nhan = 'Social · ' + nt + ' · bài của ' + tens.join(', ');
-        /* Kênh có bài nhưng không bài nào mang tên người này: đó là số 0 THẬT
-         * (tháng này bạn ấy không đăng kênh đó), khác hẳn kênh chưa có bài nào. */
-        if (!o && baiTheoKenh.get(khoaKenh)) {
-          /* Phải điền 0 cho từng ô cộng được. Bản trước chỉ có soBai nên ô view
-           * đọc ra undefined, rơi vào "nền tảng không trả chỉ số này" và bị loại
-           * khỏi nhóm — người không đăng bài lại được chia tỷ trọng sang follow
-           * với lead của cả kênh (Ngọc · FB MICE tháng 10/2026). */
-          o = { soBai: 0, clicks: null };
-          CONG.concat(THEO_MUC_DICH).forEach((f) => { o[f] = 0; });
-        }
-      }
-
-      /* TĂNG NGƯỜI THEO DÕI không nằm trên từng bài — nó là số của cả kênh, nên
-       * vẫn phải đi đường dòng ngày. Và đường đó có lúc đứt: nếu cả kỳ dòng ngày
-       * không có lượt xem nào trong khi bảng Bài đăng thì có, nghĩa là đồng bộ
-       * theo ngày của kênh này không chạy — lúc ấy follow phải là CHƯA ĐO ĐƯỢC
-       * chứ không phải 0. Ghi 0 vào đây là trừ điểm oan người giữ kênh. */
-      if (t.chiSo === 'follow') {
-        if (t.nguoiDang) {
-          return ghi(tc.nguon, 'Social · theo ngày', null, 'thieu',
-            'Tăng người theo dõi là số của cả kênh, không tách được theo người đăng', 'luat');
-        }
-        const tang = Number(k.followUp) || 0;
-        const baiCoSo = !!(baiTheoKenh.get(khoaKenh) && baiTheoKenh.get(khoaKenh).views > 0);
-        /* ĐÚNG SỐ 0 TRÊN MỘT KÊNH ĐANG CHẠY LÀ DẤU HIỆU KHÔNG ĐO ĐƯỢC, không
-         * phải kết quả. Kênh có bài, bài có lượt xem, mà người theo dõi không
-         * nhúc nhích một ai cả tháng thì gần như chắc là dòng ngày chưa chạy —
-         * TikTok và Instagram đều đã rơi vào đúng cảnh này. Ghi 0 vào đây là
-         * trừ điểm oan người giữ kênh, nên thà nói thẳng là chưa đo được. */
-        if (!tang && baiCoSo) {
-          return ghi(tc.nguon, 'Social · theo ngày', null, 'thieu',
-            'Kênh có bài và có lượt xem nhưng số theo ngày không ghi nhận một'
-            + ' người theo dõi mới nào — đồng bộ theo ngày của kênh này chưa'
-            + ' chạy đủ, chưa đo được', 'base');
-        }
-        return ghi(tc.nguon, 'Social · theo ngày', tang, 'lay-duoc');
-      }
-
-      if (t.chiSo === 'lead') {
-        if (t.nguoiDang) {
-          return ghi(tc.nguon, 'Pancake', null, 'thieu',
-            'Tin nhắn khách đến cả kênh, không tách được theo người đăng bài', 'luat');
-        }
-        if (loiApp.tinNhan) return ghi(tc.nguon, 'App Quảng cáo · Pancake', null, 'loi', loiApp.tinNhan, 'noi');
-        const kl = leadTheoKenh.get(chuan(nt) + '|' + chuan(t.tenKenh));
-        if (kl) return ghi(tc.nguon, 'Pancake (' + kl.hoiThoai + ' cuộc trò chuyện)', kl.lead, 'lay-duoc');
-        if (chuaNoiPancake.has(chuan(nt) + '|' + chuan(t.tenKenh))) {
-          return ghi(tc.nguon, 'Pancake', null, 'thieu',
-            'Kênh này chưa dán mã trang trong Cài đặt app Quảng cáo nên Pancake'
-            + ' chưa đọc được hội thoại', 'base');
-        }
-        return ghi(tc.nguon, 'Pancake', null, 'thieu',
-          'Pancake không có trang nào tên "' + t.tenKenh + '" (' + nt + ')', 'base');
-      }
-
+    if (laLive) {
+      const o = liveTheoKenh.get(chuan(nt) + '|' + chuan(t.tenKenh));
+      const truong = CHI_SO_LIVE[t.chiSo];
+      if (!truong) return ghi(tc.nguon, 'Social · LIVE', null, 'thieu', 'Bộ luật gọi tên chỉ số LIVE "' + t.chiSo + '" mà app Social không có', 'luat');
+      /* Phân biệt hai chuyện mà bản trước gộp làm một:
+       *   - CẢ THÁNG không kênh nào có phiên LIVE → nguồn LIVE chưa nối, chứ
+       *     không phải phòng không livestream. LIVE của TikTok/Instagram
+       *     KHÔNG có API (app Social khai rõ ở màn Nhập tay), nên số này chỉ
+       *     có khi có người gõ vào.
+       *   - Có kênh khác live mà kênh này không → đây mới là số 0 thật.
+       * Bản trước lúc nào cũng ghi "kênh này chưa có phiên LIVE nào", đọc lên
+       * thành "bạn đó không live" trong khi sự thật là chưa ai nối nguồn. */
+      const coLiveNenTang = [...liveTheoKenh.keys()].some((x) => x.startsWith(chuan(nt) + '|'));
       if (!o) {
-        return ghi(tc.nguon, 'Social · Bài đăng', null, 'thieu',
-          'Kênh này không có bài nào đăng trong kỳ', 'base');
+        return !coLiveNenTang
+          ? ghi(tc.nguon, 'Social · LIVE', null, 'thieu',
+            'Cả kỳ chưa kênh ' + nt + ' nào có phiên LIVE. Nhập tay ở app Social → Nhập tay', 'tay')
+          : ghi(tc.nguon, 'Social · LIVE', null, 'thieu',
+            'Kênh khác có LIVE, riêng kênh này không. Nếu đúng là không live thì đây là số 0 thật', 'base');
       }
+      /* Facebook không trả người theo dõi mới của phiên LIVE: 23 phiên tháng
+       * 10 đều ghi 0. Có người xem mà không ai theo dõi thêm suốt cả tháng là
+       * nền tảng không đo, không phải kết quả — cùng luật với `follow`. */
+      if (truong === 'newFollows' && !o.newFollows && o.views > 0) {
+        return ghi(tc.nguon, 'Social · LIVE (' + o.soPhien + ' phiên)', null, 'thieu',
+          'Các phiên LIVE có người xem nhưng không ghi nhận người theo dõi mới nào'
+          + ' — nền tảng chưa trả số này, chưa đo được', 'tay');
+      }
+      return ghi(tc.nguon, 'Social · LIVE (' + o.soPhien + ' phiên)', o[truong], 'lay-duoc');
+    }
 
-      const TU_BAI = {
-        view: 'views', reach: 'reach', impression: 'impressions',
-        engagement: 'engagement', comment: 'comments', share: 'shares',
-        save: 'saves', click: 'clicks', post: 'soBai',
-        viewBanHang: 'viewBanHang', viewTuongTac: 'viewTuongTac',
-        viewQuyDoi: 'viewQuyDoi', baiBanHang: 'baiBanHang', baiTuongTac: 'baiTuongTac',
-      };
-      const truong = TU_BAI[t.chiSo];
-      if (!truong) {
-        /* lead và message không đếm được trên bài — chúng là hội thoại của
-         * khách, nằm ở Pancake. Xử lý riêng bên dưới. */
+    const k = kenhTheoTen.get(chuan(nt) + '|' + chuan(t.tenKenh));
+    if (!CHI_SO_BAI[t.chiSo]) return ghi(tc.nguon, 'Social', null, 'thieu', 'Bộ luật gọi tên chỉ số "' + t.chiSo + '" mà app Social không có', 'luat');
+    if (!k) return ghi(tc.nguon, 'Social', null, 'thieu', 'Base Social chưa có kênh "' + t.tenKenh + '" (' + nt + '). Thêm kênh rồi đồng bộ', 'base');
+    if (loiApp.bai) return ghi(tc.nguon, 'Social · Bài đăng', null, 'loi', loiApp.bai, 'noi');
+
+    /* Chọn đúng ô: cả kênh, hay riêng phần của một người. */
+    const khoaKenh = chuan(nt) + '|' + chuan(t.tenKenh);
+    let o = baiTheoKenh.get(khoaKenh);
+    let nhan = 'Social · ' + nt + ' · theo bài';
+    if (t.nguoiDang) {
+      const tens = tenDangCua(t.nguoiDang);
+      if (!tens.length) {
         return ghi(tc.nguon, 'Social', null, 'thieu',
-          'Chỉ số "' + t.chiSo + '" không đếm được trên từng bài đăng', 'noi');
+          'Chưa khai tên trong plugin Người đăng cho mã "' + t.nguoiDang
+          + '". Khai ở tab Phân công kênh rồi chấm lại', 'luat');
       }
-      const v = o[truong];
-      if (v == null) {
-        return ghi(tc.nguon, nhan, null, 'thieu',
-          'Nền tảng không trả chỉ số này ở mức bài', 'file');
+      o = null;
+      tens.forEach((tn) => {
+        const phan = baiTheoKenh.get(khoaKenh + '|' + tn);
+        if (!phan) return;
+        o = o || { soBai: 0, clicks: null };
+        o.soBai += phan.soBai;
+        CONG.concat(THEO_MUC_DICH).forEach((f) => { o[f] = (o[f] || 0) + (phan[f] || 0); });
+        if (phan.clicks != null) o.clicks = (o.clicks || 0) + phan.clicks;
+      });
+      nhan = 'Social · ' + nt + ' · bài của ' + tens.join(', ');
+      /* Kênh có bài nhưng không bài nào mang tên người này: đó là số 0 THẬT
+       * (tháng này bạn ấy không đăng kênh đó), khác hẳn kênh chưa có bài nào. */
+      if (!o && baiTheoKenh.get(khoaKenh)) {
+        /* Phải điền 0 cho từng ô cộng được. Bản trước chỉ có soBai nên ô view
+         * đọc ra undefined, rơi vào "nền tảng không trả chỉ số này" và bị loại
+         * khỏi nhóm — người không đăng bài lại được chia tỷ trọng sang follow
+         * với lead của cả kênh (Ngọc · FB MICE tháng 10/2026). */
+        o = { soBai: 0, clicks: null };
+        CONG.concat(THEO_MUC_DICH).forEach((f) => { o[f] = 0; });
       }
-      /* Số từ nền tảng là số THÔ: chưa nhân hệ số Bán hàng / Tương tác. Cột
-       * kết quả trong Excel là số ĐÃ qua bước đó, nên hai con số không cùng
-       * nghĩa. Nói ra để đừng lặng lẽ thay số thô vào công thức tính lương —
-       * và chỉ ra luôn chỉ số đã quy đổi để dùng thay. */
-      const theoMd = ['viewBanHang', 'viewTuongTac', 'viewQuyDoi', 'baiBanHang', 'baiTuongTac']
-        .includes(t.chiSo);
-      let chu = '';
-      if (t.chiSo === 'view') {
-        chu = 'số THÔ, gộp cả bài bán hàng lẫn bài tương tác.'
-          + ' Dùng `viewQuyDoi` nếu muốn áp hệ số Bán hàng/Tương tác';
-      } else if (['reach', 'impression'].includes(t.chiSo)) {
-        chu = 'số thô, chưa áp hệ số nội dung';
+    }
+
+    /* TĂNG NGƯỜI THEO DÕI không nằm trên từng bài — nó là số của cả kênh, nên
+     * vẫn phải đi đường dòng ngày. Và đường đó có lúc đứt: nếu cả kỳ dòng ngày
+     * không có lượt xem nào trong khi bảng Bài đăng thì có, nghĩa là đồng bộ
+     * theo ngày của kênh này không chạy — lúc ấy follow phải là CHƯA ĐO ĐƯỢC
+     * chứ không phải 0. Ghi 0 vào đây là trừ điểm oan người giữ kênh. */
+    if (t.chiSo === 'follow') {
+      if (t.nguoiDang) {
+        return ghi(tc.nguon, 'Social · theo ngày', null, 'thieu',
+          'Tăng người theo dõi là số của cả kênh, không tách được theo người đăng', 'luat');
       }
-      /* Bài chưa gắn nhãn mục đích thì KHÔNG vào con số quy đổi. Phải kêu, vì
-       * nhìn vào chỉ thấy một số nhỏ hơn chứ không thấy phần bị bỏ ra. */
-      if (theoMd && o.baiChuaPhanLoai) {
-        chu = o.baiChuaPhanLoai + '/' + o.soBai + ' bài chưa gắn nhãn Bán hàng hay '
-          + 'Tương tác nên không được tính. Gắn ở app Social → Bài đăng'
-          + (chu ? ' · ' + chu : '');
+      const tang = Number(k.followUp) || 0;
+      const baiCoSo = !!(baiTheoKenh.get(khoaKenh) && baiTheoKenh.get(khoaKenh).views > 0);
+      /* ĐÚNG SỐ 0 TRÊN MỘT KÊNH ĐANG CHẠY LÀ DẤU HIỆU KHÔNG ĐO ĐƯỢC, không
+       * phải kết quả. Kênh có bài, bài có lượt xem, mà người theo dõi không
+       * nhúc nhích một ai cả tháng thì gần như chắc là dòng ngày chưa chạy —
+       * TikTok và Instagram đều đã rơi vào đúng cảnh này. Ghi 0 vào đây là
+       * trừ điểm oan người giữ kênh, nên thà nói thẳng là chưa đo được. */
+      if (!tang && baiCoSo) {
+        return ghi(tc.nguon, 'Social · theo ngày', null, 'thieu',
+          'Kênh có bài và có lượt xem nhưng số theo ngày không ghi nhận một'
+          + ' người theo dõi mới nào — đồng bộ theo ngày của kênh này chưa'
+          + ' chạy đủ, chưa đo được', 'base');
       }
-      return ghi(tc.nguon, nhan + ' (' + o.soBai + ' bài)', Number(v) || 0, 'lay-duoc', chu);
-    });
+      return ghi(tc.nguon, 'Social · theo ngày', tang, 'lay-duoc');
+    }
+
+    if (t.chiSo === 'lead') {
+      if (t.nguoiDang) {
+        return ghi(tc.nguon, 'Pancake', null, 'thieu',
+          'Tin nhắn khách đến cả kênh, không tách được theo người đăng bài', 'luat');
+      }
+      if (loiApp.tinNhan) return ghi(tc.nguon, 'App Quảng cáo · Pancake', null, 'loi', loiApp.tinNhan, 'noi');
+      const kl = leadTheoKenh.get(chuan(nt) + '|' + chuan(t.tenKenh));
+      if (kl) return ghi(tc.nguon, 'Pancake (' + kl.hoiThoai + ' cuộc trò chuyện)', kl.lead, 'lay-duoc');
+      if (chuaNoiPancake.has(chuan(nt) + '|' + chuan(t.tenKenh))) {
+        return ghi(tc.nguon, 'Pancake', null, 'thieu',
+          'Kênh này chưa dán mã trang trong Cài đặt app Quảng cáo nên Pancake'
+          + ' chưa đọc được hội thoại', 'base');
+      }
+      return ghi(tc.nguon, 'Pancake', null, 'thieu',
+        'Pancake không có trang nào tên "' + t.tenKenh + '" (' + nt + ')', 'base');
+    }
+
+    if (!o) {
+      return ghi(tc.nguon, 'Social · Bài đăng', null, 'thieu',
+        'Kênh này không có bài nào đăng trong kỳ', 'base');
+    }
+
+    const TU_BAI = {
+      view: 'views', reach: 'reach', impression: 'impressions',
+      engagement: 'engagement', comment: 'comments', share: 'shares',
+      save: 'saves', click: 'clicks', post: 'soBai',
+      viewBanHang: 'viewBanHang', viewTuongTac: 'viewTuongTac',
+      viewQuyDoi: 'viewQuyDoi', baiBanHang: 'baiBanHang', baiTuongTac: 'baiTuongTac',
+    };
+    const truong = TU_BAI[t.chiSo];
+    if (!truong) {
+      /* lead và message không đếm được trên bài — chúng là hội thoại của
+       * khách, nằm ở Pancake. Xử lý riêng bên dưới. */
+      return ghi(tc.nguon, 'Social', null, 'thieu',
+        'Chỉ số "' + t.chiSo + '" không đếm được trên từng bài đăng', 'noi');
+    }
+    const v = o[truong];
+    if (v == null) {
+      return ghi(tc.nguon, nhan, null, 'thieu',
+        'Nền tảng không trả chỉ số này ở mức bài', 'file');
+    }
+    /* Số từ nền tảng là số THÔ: chưa nhân hệ số Bán hàng / Tương tác. Cột
+     * kết quả trong Excel là số ĐÃ qua bước đó, nên hai con số không cùng
+     * nghĩa. Nói ra để đừng lặng lẽ thay số thô vào công thức tính lương —
+     * và chỉ ra luôn chỉ số đã quy đổi để dùng thay. */
+    const theoMd = ['viewBanHang', 'viewTuongTac', 'viewQuyDoi', 'baiBanHang', 'baiTuongTac']
+      .includes(t.chiSo);
+    let chu = '';
+    if (t.chiSo === 'view') {
+      chu = 'số THÔ, gộp cả bài bán hàng lẫn bài tương tác.'
+        + ' Dùng `viewQuyDoi` nếu muốn áp hệ số Bán hàng/Tương tác';
+    } else if (['reach', 'impression'].includes(t.chiSo)) {
+      chu = 'số thô, chưa áp hệ số nội dung';
+    }
+    /* Bài chưa gắn nhãn mục đích thì KHÔNG vào con số quy đổi. Phải kêu, vì
+     * nhìn vào chỉ thấy một số nhỏ hơn chứ không thấy phần bị bỏ ra. */
+    if (theoMd && o.baiChuaPhanLoai) {
+      chu = o.baiChuaPhanLoai + '/' + o.soBai + ' bài chưa gắn nhãn Bán hàng hay '
+        + 'Tương tác nên không được tính. Gắn ở app Social → Bài đăng'
+        + (chu ? ' · ' + chu : '');
+    }
+    return ghi(tc.nguon, nhan + ' (' + o.soBai + ' bài)', Number(v) || 0, 'lay-duoc', chu);
   });
 
   /* Chỉ số đơn lẻ của Hân và Hùng — mỗi cái một app khác nhau. */
@@ -664,5 +681,5 @@ function ghepFile(bang, luat) {
  * kênh trùng nhau) — chỉ được có MỘT bản luật khớp trong cả app. */
 module.exports = {
   docTuApp, layBai, tachBang, ghepFile, doSo, khoang, DIA_CHI,
-  tach, chuan, NEN_TANG, CHI_SO_BAI, CHI_SO_LIVE,
+  tach, boNguoi, chuan, NEN_TANG, CHI_SO_BAI, CHI_SO_LIVE,
 };

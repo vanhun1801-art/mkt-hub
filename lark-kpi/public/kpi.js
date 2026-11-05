@@ -30,17 +30,32 @@ function gomChiSo(nhom) {
   (nhom || []).forEach((n) => {
     (n.tieuChi || []).forEach((tc) => {
       if (KHONG_CONG.test(tc.ten || '')) return;
-      const o = m.get(tc.ten) || { ten: tc.ten, ketQua: 0, mucTieu: 0, soKenh: 0, soDo: 0, kenh: [] };
-      o.soKenh += 1;
-      /* Kênh chưa đo được thì BỎ KHỎI CẢ TỬ LẪN MẪU. Cộng mục tiêu của nó vào
-       * mẫu mà không cộng kết quả là tự dìm con số chung xuống, rồi đọc thành
-       * "phòng đang hụt" trong khi thật ra là chưa đo. */
-      if (!tc.boQua) {
-        o.soDo += 1;
-        o.ketQua += Number(tc.ketQua) || 0;
-        o.mucTieu += Number(tc.mucTieu) || 0;
+      const o = m.get(tc.ten) || { ten: tc.ten, ketQua: 0, mucTieu: 0, soKenh: 0, soDo: 0, kenh: [], theoDoi: true };
+      if (!tc.theoDoi) o.theoDoi = false;
+      /* MỖI KÊNH CỘNG MỘT LẦN, bằng số CẢ KÊNH. Bộ luật chấm từng người đăng
+       * nên một kênh có tới ba dòng; cộng cả ba thì follow/lead "cả kênh" bị
+       * nhân ba, còn view thì sót bài trống ô Người đăng. Server không gửi
+       * `maKenh` (bản cũ) thì mỗi dòng là một kênh như trước. */
+      const ma = tc.maKenh || n.khoa + '#' + tc.ten;
+      const kq = tc.maKenh ? tc.ketQuaKenh : (tc.boQua ? null : tc.ketQua);
+      const doDuoc = kq != null && Number.isFinite(Number(kq));
+      let k = o.kenh.find((y) => y.ma === ma);
+      if (!k) {
+        k = { ma, ten: tc.theoNguoi ? n.ten.replace(/ · [^·]+$/, '') : n.ten, khoa: n.khoa,
+          ketQua: doDuoc ? Number(kq) : null, mucTieu: 0, boQua: !doDuoc };
+        o.kenh.push(k);
+        o.soKenh += 1;
+        if (doDuoc) { o.soDo += 1; o.ketQua += k.ketQua; }
       }
-      o.kenh.push({ ten: n.ten, khoa: n.khoa, ketQua: tc.ketQua, mucTieu: tc.mucTieu, boQua: tc.boQua });
+      /* Mục tiêu chia theo người thì cộng các phần lại; mục tiêu cả kênh thì
+       * mọi dòng ghi cùng một số, chỉ lấy một. Kênh chưa đo được thì BỎ KHỎI
+       * CẢ TỬ LẪN MẪU — cộng mục tiêu mà không cộng kết quả là tự dìm con số
+       * chung xuống, đọc thành "phòng đang hụt" trong khi thật ra là chưa đo. */
+      if (tc.theoNguoi || !k.mucTieu) {
+        const mt = Number(tc.mucTieu) || 0;
+        k.mucTieu += mt;
+        if (doDuoc) o.mucTieu += mt;
+      }
       m.set(tc.ten, o);
     });
   });
@@ -75,18 +90,20 @@ function theChiSoPhong(cuoi) {
      * Bản đầu in 0/0/0 rồi gắn nhãn xanh "đủ nhịp" cho năm chỉ số chưa nối
      * nguồn — đọc lên thành đã xong, trong khi chưa đo được chữ nào. */
     const trong = x.soDo === 0;
+    /* Dòng "trong đó" chỉ để biết số — nó không có mục tiêu của riêng nó. */
+    const gach = trong || x.theoDoi;
     const tr = el('tr', 'bam');
     tr.innerHTML = '<td><b>' + esc(x.ten) + '</b>'
       + (x.soDo < x.soKenh
         ? '<span class="sub-line">' + x.soDo + '/' + x.soKenh + ' kênh đo được</span>' : '')
       + '</td>'
       + '<td class="so">' + (trong ? '<span class="nhan-o im">chưa đo được</span>' : '<b>' + gon(x.ketQua) + '</b>') + '</td>'
-      + '<td class="so nhat">' + (trong ? '—' : gon(Math.round(mocChuan))) + '</td>'
-      + '<td class="so nhat">' + (trong ? '—' : gon(x.mucTieu)) + '</td>'
-      + '<td class="so">' + (trong ? '<span class="nhat">—</span>' : ptLon(dat)) + '</td>'
-      + '<td style="min-width:150px">' + (trong ? '<span class="nhat nho">—</span>'
+      + '<td class="so nhat">' + (gach ? '—' : gon(Math.round(mocChuan))) + '</td>'
+      + '<td class="so nhat">' + (gach ? '—' : gon(x.mucTieu)) + '</td>'
+      + '<td class="so">' + (gach ? '<span class="nhat">—</span>' : ptLon(dat)) + '</td>'
+      + '<td style="min-width:150px">' + (gach ? '<span class="nhat nho">—</span>'
         : (thanhPt(dat, TD.nhipChuan) || '<span class="nhat nho">—</span>')) + '</td>'
-      + '<td class="so">' + (trong ? '<span class="nhat">—</span>' : (thieu > 0
+      + '<td class="so">' + (gach ? '<span class="nhat">—</span>' : (thieu > 0
         ? '<span class="lech xuong">' + gon(Math.round(thieu)) + '</span>'
         : '<span class="nhan-o ok">đủ nhịp</span>')) + '</td>';
     tr.onclick = () => {
@@ -120,11 +137,11 @@ function dongChiTietChiSo(x) {
   const tbM = el('tbody');
   TD.moc.forEach((m) => {
     const g = gomChiSo(m.nhom).find((y) => y.ten === x.ten);
-    const can = x.mucTieu * m.nhipChuan;
+    const can = x.theoDoi ? null : x.mucTieu * m.nhipChuan;
     const co = g ? g.ketQua : null;
-    const chenh = co == null ? null : co - can;
+    const chenh = co == null || can == null ? null : co - can;
     tbM.appendChild(el('tr', '', '<td>hết ngày ' + m.ngay + '</td>'
-      + '<td class="so nhat">' + gon(Math.round(can)) + '</td>'
+      + '<td class="so nhat">' + (can == null ? '—' : gon(Math.round(can))) + '</td>'
       + '<td class="so"><b>' + (co == null ? '—' : gon(co)) + '</b></td>'
       + '<td class="so">' + (chenh == null ? '—'
         : '<span class="lech ' + (chenh >= 0 ? 'len' : 'xuong') + '">'
