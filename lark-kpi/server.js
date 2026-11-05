@@ -1020,6 +1020,7 @@ async function api(req, res, u) {
             /* Dòng THEO DÕI (tỷ trọng 0) mượn mục tiêu của dòng quy đổi —
              * không phải mục tiêu của chính nó, nên tổng phòng không so %. */
             theoDoi: tc.tyTrongGoc === 0,
+            tyTrongGoc: tc.tyTrongGoc,
             datMucTieu: tc.datMucTieu, boQua: !!tc.boQua, tyTrong: tc.tyTrong,
             /* Chiều của chỉ số phải đi kèm con số. Thiếu nó thì "CPA 22.400 ·
              * đạt 89%" đọc ra là chưa đạt, trong khi đó là tiêu ít hơn dự

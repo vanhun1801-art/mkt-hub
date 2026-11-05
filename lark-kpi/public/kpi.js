@@ -180,6 +180,63 @@ function dongChiTietChiSo(x) {
  * duy nhất thay vì tách như hiện tại"*. Trước là hai bảng rời, cùng danh sách
  * kênh, xếp khác thứ tự nhau — phải tự dò mắt giữa hai bảng mới ghép được.
  */
+/**
+ * Thẻ 2b — CHỈ SỐ TỪNG BẠN THEO KÊNH, dựng theo đúng khung bảng KPI trên
+ * Google Sheet anh Hùng vẫn tính (05/11/2026): mỗi kênh một khối, mỗi tiêu
+ * chí một dòng, mỗi bạn ba cột Mục tiêu · Kết quả · % đạt. Bộ luật tách kênh
+ * chung thành từng nhóm "Bài viết · Thư"; ở đây gộp lại về một khối kênh.
+ */
+function theChiSoKenh(cuoi) {
+  const khoi = new Map();
+  const nguoi = [];
+  (cuoi.nhom || []).forEach((n) => {
+    const m = / · Bài viết · ([^·]+)$/.exec(n.ten || '');
+    const ten = m ? n.ten.slice(0, m.index) + ' · Bài viết' : n.ten;
+    const ai = m ? m[1].trim() : 'Chung';
+    if (!nguoi.includes(ai)) nguoi.push(ai);
+    const k = khoi.get(ten) || new Map();
+    (n.tieuChi || []).forEach((tc) => {
+      const d = k.get(tc.ten) || { ten: tc.ten, tyTrong: tc.tyTrongGoc, theo: {} };
+      d.theo[ai] = tc;
+      k.set(tc.ten, d);
+    });
+    khoi.set(ten, k);
+  });
+  /* Cột "Chung" (LIVE, khối view bán hàng) đứng sau ba bạn content. */
+  nguoi.sort((a, b) => (a === 'Chung') - (b === 'Chung'));
+
+  const the = el('div', 'the');
+  the.appendChild(el('header', '', '<h3>Chỉ số từng bạn theo kênh</h3>'));
+  if (!khoi.size) {
+    the.appendChild(el('div', 'than nhat', 'Bộ luật tháng này chưa khai chỉ số nào.'));
+    return the;
+  }
+  const b = el('table', 'bang-2tang');
+  b.innerHTML = '<thead><tr><th rowspan="2">Tiêu chí</th><th class="so" rowspan="2">Tỷ trọng</th>'
+    + nguoi.map((x) => '<th colspan="3" style="text-align:center">' + esc(x) + '</th>').join('') + '</tr><tr>'
+    + nguoi.map(() => '<th class="so">Mục tiêu</th><th class="so">Kết quả</th><th class="so">% đạt</th>').join('')
+    + '</tr></thead>';
+  const tb = el('tbody');
+  khoi.forEach((dong, ten) => {
+    tb.appendChild(el('tr', 'nhip', '<td colspan="' + (2 + nguoi.length * 3) + '"><b>' + esc(ten) + '</b></td>'));
+    dong.forEach((d) => {
+      tb.appendChild(el('tr', '', '<td>' + esc(d.ten) + '</td>'
+        + '<td class="so nhat">' + (d.tyTrong ? Math.round(d.tyTrong * 100) + '%' : 'theo dõi') + '</td>'
+        + nguoi.map((x) => {
+          const tc = d.theo[x];
+          if (!tc) return '<td></td><td></td><td></td>';
+          /* Dòng theo dõi không có mục tiêu riêng, chỉ hiện số. */
+          return '<td class="so nhat">' + (d.tyTrong ? gon(tc.mucTieu) : '') + '</td>'
+            + '<td class="so">' + (tc.boQua ? '<span class="nhan-o im">chưa đo được</span>' : '<b>' + gon(Math.round(tc.ketQua)) + '</b>') + '</td>'
+            + '<td class="so">' + (tc.boQua || !d.tyTrong ? '' : ptLon(tc.datMucTieu)) + '</td>';
+        }).join('')));
+    });
+  });
+  b.appendChild(tb);
+  the.appendChild(el('div', 'bang-cuon')).appendChild(b);
+  return the;
+}
+
 function theKenh(cuoi) {
   const the = el('div', 'the');
   the.appendChild(el('header', '', '<h3>Kênh</h3>'

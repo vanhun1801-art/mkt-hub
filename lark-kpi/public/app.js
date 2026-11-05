@@ -736,6 +736,7 @@ async function veKPI() {
   /* CHỈ SỐ trước, KÊNH sau, NGƯỜI cuối. Xem chú thích đầu kpi.js. */
   g.appendChild(theChiSoPhong(cuoi));
   g.appendChild(theKenh(cuoi));
+  g.appendChild(theChiSoKenh(cuoi));
   g.appendChild(theNguoi(cuoi));
   if (!DATA.chiMinh) g.appendChild(bangChamTay());
 

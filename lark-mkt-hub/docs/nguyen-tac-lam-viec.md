@@ -163,6 +163,8 @@ Anh Hùng (10/10/2026): nhân sự xuất được báo cáo, nhưng **xuất đ
 - **Lượt xem để chấm KPI là lượt xem ĐÃ QUY ĐỔI theo mục đích bài**, không phải lượt xem thô. Bán hàng ×1,0 · Tương tác ×0,2, hệ số lấy từ bộ luật. Bài chưa gắn nhãn thì bị loại và app phải nói ra bao nhiêu bài bị loại — đoán bừa là trừ oan 80% hoặc cho không.
 - **Người cùng giữ một kênh thì chấm theo tên người đăng trên từng bài**, không chia theo tỷ trọng kênh. Tra bằng bảng `tenDang`, tuyệt đối không suy từ tên: "Phương Ái" là Thư, "Lý Thư Bạch" là Ngọc.
 - **Tab KPI xếp theo CHỈ SỐ → KÊNH → NGƯỜI.** Chỉ số của doanh nghiệp đứng trước, KPI từng người là phần phụ. Mốc tuần phải có số tuyệt đối ("hết ngày 7 cần 1,88tr, đang có 597k"), không chỉ phần trăm.
+- **Chỉ số tính KPI của từng bạn bày thẳng ra ngoài, theo khung bảng Google Sheet "KPI MKT"** (05/11/2026, anh Hùng: "anh muốn lôi tất cả các chỉ số được tính KPI của từng bạn được hiển thị ra bên ngoài"). Thẻ "Chỉ số từng bạn theo kênh" dưới bảng Kênh: mỗi kênh một khối, mỗi tiêu chí một dòng có tỷ trọng, mỗi bạn ba cột Mục tiêu, Kết quả, % đạt. Không bắt bấm vào từng kênh mới thấy.
+- **Bài trống ô Người đăng và bài là phiên LIVE** (05/11/2026): bài trùng ID một phiên LIVE không tính làm bài viết (LIVE là của Khánh). Bài trống tên ở FB MICE tính cho Thư, TikTok Cuộc sống tại Phú Quốc cho Hằng, TikTok Rooty Trip chia đều ba bạn content.
 - **Đổi tab thì giữ chiều cao cũ và đưa về đầu trang.** Để trang co lại là thanh cuộn biến mất, nội dung xê ngang, và vị trí cuộn bị kẹp về 0 một cách khó đoán.
 
 ## 12. Việc lớn, việc con và việc tạo từ tin (21/10/2026)
