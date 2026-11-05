@@ -353,11 +353,14 @@ function tongHop(ds) {
     (b.nguoiLam.length ? b.nguoiLam : [{ id: '', name: 'Chưa ghi người' }]).forEach((u) => {
       const k = u.name || u.id;
       const o = s.theoNguoi[k] || (s.theoNguoi[k] = { ten: k, id: u.id, lo: 0, anh: 0, video: 0,
-        canSua: 0, _ngayAnh: new Set(), _ngayVideo: new Set() });
+        canSua: 0, dat: 0, _ngayAnh: new Set(), _ngayVideo: new Set() });
       o.lo++; o.anh += b.soAnh || 0; o.video += b.soVideo || 0;
       if (b.ngay && (b.soAnh || 0) > 0) o._ngayAnh.add(b.ngay);
       if (b.ngay && (b.soVideo || 0) > 0) o._ngayVideo.add(b.ngay);
       if (b.trangThai === 'Cần sửa lại') o.canSua++;
+      /* KPI chỉnh ảnh của Trường tính theo tỷ lệ lô Đạt trên lô đã nghiệm thu
+       * (anh Hùng 05/11/2026), nên phải đếm cả Đạt theo người. */
+      if (b.trangThai === 'Đạt') o.dat++;
     });
     const kt = b.tour || '(chưa ghi Tour)';
     const ot = s.theoTour[kt] || (s.theoTour[kt] = { ten: kt, lo: 0, anh: 0, video: 0 });
@@ -604,8 +607,11 @@ async function api(req, res, u) {
     });
     const d = await store.tai(true);
     const bc = d.baoCao.find((x) => x.id === b.id);
-    let gui = { ok: false, loi: 'Không gửi.', duong: '' };
-    if (b.gui !== false && bc) {
+    /* DUYỆT ĐẠT THÌ KHÔNG NHẮN AI. Anh Hùng 05/11/2026: "nếu ấn duyệt trên ứng
+     * dụng thì không nhảy tin nhắn đi đâu". Chỉ trả về sửa mới nhắn người làm,
+     * vì họ cần biết phải sửa gì. `loi` rỗng để giao diện không báo hỏng. */
+    let gui = { ok: false, loi: b.trangThai === 'Đạt' ? '' : 'Không gửi.', duong: '' };
+    if (b.gui !== false && bc && b.trangThai !== 'Đạt') {
       gui = await guiRiengNghiemThu(bc, { nguoiTen: nd ? nd.name : '', d });
     }
     return ok(res, { baoCao: bc,

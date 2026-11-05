@@ -49,6 +49,8 @@ const may = http.createServer((req, res) => {
         { platform: 'TikTok', name: 'Rooty Trip Phú Quốc', views: 3000, followUp: 0 },
       ],
       live: LIVE,
+      /* App Chỉnh ảnh dùng chung máy giả này: lô đã nghiệm thu theo người. */
+      theoNguoi: [{ ten: 'Danh Minh Trường', dat: 9, canSua: 1 }, { ten: 'Người khác', dat: 0, canSua: 5 }],
       /* LIVE TikTok về bằng tệp LIVE Center, ghi theo ngày. */
       liveNgay: [
         { platform: 'TikTok', channel: 'Trang C', date: '2026-10-02', luotXem: 700, followerMoi: 9, nguoiBinhLuan: 4, soPhien: 2 },
@@ -80,6 +82,9 @@ const LUAT = {
       cs('lv', 'FB|Trang A|Live#liveView'),
       cs('lf', 'FB|Trang A|Live#liveFollow'),
     ] },
+    { kenh: 'Thiết kế', tenKenh: 'Rooty Trip Phú Quốc', loai: 'Chung', tieuChi: [
+      cs('tyLe', 'ChinhAnh|Rooty Trip Phú Quốc|Lô|truong#tyLeDat'),
+    ] },
     { kenh: 'Tiktok', tenKenh: 'Trang C', loai: 'Live', tieuChi: [
       cs('lv', 'Tiktok|Trang C|Live#liveView'),
       cs('lf', 'Tiktok|Trang C|Live#liveFollow'),
@@ -109,6 +114,7 @@ const LUAT = {
   nguon.DIA_CHI.social = dc;
   nguon.DIA_CHI['quang-cao'] = dc;
   nguon.DIA_CHI['cong-viec'] = dc;
+  nguon.DIA_CHI['chinh-anh'] = dc;
 
   const r = await nguon.docTuApp('2026-10', LUAT);
   const s = r.soLieu;
@@ -158,6 +164,10 @@ const LUAT = {
   await t('LIVE TikTok đọc được từ bảng theo ngày (tệp LIVE Center)', () => {
     assert.strictEqual(s['Tiktok|Trang C|Live#liveView'], 1000);
     assert.strictEqual(s['Tiktok|Trang C|Live#liveFollow'], 10);
+  });
+
+  await t('chỉnh ảnh của Trường: % lô Đạt trên lô đã nghiệm thu, chỉ của Trường', () => {
+    assert.strictEqual(s['ChinhAnh|Rooty Trip Phú Quốc|Lô|truong#tyLeDat'], 90);
   });
 
   may.close();

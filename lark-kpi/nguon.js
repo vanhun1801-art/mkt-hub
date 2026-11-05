@@ -381,9 +381,35 @@ async function docTuApp(thang, luat, khoangRieng, kho) {
     } catch (e) { loiApp.viec = e.message; }
   }
 
+  /* TỶ LỆ LÔ ẢNH ĐẠT, mã `ChinhAnh|<tên>|Lô|<người>#tyLeDat`, đơn vị %. Anh Hùng
+   * 05/11/2026: chỉnh ảnh của Trường tính theo đánh giá nghiệm thu, không theo
+   * số lượng. Chỉ đếm lô ĐÃ nghiệm thu (Đạt hoặc Cần sửa lại); chưa duyệt lô
+   * nào thì là chưa đo được, không phải 0%. */
+  let anh = null;
+  if (dsTc.some((tc) => String(tc.nguon).startsWith('ChinhAnh|'))) {
+    try {
+      anh = await goi(DIA_CHI['chinh-anh'] + '/api/tong-quan?tu=' + tu + '&den=' + den, 60,
+        { 'x-hub-user-id': 'kpi', 'x-hub-user-name': 'KPI', 'x-hub-user-manager': '1' });
+    } catch (e) { loiApp.anh = e.message; }
+  }
+
   dsTc.forEach((tc) => {
     const t = tach(tc.nguon);
     if (!t) { ghi(tc.nguon, '', null, 'thieu', 'Mã nguồn không theo dạng Kênh|Tên|Loại#chỉ số', 'luat'); return; }
+
+    if (t.kenh === 'ChinhAnh') {
+      if (loiApp.anh) return ghi(tc.nguon, 'App Chỉnh ảnh', null, 'loi', loiApp.anh, 'noi');
+      const pv = t.nguoiDang ? (PV.cua(t.nguoiDang) || (PV.MAC_DINH || {})[t.nguoiDang]) : null;
+      const ds = ((anh && anh.theoNguoi) || []).filter((x) => !pv || PV.laCuaNguoi(pv, x.ten));
+      const dat = ds.reduce((a, x) => a + (x.dat || 0), 0);
+      const sua = ds.reduce((a, x) => a + (x.canSua || 0), 0);
+      if (!dat && !sua) {
+        return ghi(tc.nguon, 'App Chỉnh ảnh', null, 'thieu',
+          'Chưa nghiệm thu lô nào trong kỳ. Duyệt ở app Chỉnh ảnh & Edit video', 'tay');
+      }
+      return ghi(tc.nguon, 'App Chỉnh ảnh · ' + dat + ' đạt / ' + (dat + sua) + ' lô đã nghiệm thu',
+        Math.round(dat / (dat + sua) * 1000) / 10, 'lay-duoc');
+    }
 
     if (t.kenh === 'CongViec') {
       if (loiApp.viec) return ghi(tc.nguon, 'Bảng công việc', null, 'loi', loiApp.viec, 'noi');
