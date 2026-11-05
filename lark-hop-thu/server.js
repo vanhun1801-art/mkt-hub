@@ -427,6 +427,16 @@ function keoXong(ds) {
   });
 }
 
+/** Cả luồng của một thư (cùng hộp, cùng chủ đề), thư đến lẫn thư đã gửi, cũ trước. */
+function luongCua(k, ds, daGui) {
+  const goc = ds.find((t) => t.hop === k.hop && t.id === k.id) || (daGui || []).find((t) => t.hop === k.hop && t.id === k.id);
+  if (!goc) return [k];
+  const cd = goc.cd || khoaChuoi(goc);
+  return ds.concat(daGui || [])
+    .filter((t) => t.hop === goc.hop && (t.cd || khoaChuoi(t)) === cd)
+    .sort((a, b) => (a.ngay < b.ngay ? -1 : a.ngay > b.ngay ? 1 : 0));
+}
+
 /* Mã ngắn cố định của một thư cho hỏi đáp AI: cùng thư thì cùng mã qua mọi
  * câu hỏi, nên câu trả lời cũ trong lịch sử vẫn trỏ đúng thư. */
 const maHoi = (t) => require('crypto').createHash('sha1').update(t.hop + '|' + t.id).digest('hex').slice(0, 7);
@@ -580,7 +590,7 @@ async function api(req, res, url) {
   if (p === '/api/hop' && m === 'GET') {
     const hop = await cacHop(n);
     return json(res, { hop, chinh: hopChinh(hop), ngan: NGAN, ai: ai.coKhoa(), hoiAi: coHoiAi(n), model: cfg.ai.model,
-      tat: [...tatCua(n)].filter((e) => hop.some((h) => h.email.toLowerCase() === e)) });
+      tat: [...tatCua(n)].filter((e) => hop.some((h) => h.email.toLowerCase() === e)), soMau: kho.mau(n.nguoi).length });
   }
 
   /* Bật tắt từng hộp: gửi cả danh sách hộp tắt. Phải còn ít nhất một hộp bật. */
@@ -659,16 +669,22 @@ async function api(req, res, url) {
     const cauHoi = String(b.cauHoi || '').trim();
     if (!cauHoi) return loi(res, 400, 'Câu hỏi đang trống');
     const d = await docHet(n, false);
-    const { ds } = await ghepDs(n, d);
+    const { ds, daGui } = await ghepDs(n, d);
     const muc = dongHoi(ds, d.gui || []);
     const theoMa = new Map(muc.map((t) => [t.ma, t]));
-    const dangMo = /^[^|]+\|.+$/.test(String(b.dangMo || '')) ? maHoi({ hop: b.dangMo.split('|')[0], id: b.dangMo.slice(b.dangMo.indexOf('|') + 1) }) : '';
+    const moKhoa = /^[^|]+\|.+$/.test(String(b.dangMo || '')) ? { hop: b.dangMo.split('|')[0], id: b.dangMo.slice(b.dangMo.indexOf('|') + 1) } : null;
+    const dangMo = moKhoa ? maHoi(moKhoa) : '';
+    /* Hỏi từ bảng AI cạnh thư (05/11/2026, kiểu Gemini trong Gmail): đọc sẵn
+     * cả luồng của thư đang mở, cả thư đến lẫn thư mình đã gửi. */
+    const moSan = b.luong === true && moKhoa ? luongCua(moKhoa, ds, daGui).map(maHoi) : [];
     /* Có khoá API thì đi API; không thì Claude Code của chủ máy (coHoiAi đã chặn người khác). */
     const kq = await (ai.coKhoa() ? ai.hoiDap : ai.hoiDapMay)({
       cauHoi,
       lichSu: Array.isArray(b.lichSu) ? b.lichSu : [],
       ds: muc,
       dangMo,
+      moSan,
+      giong: kho.mau(n.nguoi),
       homNay: new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 16).replace('T', ' '),
       nguoi: n.ten || 'anh Hùng',
       docThu: async (ma) => { const t = theoMa.get(ma); return t ? thu.doc(t.hop, t.id, n.tk) : null; },
@@ -753,7 +769,7 @@ async function api(req, res, url) {
     if (!ai.coKhoa()) return loi(res, 409, 'Chưa có khoá Claude API', { khongKhoa: true });
     const b = await docThan(req);
     const t = await thu.doc(k.hop, k.id, n.tk);
-    const chu = await ai.vietNhap(t, String(b.yDinh || ''), { nguoi: quyen.n.ten || 'Lê Văn Hùng' });
+    const chu = await ai.vietNhap(t, String(b.yDinh || ''), { nguoi: quyen.n.ten || 'Lê Văn Hùng', giong: kho.mau(n.nguoi) });
     return json(res, { chu });
   }
 
@@ -829,6 +845,8 @@ async function api(req, res, url) {
     /* Ai gửi trả lời là người đang lo chuỗi thư đó: cả phòng thấy ngay, khỏi
      * hai người cùng trả lời một khách. */
     if (b.gui === true) kho.datLo(k.hop, String(b.chuoi || 'id:' + k.id).slice(0, 200), nguoiLo(n));
+    /* Học giọng văn: thư đã gửi, kèm bản AI soạn nếu đi từ đó (ai.khoiGiong). */
+    if (b.gui === true) kho.themMau({ gui: chu, nhap: String(b.tuNhapAi || ''), ngonNgu: b.ngonNgu }, n.nguoi);
     quenDs(n);
     return json(res, { ok: true, daGui: b.gui === true, kq });
   }

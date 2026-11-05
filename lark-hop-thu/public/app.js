@@ -165,7 +165,7 @@ function gioHen(ms) {
 
 async function napHop() {
   const d = await api('hop');
-  Object.assign(S, { hop: d.hop, chinh: d.chinh, ngan: d.ngan, ai: d.ai, hoiAi: Boolean(d.hoiAi), tat: d.tat || [] });
+  Object.assign(S, { hop: d.hop, chinh: d.chinh, ngan: d.ngan, ai: d.ai, hoiAi: Boolean(d.hoiAi), tat: d.tat || [], soMau: d.soMau || 0 });
 }
 
 /* Bản danh sách lần trước, giữ trong trình duyệt theo hộp chính (03/11/2026:
@@ -814,6 +814,7 @@ async function mo(k) {
   const cot = $('#cotDoc');
   cot.classList.remove('dong-lai');
   cot.hidden = false;
+  if (aiDangMo()) veAi();            // bảng Hỏi AI đang mở thì theo sang luồng vừa mở
   /* Vẽ ngay khuôn thư từ dòng trong danh sách (nút, tiêu đề, người gửi, ô trả
    * lời), chỉ phần nội dung chờ tải. Trước đây khung đọc trắng trơn một nhịp
    * rồi mọi thứ mới bật ra (29/10/2026, "ấn vào thì hiện các thứ không bình thường"). */
@@ -843,6 +844,7 @@ function veDocTrong() { veChat(); }
 
 function dongDoc() {
   const cot = $('#cotDoc');
+  dongAi(true);
   S.chon = ''; S.ct = null;
   veDs();
   if (!laHep()) { veDocTrong(); return; }
@@ -1255,6 +1257,7 @@ async function aiViet(yDinh) {
     const r = await api(duongThu(d.thu, 'nhap'), { body: { yDinh } });
     if (S.chon !== k) return;
     o.value = r.chu;
+    NHAP_AI.set(k, r.chu);
     capNhatNutGui();
     o.focus();
     bao('Đã có nháp, anh xem lại trước khi gửi', 'ok');
@@ -1482,7 +1485,13 @@ async function guiThat() {
   $('#btnGui') && ($('#btnGui').disabled = true);
   try {
     const dong = timThu(khoa(b.t));
-    await api(duongThu(b.t, 'tra-loi'), { body: { chu: b.chu, tatCa: b.tatCa, coChuKy: b.coChuKy, gui: true, chuoi: dong && maCd(dong) } });
+    const kt = khoa(b.t);
+    await api(duongThu(b.t, 'tra-loi'), { body: {
+      chu: b.chu, tatCa: b.tatCa, coChuKy: b.coChuKy, gui: true, chuoi: dong && maCd(dong),
+      tuNhapAi: b.tiengAnh ? '' : (NHAP_AI.get(S.chon) || NHAP_AI.get(kt) || ''), ngonNgu: b.tiengAnh ? 'en' : 'vi',
+    } });
+    NHAP_AI.delete(S.chon); NHAP_AI.delete(kt);
+    if (b.chu.trim().length >= 15) S.soMau = Math.min(20, (S.soMau || 0) + 1);
     if (dong) dong.lo = { ten: 'Bạn', minh: true };     // máy chủ đã ghi mình là người lo; lượt đọc sau thay bằng tên thật
     bao('Đã gửi thư trả lời', 'ok');
     const o = $('#oSoan');
@@ -1899,7 +1908,7 @@ $('#cotDoc').addEventListener('click', (e) => {
     b.nextElementSibling.classList.toggle('mo', mo);
   }
   else if (v === 'ai-viet') aiViet($('#oSoan').value.trim() || 'Trả lời phù hợp với nội dung thư');
-  else if (v === 'ai-tu-van') { moChat(); hoiAi(CAU_TU_VAN); }
+  else if (v === 'ai-tu-van') { moAi(); hoiAi(CAU_TU_VAN, phienThu()); }
   else if (v === 'luu-nhap') luuNhap();
   else if (v === 'gui') hoiGui();
   else if (v === 'them') menuThem(b, t);
@@ -2261,6 +2270,7 @@ document.addEventListener('keydown', (e) => {
   if (!$('#hopNho').hidden) dongNho();
   else if (!$('#hopGui').hidden) dongHop();
   else if (!$('#menuNoi').hidden) dongMenu();
+  else if (aiDangMo()) dongAi();
   else if (S.chon && laHep()) dongDoc();
 });
 addEventListener('resize', datVienTruot);
@@ -2346,7 +2356,7 @@ function veDoan(chu, thu) {
   return h ? '<div class="doan-ai" data-no-i18n>' + h + '</div>' : '';
 }
 
-function veTinChat(x, i) {
+function veTinChat(x, i, cuoi) {
   if (x.vai === 'hoi') {
     return '<div class="bong di"><div class="vo-bong"><div class="than-bong" data-no-i18n>' + esc(x.chu).replace(/\n/g, '<br>') + '</div></div></div>';
   }
@@ -2354,7 +2364,9 @@ function veTinChat(x, i) {
     ? '<div class="dang-nghi" aria-label="AI đang đọc thư"><i></i><i></i><i></i></div><div class="ghi-cho">Đang đọc thư, có thể mất một phút</div>'
     : x.vai === 'loi'
       ? '<span class="loi-bong">' + esc(x.chu) + '</span><button class="xem-het" data-hoi="lai" data-i="' + i + '">Hỏi lại</button>'
-      : '<div class="tra-loi-ai">' + veTraLoi(x.chu, x.thu, i) + '</div>';
+      : '<div class="tra-loi-ai">' + veTraLoi(x.chu, x.thu, i) + '</div>' +
+        (cuoi && cacNhap(x.chu).length ? '<div class="sua-nhap">' +
+          SUA_NHAP.map((c, k) => '<button class="nut" data-hoi="sua" data-i="' + k + '">' + esc(c) + '</button>').join('') + '</div>' : '');
   return '<div class="bong den ai-chat"><span class="avt avt-ai" aria-hidden="true"><svg viewBox="0 0 24 24">' + IC_AI + '</svg></span>' +
     '<div class="vo-bong"><div class="than-bong">' + than + '</div>' +
     (x.vai === 'dap' && x.daMo ? '<span class="ghi-chat">Đã đọc kỹ ' + x.daMo + ' thư</span>' : '') + '</div></div>';
@@ -2375,7 +2387,7 @@ function veChat() {
         : '<b>Hỏi AI chưa bật</b><span>Máy chủ cần khoá Claude API (ANTHROPIC_API_KEY) thì mới hỏi được.</span>') +
       '</div>';
   } else {
-    than.innerHTML = '<div class="luong chat">' + CHAT.ds.map(veTinChat).join('') + '</div>';
+    than.innerHTML = '<div class="luong chat">' + CHAT.ds.map((x, i) => veTinChat(x, i, i === CHAT.ds.length - 1)).join('') + '</div>';
     than.scrollTop = than.scrollHeight;
   }
   const o = $('#docSoan');
@@ -2405,6 +2417,7 @@ function capNhatNutHoi() {
 /** Mở ô Hỏi AI ở khung bên phải (điện thoại: trượt vào như mở thư). */
 function moChat() {
   const cot = $('#cotDoc');
+  dongAi(true);
   if (S.chon) { S.chon = ''; S.ct = null; veDs(); }
   boAn('doc');
   cot.classList.remove('dong-lai');
@@ -2440,28 +2453,133 @@ async function hoiQuaMay(body) {
   return d;
 }
 
-async function hoiAi(cau) {
+/* ---------- bảng Hỏi AI cạnh thư (05/11/2026) ----------
+ * Anh Hùng gửi ảnh Gemini trong Gmail: hỏi AI ngay bên thư đang đọc, AI soạn
+ * thư trả lời, đưa thẳng vào ô trả lời. Mỗi luồng thư một cuộc trò chuyện
+ * riêng; máy chủ đọc sẵn cả luồng (luong: true) nên không phải chờ AI tự tìm.
+ * Ô Hỏi AI chung (khi chưa mở thư) vẫn giữ nguyên ở khung đọc. */
+const KHOA_PHIEN = 'hopThu.chatThu';
+const PHIEN = new Map((() => { try { return JSON.parse(sessionStorage.getItem(KHOA_PHIEN) || '[]'); } catch (_) { return []; } })()
+  .map(([k, ds]) => [k, { k, ds: (ds || []).filter((x) => x.vai === 'hoi' || x.vai === 'dap'), dang: false }]));
+const luuPhien = () => {
+  try {
+    const ds = [...PHIEN.values()].filter((p) => p.ds.length).slice(-20)
+      .map((p) => [p.k, p.ds.filter((x) => x.vai !== 'loi').slice(-20)]);
+    sessionStorage.setItem(KHOA_PHIEN, JSON.stringify(ds));
+  } catch (_) {}
+};
+/* Thư AI soạn mà anh đưa vào ô trả lời: gửi đi thì máy chủ ghi cả hai bản để
+ * AI học anh hay sửa gì (kho.themMau, ai.khoiGiong). */
+const NHAP_AI = new Map();
+
+const GOI_Y_THU = ['Tóm tắt luồng thư này', 'Người gửi đang cần gì?', 'Soạn thư trả lời', 'Còn câu nào chưa trả lời?'];
+const SUA_NHAP = ['Viết ngắn hơn', 'Trang trọng hơn', 'Viết bằng tiếng Anh'];
+
+function phienThu() {
+  const t = S.chon && timThu(S.chon);
+  if (!t) return null;
+  const k = khoaCd(t);
+  if (!PHIEN.has(k)) PHIEN.set(k, { k, ds: [], dang: false });
+  return PHIEN.get(k);
+}
+const aiDangMo = () => !$('#cotAi').hidden && !$('#cotAi').classList.contains('dong-lai');
+/* Dưới 1280px bảng nổi đè lên khung đọc: đưa nháp vào ô trả lời thì đóng bảng để thấy ô. */
+const aiNoi = () => matchMedia('(max-width: 1279px)').matches;
+
+function moAi() {
+  const c = $('#cotAi');
+  if (!S.chon) { moChat(); return; }
+  c.classList.remove('dong-lai');
+  c.hidden = false;
+  document.body.classList.add('co-ai');
+  $('#btnHoiAi').setAttribute('aria-pressed', 'true');
+  veAi();
+  if (S.hoiAi && !laHep()) $('#oHoiAi').focus();
+}
+function dongAi(ngay) {
+  const c = $('#cotAi');
+  $('#btnHoiAi').setAttribute('aria-pressed', 'false');
+  if (c.hidden) return;
+  const xong = () => { c.hidden = true; c.classList.remove('dong-lai'); document.body.classList.remove('co-ai'); };
+  if (ngay) { xong(); return; }
+  c.classList.add('dong-lai');
+  setTimeout(() => { if (c.classList.contains('dong-lai')) xong(); }, 240);
+}
+
+function veAi() {
+  const ph = phienThu();
+  if (!ph) return;
+  const t = timThu(S.chon);
+  $('#aiTieuDe').textContent = String(t.tieuDe || '(không tiêu đề)').replace(/^\s*((re|fw|fwd|tl)\s*:\s*)+/i, '');
+  $('#btnAiMoi').hidden = !ph.ds.length;
+  const than = $('#aiThan');
+  if (!ph.ds.length) {
+    than.innerHTML = '<div class="ai-chao">' +
+      (S.hoiAi
+        ? '<b>Hỏi gì về luồng thư này cũng được</b>' +
+          '<span>AI đọc cả luồng, gợi ý cách trả lời và soạn sẵn thư. AI không tự gửi.</span>' +
+          (S.soMau ? '<span>Thư soạn sẵn học theo ' + S.soMau + ' thư đã gửi gần đây.</span>' : '') +
+          '<div class="goi-y-hoi">' + GOI_Y_THU.map((g, i) => '<button class="nut" data-hoi="goi-y" data-i="' + i + '">' + esc(g) + '</button>').join('') + '</div>'
+        : '<b>Hỏi AI chưa bật</b><span>Máy chủ cần khoá Claude API thì mới hỏi được.</span>') +
+      '</div>';
+  } else {
+    than.innerHTML = '<div class="luong chat">' + ph.ds.map((x, i) => veTinChat(x, i, i === ph.ds.length - 1)).join('') + '</div>';
+    than.scrollTop = than.scrollHeight;
+  }
+  const o = $('#aiSoan');
+  if (!$('#oHoiAi')) {
+    o.innerHTML = '<div class="o-hoi">' +
+      '<textarea id="oHoiAi" rows="1" placeholder="Hỏi về thư này" aria-label="Câu hỏi cho AI về thư này"></textarea>' +
+      '<button class="nut-tron chinh" id="btnHoiAiGui" data-hoi="gui" title="Gửi câu hỏi" aria-label="Gửi câu hỏi">' +
+      '<svg viewBox="0 0 24 24" aria-hidden="true">' + IC_GUI + '</svg></button></div>';
+  }
+  capNhatNutHoiAi();
+}
+function capNhatNutHoiAi() {
+  const o = $('#oHoiAi');
+  if (!o) return;
+  const ph = phienThu();
+  o.disabled = !S.hoiAi;
+  $('#btnHoiAiGui').disabled = !S.hoiAi || !ph || ph.dang || !o.value.trim();
+  o.style.height = 'auto';
+  if (o.value) o.style.height = Math.min(132, o.scrollHeight + 2) + 'px';
+}
+
+/** Vẽ lại chỗ đang bày cuộc trò chuyện này (ô chung hay bảng cạnh thư). */
+function veLaiPhien(ph, tin) {
+  if (ph === CHAT) {
+    if (!S.chon) veChat();
+    else if (tin) bao(tin.vai === 'dap' ? 'AI đã trả lời, bấm Hỏi AI để xem' : tin.chu, tin.vai === 'dap' ? 'ok' : 'loi');
+    return;
+  }
+  if (aiDangMo() && phienThu() === ph) veAi();
+  else if (tin) bao(tin.vai === 'dap' ? 'AI đã trả lời về thư kia, mở lại thư đó để xem' : tin.chu, tin.vai === 'dap' ? 'ok' : 'loi');
+}
+
+async function hoiAi(cau, ph = CHAT) {
   cau = String(cau || '').trim();
-  if (!cau || CHAT.dang || !S.hoiAi) return;
-  const lichSu = CHAT.ds.filter((x) => x.vai === 'hoi' || x.vai === 'dap').map((x) => ({ vai: x.vai, chu: x.chu }));
-  CHAT.ds.push({ vai: 'hoi', chu: cau }, { vai: 'cho' });
-  CHAT.dang = true;
-  if ($('#oHoi')) $('#oHoi').value = '';
-  if (!S.chon) veChat();
+  if (!cau || !ph || ph.dang || !S.hoiAi) return;
+  const theoThu = ph !== CHAT;
+  const lichSu = ph.ds.filter((x) => x.vai === 'hoi' || x.vai === 'dap').map((x) => ({ vai: x.vai, chu: x.chu }));
+  ph.ds.push({ vai: 'hoi', chu: cau }, { vai: 'cho' });
+  ph.dang = true;
+  const oId = theoThu ? '#oHoiAi' : '#oHoi';
+  if ($(oId)) $(oId).value = '';
+  const dangMo = theoThu ? S.chon : CHAT.vuaMo;
+  veLaiPhien(ph);
   let tin;
   try {
-    const than = { cauHoi: cau, lichSu, dangMo: CHAT.vuaMo };
+    const than = { cauHoi: cau, lichSu, dangMo, luong: theoThu };
     const r = S.quaMay ? await hoiQuaMay(than) : await api('hoi-thu', { body: than });
     tin = { vai: 'dap', chu: r.chu, thu: r.thu || {}, daMo: r.daMo || 0 };
   } catch (e) {
     tin = { vai: 'loi', chu: e.message || 'Chưa hỏi được, anh thử lại.', hoi: cau };
   }
-  CHAT.dang = false;
-  const i = CHAT.ds.findIndex((x) => x.vai === 'cho');
-  if (i >= 0) CHAT.ds.splice(i, 1, tin); else CHAT.ds.push(tin);
-  luuChat();
-  if (!S.chon) veChat();
-  else bao(tin.vai === 'dap' ? 'AI đã trả lời, bấm Hỏi AI để xem' : tin.chu, tin.vai === 'dap' ? 'ok' : 'loi');
+  ph.dang = false;
+  const i = ph.ds.findIndex((x) => x.vai === 'cho');
+  if (i >= 0) ph.ds.splice(i, 1, tin); else ph.ds.push(tin);
+  if (theoThu) luuPhien(); else luuChat();
+  veLaiPhien(ph, tin);
 }
 
 /** Mở thư AI vừa nhắc. Thư anh đã gửi thì mở luồng có thư đó. Trả true nếu mở được. */
@@ -2474,9 +2592,9 @@ function moThuTuChat(k) {
   return false;
 }
 
-/** Thẻ thư soạn sẵn: mở đúng thư rồi đặt chữ vào ô trả lời, hoặc chép. */
-async function nutNhap(viec, i, j) {
-  const x = CHAT.ds[i];
+/** Thẻ thư soạn sẵn: đặt chữ vào ô trả lời của đúng thư, hoặc chép. */
+async function nutNhap(ph, viec, i, j) {
+  const x = ph.ds[i];
   const n = x && cacNhap(x.chu)[j];
   if (!n) return;
   if (viec === 'chep') {
@@ -2485,41 +2603,64 @@ async function nutNhap(viec, i, j) {
     return;
   }
   const t = x.thu && x.thu[n.ma];
-  if (!t || !moThuTuChat(t.hop + '|' + t.id)) return;
+  if (!t) return;
+  /* Thư đó thuộc luồng đang mở thì đặt thẳng vào ô trả lời đang có, khỏi mở lại. */
+  const dangMo = S.chon && timThu(S.chon);
+  const cungLuong = dangMo && ph !== CHAT && phienThu() === ph;
+  if (!cungLuong && !moThuTuChat(t.hop + '|' + t.id)) return;
   /* mo() vẽ khuôn thư và ô soạn ngay, trước khi tải nội dung. */
   const o = $('#oSoan');
   if (!o) return;
   o.value = n.chu;
+  NHAP_AI.set(S.chon, n.chu);
   capNhatNutGui();
+  if (ph !== CHAT && aiNoi()) dongAi();
   o.focus();
   bao('Đã đưa vào khung trả lời, anh xem lại rồi bấm Gửi', 'ok');
 }
 
-$('#cotDoc').addEventListener('click', (e) => {
+/** Bấm trong ô chat chung (#cotDoc) hoặc bảng cạnh thư (#cotAi). */
+function bamChat(e, ph, goiY, oId) {
   const tc = e.target.closest('[data-mo-thu]');
   if (tc) { moThuTuChat(tc.dataset.moThu); return; }
   const bn = e.target.closest('[data-nhap]');
-  if (bn) { nutNhap(bn.dataset.nhap, +bn.dataset.i, +bn.dataset.j); return; }
+  if (bn) { nutNhap(ph, bn.dataset.nhap, +bn.dataset.i, +bn.dataset.j); return; }
   const b = e.target.closest('[data-hoi]');
   if (!b) return;
   const viec = b.dataset.hoi;
-  if (viec === 'gui') hoiAi($('#oHoi').value);
-  else if (viec === 'goi-y') hoiAi(GOI_Y_HOI[+b.dataset.i]);     // câu gốc, không lấy chữ đã dịch trên nút
-  else if (viec === 'moi') { if (CHAT.dang) return; CHAT.ds = []; luuChat(); veChat(); if ($('#oHoi') && !laHep()) $('#oHoi').focus(); }
-  else if (viec === 'lai') {
-    const x = CHAT.ds[+b.dataset.i];
+  if (viec === 'gui') hoiAi($(oId).value, ph);
+  else if (viec === 'goi-y') hoiAi(goiY[+b.dataset.i], ph);     // câu gốc, không lấy chữ đã dịch trên nút
+  else if (viec === 'sua') hoiAi(SUA_NHAP[+b.dataset.i], ph);
+  else if (viec === 'dong') dongAi();
+  else if (viec === 'moi') {
+    if (ph.dang) return;
+    ph.ds = [];
+    if (ph === CHAT) { luuChat(); veChat(); } else { luuPhien(); veAi(); }
+    if ($(oId) && !laHep()) $(oId).focus();
+  } else if (viec === 'lai') {
+    const x = ph.ds[+b.dataset.i];
     if (!x || !x.hoi) return;
-    CHAT.ds.splice(+b.dataset.i - 1, 2);    // bỏ câu hỏi cũ và dòng lỗi, hỏi lại từ đầu
-    hoiAi(x.hoi);
+    ph.ds.splice(+b.dataset.i - 1, 2);    // bỏ câu hỏi cũ và dòng lỗi, hỏi lại từ đầu
+    hoiAi(x.hoi, ph);
   }
-});
+}
+$('#cotDoc').addEventListener('click', (e) => bamChat(e, CHAT, GOI_Y_HOI, '#oHoi'));
+$('#cotAi').addEventListener('click', (e) => { const ph = phienThu(); if (ph) bamChat(e, ph, GOI_Y_THU, '#oHoiAi'); });
 $('#cotDoc').addEventListener('input', (e) => { if (e.target.id === 'oHoi') capNhatNutHoi(); });
-$('#cotDoc').addEventListener('keydown', (e) => {
-  if (e.target.id !== 'oHoi' || e.key !== 'Enter' || e.shiftKey || e.isComposing) return;
+$('#cotAi').addEventListener('input', (e) => { if (e.target.id === 'oHoiAi') capNhatNutHoiAi(); });
+/* Enter gửi câu hỏi, Shift+Enter xuống dòng. */
+function guiEnter(e, id, ph) {
+  if (e.target.id !== id || e.key !== 'Enter' || e.shiftKey || e.isComposing) return;
   e.preventDefault();
-  hoiAi(e.target.value);
+  hoiAi(e.target.value, ph);
+}
+$('#cotDoc').addEventListener('keydown', (e) => guiEnter(e, 'oHoi', CHAT));
+$('#cotAi').addEventListener('keydown', (e) => guiEnter(e, 'oHoiAi', phienThu()));
+/* Đang mở thư thì nút Hỏi AI bật tắt bảng cạnh thư; chưa mở thư thì là ô hỏi chung. */
+$('#btnHoiAi').addEventListener('click', () => {
+  if (!S.chon) { moChat(); return; }
+  if (aiDangMo()) dongAi(); else moAi();
 });
-$('#btnHoiAi').addEventListener('click', moChat);
 
 /* ---------------- khởi động ---------------- */
 

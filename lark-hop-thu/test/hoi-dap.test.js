@@ -138,6 +138,35 @@ const NOI = {
   } catch (e) { loi = e; }
   ok('chưa đăng nhập thành câu dễ hiểu', loi instanceof ai.LoiAi && /chưa đăng nhập/.test(loi.message));
 
+  /* 05/11/2026: bảng Hỏi AI cạnh thư đọc sẵn cả luồng; thư soạn sẵn học giọng văn. */
+  console.log('\nLuồng đang mở và giọng văn');
+  const MAU = [
+    { gui: 'Dạ em chào chị, bên em xin gửi báo giá ạ.', nhap: 'Kính gửi Quý khách, chúng tôi trân trọng gửi báo giá.', ngonNgu: 'vi' },
+    { gui: 'Hi José, thanks for reaching out.', ngonNgu: 'en' },
+  ];
+  const ghi4 = [];
+  const mo4 = [];
+  const kq4 = await ai.hoiDap({
+    cauHoi: 'Tóm tắt thư này', ds: DS, moSan: ['aaaaaaa', 'khongco'], giong: MAU,
+    docThu: async (ma) => { mo4.push(ma); return NOI[ma] || null; },
+    fetchFn: fetchHang([traLoi('Khách A hỏi giá.')], ghi4),
+  });
+  const u4 = ghi4[0].messages[0].content;
+  ok('luồng đang mở được đọc sẵn trong lượt đầu, một lượt là xong', ghi4.length === 1 && /<luong_dang_mo[\s\S]*4 đảo[\s\S]*<\/luong_dang_mo>/.test(u4));
+  ok('mã không có trong danh mục thì không đọc', mo4.join() === 'aaaaaaa' && kq4.daMo.join() === 'aaaaaaa');
+  ok('mẫu giọng văn nằm trong lượt user, có cả bản AI soạn và bản đã sửa',
+    /<giong_van so_mau="2">[\s\S]*<ban_ai_soan>[\s\S]*trân trọng[\s\S]*<ban_nguoi_dung_gui>[\s\S]*Dạ em chào chị/.test(u4) && !/Dạ em chào chị/.test(ghi4[0].system));
+  ok('lời dặn bảo chỉ học cách viết, không chép thông tin', /KHÔNG chép/.test(ghi4[0].system));
+  ok('không có mẫu thì không nhắc giọng văn', !/giong_van/.test(ghi[0].system) && !/giong_van/.test(ghi[0].messages[0].content));
+  ok('khối giọng văn có trần độ dài', ai.khoiGiong(Array.from({ length: 30 }, () => ({ gui: 'x'.repeat(1500) }))).length < 8000);
+
+  goiCC.length = 0;
+  const kqLuong = await ai.hoiDapMay({ cauHoi: 'Tóm tắt thư này', ds: DS, moSan: ['aaaaaaa'], giong: MAU,
+    docThu: async (ma) => NOI[ma] || null,
+    spawnFn: spawnGia([{ is_error: false, structured_output: { traLoi: 'Khách A hỏi giá.' } }]) });
+  ok('Claude Code: có luồng sẵn thì bỏ lượt chọn thư, một lượt', goiCC.length === 1 && kqLuong.daMo.join() === 'aaaaaaa' &&
+    /<thu_da_mo>[\s\S]*4 đảo/.test(goiCC[0].vao) && /<giong_van/.test(goiCC[0].vao));
+
   console.log('\n' + (fail ? '\x1b[31m' : '\x1b[32m') + pass + ' pass · ' + fail + ' fail\x1b[0m');
   if (fail) { console.log(fails.map((x) => ' - ' + x).join('\n')); process.exit(1); }
 })();

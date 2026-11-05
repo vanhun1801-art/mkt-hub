@@ -62,6 +62,24 @@
          cố định đây đi"): thư dài cuộn ở trên, ô soạn luôn trong tầm tay. -->
     <div class="doc-soan" id="docSoan" hidden></div>
   </aside>
+
+  <!-- Hỏi AI về thư đang mở, nằm cạnh thư (anh Hùng 05/11/2026, xem Gemini
+       trong Gmail). Màn rộng thì thành cột thứ ba; hẹp hơn thì nổi trên mép
+       phải khung đọc; điện thoại thì trượt vào phủ cả màn. -->
+  <aside id="cotAi" class="cot-ai" aria-label="Hỏi AI về thư này" hidden>
+    <div class="ai-dau">
+      <span class="avt-ai" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3.5l1.9 5.1 5.1 1.9-5.1 1.9L12 17.5l-1.9-5.1L5 10.5l5.1-1.9z"/><path d="M18.5 15.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/></svg></span>
+      <div class="ai-ten"><b>Hỏi AI về thư này</b><span id="aiTieuDe" data-no-i18n></span></div>
+      <button class="nut-tron" data-hoi="moi" id="btnAiMoi" title="Cuộc trò chuyện mới" aria-label="Cuộc trò chuyện mới" hidden>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+      </button>
+      <button class="nut-tron" data-hoi="dong" title="Đóng Hỏi AI" aria-label="Đóng Hỏi AI">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <div class="ai-than" id="aiThan"></div>
+    <div class="ai-soan" id="aiSoan"></div>
+  </aside>
 </div>
 
 <!-- Xem trước khi gửi: đúng bản người nhận sẽ đọc, soát chữ, rồi mới gửi. -->

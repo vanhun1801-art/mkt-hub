@@ -68,6 +68,7 @@ function chuanSo(d) {
   if (Array.isArray(d.nhom)) s.nhom = d.nhom;
   if (typeof d.chuKy === 'string') s.chuKy = d.chuKy;
   if (Array.isArray(d.tatHop)) s.tatHop = d.tatHop.filter((x) => typeof x === 'string');
+  if (Array.isArray(d.mau)) s.mau = d.mau.filter((x) => x && typeof x.gui === 'string');
   if (d.lo && typeof d.lo === 'object' && !Array.isArray(d.lo)) s.lo = d.lo;
   return s;
 }
@@ -298,6 +299,21 @@ module.exports = {
   tatHop: (nguoi = '') => so(nguoi).tatHop || [],
   datTatHop(ds, nguoi = '') {
     so(nguoi).tatHop = [...new Set(ds.map((x) => String(x || '').toLowerCase().trim()).filter(Boolean))].slice(0, 50);
+    luuSo(nguoi);
+  },
+
+  /* Mẫu giọng văn (05/11/2026): thư người này gửi qua app, kèm bản AI soạn
+   * nếu thư đi từ bản soạn sẵn. AI đọc để viết giống người dùng (ai.khoiGiong).
+   * Giữ 20 thư gần nhất, mới trước. */
+  mau: (nguoi = '') => so(nguoi).mau || [],
+  themMau(m, nguoi = '') {
+    const gui = String((m && m.gui) || '').trim().slice(0, 1500);
+    if (gui.length < 15) return;                     // "Ok anh", "Đã nhận" không dạy được gì
+    const s = so(nguoi);
+    const x = { gui, ngonNgu: m.ngonNgu === 'en' ? 'en' : 'vi', ngay: Date.now() };
+    const nhap = String(m.nhap || '').trim().slice(0, 1200);
+    if (nhap) x.nhap = nhap;
+    s.mau = [x].concat((s.mau || []).filter((y) => y.gui !== gui)).slice(0, 20);
     luuSo(nguoi);
   },
 

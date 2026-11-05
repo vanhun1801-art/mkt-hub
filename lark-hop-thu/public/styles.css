@@ -855,3 +855,65 @@ svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width:
 @media (max-width: 640px) {
   html.trong-hub .doc-soan { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 132px); }
 }
+
+/* ======================= bảng Hỏi AI cạnh thư (05/11/2026) =======================
+ * Anh Hùng gửi ảnh Gemini trong Gmail. Từ 1280px là cột thứ ba (380px) nằm
+ * cạnh khung đọc; 901 đến 1279px nổi đè mép phải khung đọc; điện thoại trượt
+ * vào phủ cả màn như mở thư. Nền đặc một màu, mở và đóng đều có hiệu ứng. */
+.than-trang { position: relative; }
+.cot-ai[hidden] { display: none; }
+.cot-ai {
+  flex: none; width: 380px; min-height: 0; display: flex; flex-direction: column;
+  background: var(--mat); border: 1px solid var(--vien); border-radius: 18px; box-shadow: var(--bong);
+  overflow: hidden; animation: ai-vao .32s var(--vao);
+}
+.cot-ai.dong-lai { animation: ai-ra .22s var(--ra) forwards; }
+@keyframes ai-vao { from { opacity: 0; transform: translateX(16px); } }
+@keyframes ai-ra { to { opacity: 0; transform: translateX(16px); } }
+.ai-dau {
+  flex: none; display: flex; align-items: center; gap: 10px; padding: 12px 12px 12px 16px;
+  border-bottom: 1px solid var(--vien);
+}
+.ai-ten { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.ai-ten b { font-size: 15px; font-weight: 600; }
+.ai-ten span { font-size: 12.5px; color: var(--chu-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ai-dau .nut-tron { width: 32px; height: 32px; flex: none; }
+.ai-than { flex: 1; min-height: 0; overflow-y: auto; padding: 14px 14px 8px; }
+.ai-soan { flex: none; padding: 10px 12px 12px; border-top: 1px solid var(--vien); }
+.ai-chao { display: flex; flex-direction: column; gap: 6px; padding: 8px 4px; color: var(--chu-3); font-size: 13px; line-height: 1.5; }
+.ai-chao b { color: var(--chu); font-size: 15px; font-weight: 600; }
+.ai-chao .goi-y-hoi { justify-content: flex-start; margin-top: 8px; }
+.cot-ai .bong.ai-chat .vo-bong { max-width: 100%; }
+.cot-ai .bong.ai-chat .avt-ai { display: none; }
+.sua-nhap { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.sua-nhap .nut { font-weight: 400; color: var(--chu-2); padding: 4px 12px; font-size: 13px; }
+.hoi-ai[aria-pressed="true"] { background: color-mix(in srgb, var(--tim) 16%, var(--mat)); }
+
+@media (max-width: 1279px) and (min-width: 901px) {
+  .cot-ai {
+    position: absolute; top: 14px; right: 18px; bottom: 18px; z-index: 30; width: min(380px, 46vw);
+    box-shadow: 0 8px 32px rgba(16, 25, 45, .16), 0 1px 3px rgba(16, 25, 45, .08);
+  }
+}
+@media (max-width: 900px) {
+  .cot-ai {
+    position: fixed; inset: 0; z-index: 55; width: auto; border-radius: 0; border: 0;
+    animation: truot-vao .34s var(--vao);
+  }
+  .cot-ai.dong-lai { animation: truot-ra .24s var(--ra) forwards; }
+}
+@media (max-width: 640px) {
+  .ai-dau { padding: 8px 10px 8px 12px; }
+  .ai-than { padding: 12px 12px 8px; }
+  .ai-soan .o-hoi textarea { font-size: 16px; }
+  html.trong-hub .ai-soan { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 132px); }
+}
+@media (prefers-color-scheme: dark) {
+  .cot-ai { box-shadow: none; }
+}
+@media (prefers-reduced-motion: reduce) { .cot-ai, .cot-ai.dong-lai { animation-duration: .01s; } }
+/* Ô hỏi AI là ô nhắn tin một dòng (nguyên tắc 24): lớp iOS chung ép mọi ô
+ * nhiều dòng trên điện thoại cao 76px, ở đây trả về một dòng, gõ dài mới cao. */
+@media (max-width: 640px) {
+  html:not(#_):not(#__):not(#___) body .o-hoi textarea { min-height: 40px !important; }
+}

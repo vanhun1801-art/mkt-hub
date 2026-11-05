@@ -70,9 +70,25 @@ const bangGia = {
     await kho.nap('u:hung', '');
     ok('trạng thái còn nguyên', kho.tt('u:hung')['sales@x.vn|m1'].x > 0 && kho.luat('u:hung')['a@b.vn'] === 'biet');
 
+    console.log('\nMẫu giọng văn (05/11/2026)');
+    kho.themMau({ gui: 'Ok anh' }, 'u:hung');
+    ok('thư quá ngắn không thành mẫu', kho.mau('u:hung').length === 0);
+    kho.themMau({ gui: 'Dạ em chào chị, bên em gửi báo giá ạ.', nhap: 'Kính gửi Quý khách...', ngonNgu: 'vi' }, 'u:hung');
+    kho.themMau({ gui: 'Hi José, thanks for reaching out to us.', ngonNgu: 'en' }, 'u:hung');
+    kho.themMau({ gui: 'Dạ em chào chị, bên em gửi báo giá ạ.' }, 'u:hung');
+    const m = kho.mau('u:hung');
+    ok('mới trước, gửi trùng chữ thì chỉ giữ một', m.length === 2 && m[0].gui.startsWith('Dạ em') && m[1].ngonNgu === 'en', JSON.stringify(m));
+    for (let i = 0; i < 25; i++) kho.themMau({ gui: 'Thư thứ ' + i + ' gửi khách hàng' }, 'u:hung');
+    ok('giữ tối đa 20 mẫu', kho.mau('u:hung').length === 20);
+    await ngu(1700); await kho._choGhi();
+    kho._quen();
+    await kho.nap('u:hung', '');
+    ok('mẫu còn sau khi khởi động lại (nằm trên Base)', kho.mau('u:hung').length === 20);
+
     console.log('\nHai người');
     await kho.nap('u:lan', '');
     ok('chị Lan không thấy sổ anh Hùng', !kho.tt('u:lan')['sales@x.vn|m1'] && !kho.luat('u:lan')['a@b.vn']);
+    ok('chị Lan không thấy mẫu giọng văn của anh Hùng', kho.mau('u:lan').length === 0);
 
     console.log('\nSổ chung: gộp hai bản theo mốc thời gian');
     const nay = Date.now();

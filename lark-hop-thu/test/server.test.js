@@ -153,6 +153,14 @@ server.listen(0, '127.0.0.1', async () => {
     ok('gui:true mới gửi', goi[0] && goi[0][4].gui === true);
     goi.length = 0;
     ok('thư trống: 400, không gọi Lark', (await hoi('POST', duong('hunglv@rootytrip.com', 'aaaaaaaaaa==', 'tra-loi'), { than: { chu: '  ' } })).ma === 400 && !goi.length);
+    /* Học giọng văn (05/11/2026): chỉ thư thật sự gửi đi mới thành mẫu. */
+    const soMau = async () => (await hoi('GET', '/api/hop')).j.soMau;
+    const mau0 = await soMau();
+    await hoi('POST', duong('hunglv@rootytrip.com', 'aaaaaaaaaa==', 'tra-loi'), { than: { chu: 'Dạ em gửi chị báo giá tour bốn đảo ạ.', gui: false } });
+    ok('lưu nháp không thành mẫu giọng văn', (await soMau()) === mau0);
+    await hoi('POST', duong('hunglv@rootytrip.com', 'aaaaaaaaaa==', 'tra-loi'),
+      { than: { chu: 'Dạ em gửi chị báo giá tour bốn đảo ạ.', gui: true, tuNhapAi: 'Kính gửi Quý khách, chúng tôi gửi báo giá.' } });
+    ok('gửi đi thì thành một mẫu, /api/hop báo số mẫu', (await soMau()) === mau0 + 1);
 
     console.log('\nXong, đã đọc, sao: chỉ ghi sổ riêng, Lark Mail giữ nguyên');
     const thuA = async () => (await hoi('GET', '/api/thu')).j.thu.find((t) => t.id === 'aaaaaaaaaa==');
