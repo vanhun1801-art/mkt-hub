@@ -23,6 +23,8 @@ const t = async (ten, fn) => {
 
 const BAI = [
   { platform: 'Facebook', channel: 'Trang A', poster: 'Phương Ái', mucDich: 'Bán hàng', views: 5000, publishedAt: '2026-10-02T09:00:00+07:00' },
+  /* Bài trống tên ở TikTok Rooty Trip chia đều ba bạn. */
+  { platform: 'TikTok', channel: 'Rooty Trip Phú Quốc', mucDich: 'Bán hàng', views: 3000, publishedAt: '2026-10-04T09:00:00+07:00' },
   /* Video LIVE Facebook cũng nằm trong bảng Bài đăng — không được cộng làm bài viết. */
   { platform: 'Facebook', channel: 'Trang A', extId: 'pg_777', mucDich: 'Tương tác', views: 9000, publishedAt: '2026-10-03T20:00:00+07:00' },
 ];
@@ -44,6 +46,7 @@ const may = http.createServer((req, res) => {
       kenh: [
         { platform: 'Facebook', name: 'Trang A', views: 5000, followUp: 10 },
         { platform: 'TikTok', name: 'Trang A', views: 0, followUp: 0 },
+        { platform: 'TikTok', name: 'Rooty Trip Phú Quốc', views: 3000, followUp: 0 },
       ],
       live: LIVE,
     });
@@ -67,6 +70,9 @@ const LUAT = {
       cs('thu', 'FB|Trang A|Bài viết|thu#viewQuyDoi'),
       cs('ngoc', 'FB|Trang A|Bài viết|ngoc#viewQuyDoi'),
       cs('ngocBan', 'FB|Trang A|Bài viết|ngoc#viewBanHang'),
+    ] },
+    { kenh: 'Tiktok', tenKenh: 'Rooty Trip Phú Quốc', loai: 'Bài viết', tieuChi: [
+      cs('hang', 'Tiktok|Rooty Trip Phú Quốc|Bài viết|hang#viewBanHang'),
     ] },
   ],
   nguoi: [],
@@ -114,6 +120,10 @@ const LUAT = {
 
   await t('bài là phiên LIVE không cộng vào view bài viết của kênh', () => {
     assert.strictEqual(s['FB|Trang A|Bài viết#viewQuyDoi'], 5000);
+  });
+
+  await t('bài trống tên ở kênh chia đều thì mỗi bạn một phần ba', () => {
+    assert.strictEqual(s['Tiktok|Rooty Trip Phú Quốc|Bài viết|hang#viewBanHang'], 1000);
   });
 
   may.close();
