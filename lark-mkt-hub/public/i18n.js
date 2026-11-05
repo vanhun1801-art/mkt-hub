@@ -672,6 +672,9 @@
     'Cao': 'High',
     'Trung bình': 'Medium',
     'Thấp': 'Low',
+    /* Độ ưu tiên kiểu ma trận Eisenhower (05/11/2026); "Quan trọng", "Gấp" đã có ở trên. */
+    'Khẩn cấp': 'Critical',
+    'Để sau': 'Later',
 
     /* --- app Lịch tác nghiệp --- */
     'Cần xử lý': 'To handle',

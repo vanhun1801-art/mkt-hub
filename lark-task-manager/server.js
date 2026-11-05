@@ -9,6 +9,7 @@ const ppdoc = require('./ppdoc');
 const LP = require('./lien-phong');   // việc liên phòng ban — chỉ đọc (01/10/2026)
 const RW = require('./rooty-workspace');   // trao đổi việc liên phòng = luồng của Rooty Workspace (15/10/2026)
 const TTC = require('./thu-tu-con');   // thứ tự việc con do người kéo (27/10/2026)
+const DL = require('./doi-lich');     // đổi lịch edit → báo người order (05/11/2026)
 
 /* Email Lark của người đang thao tác — hub gửi xuống qua header (đã mã hoá URI). Rooty
  * Workspace nhận diện người bằng email, không bằng open_id (open_id riêng theo từng app). */
@@ -1189,8 +1190,11 @@ async function tinChuaDoc(me, tasks) {
     if (!at || at < tu) continue;
     for (const id of idLink(r.cells[CF.task.id])) {
       if (!viec.has(id) || at <= (moc.get(id) || 0)) continue;
-      const o = theoViec.get(id) || { id, title: viec.get(id).title || '(chưa có tên)', n: 0, at: 0, nguoi: '', trich: '' };
+      const o = theoViec.get(id) || { id, title: viec.get(id).title || '(chưa có tên)', n: 0, at: 0, nguoi: '', trich: '', doi: '' };
       o.n++;
+      /* Trong số tin chưa đọc có dòng hoán đổi / đổi deadline: thẻ đổi nhãn,
+       * bị lùi hạn thì sáng đỏ — và không để sáng xanh đè lên. */
+      o.doi = DL.nangHon(o.doi, DL.loaiTin(asText(r.cells[CF.content.id])));
       if (at > o.at) {
         o.at = at; o.nguoi = tg.name || '';
         o.trich = asText(r.cells[CF.content.id]).replace(/\s+/g, ' ').trim().slice(0, 90);
@@ -1248,6 +1252,17 @@ async function viecDuocGan(me, tasks) {
   }
   demGan.set(me.id, { at: Date.now(), ids });
   return ids;
+}
+
+/** Dòng hệ thống trong Trao đổi (hoán đổi / đổi deadline), mang tên người làm
+ * thao tác. Hỏng thì chỉ ghi log: thao tác chính đã xong, không được kéo nó đổ. */
+function ghiTinHeThong(taskId, noiDung, me) {
+  const CF = cfg.commentFields;
+  const o = { [CF.content.name]: noiDung, [CF.task.name]: [{ id: taskId }], [CF.at.name]: chuoiGioVN(new Date()) };
+  if (me) o[CF.author.name] = [{ id: me.id }];
+  return lark.createRecord(o, cfg.commentTableId)
+    .then(() => demChuaDoc.clear())     // mọi người có tên trên việc phải đếm lại
+    .catch((e) => console.error('  [hoán đổi] ghi Trao đổi hỏng: ' + e.message));
 }
 
 /** Đuôi tin nhắn: link mở app. */
@@ -2226,6 +2241,35 @@ async function api(req, res, url) {
     return json(res, daGhi);
   }
 
+  /* ---- hoán đổi deadline giữa hai việc của mình (05/11/2026) ----
+   * Body { voi: <id việc kia> }. Hai mốc giữ nguyên, chỉ đổi chủ; mỗi việc
+   * nhận một dòng Trao đổi để người order của nó thấy thẻ sáng. */
+  const mHD = p.match(/^\/api\/tasks\/(rec[A-Za-z0-9]+)\/hoan-doi$/);
+  if (mHD && req.method === 'POST') {
+    const body = await readBody(req);
+    const recs = await getRecords();
+    const tim = (x) => { const r = recs.find((r2) => r2.record_id === x); return r ? toTask(r) : null; };
+    const a = tim(mHD[1]), b = tim(String(body.voi || ''));
+    const me = await whoAmI(req);
+    const chan = DL.chanHoanDoi(a, b, me && me.id, Date.now(), DONG_HAN);
+    if (chan) return json(res, { error: chan, code: 'HOAN_DOI' }, 400);
+    if (asText(recs.find((r) => r.record_id === a.id).cells[F.maLienPhong.id]).trim() ||
+        asText(recs.find((r) => r.record_id === b.id).cells[F.maLienPhong.id]).trim()) {
+      return json(res, { error: 'Việc liên phòng: deadline do người giao bên công ty quản lý.', code: 'HOAN_DOI' }, 400);
+    }
+    const hanA = new Date(DL.msVN(a.deadline1)).toISOString();
+    const hanB = new Date(DL.msVN(b.deadline1)).toISOString();
+    await lark.updateRecord(a.id, toCells({ deadline1: hanB }));
+    await lark.updateRecord(b.id, toCells({ deadline1: hanA }));
+    for (const [t, han] of [[a, hanB], [b, hanA]]) {
+      const rec = cache.records && cache.records.find((r) => r.record_id === t.id);
+      if (rec) applyLocal(rec, { deadline1: han });
+    }
+    ghiTinHeThong(a.id, DL.tinHoanDoi(a, b), me);
+    ghiTinHeThong(b.id, DL.tinHoanDoi(b, a), me);
+    return json(res, { ok: true });
+  }
+
   /* ---- ảnh trong tin Trao đổi (29/10/2026) ----
    * Tin tạo trước (POST /comments, báo trước soAnh), ảnh tải lên sau vào ô "Ảnh"
    * của chính dòng tin. Đọc ảnh cũng đi qua đây, không qua /api/attachment: tệp
@@ -2938,7 +2982,10 @@ async function api(req, res, url) {
             lpGiao.deadlineVN = d && !isNaN(d.getTime()) ? chuoiGioVN(d) : null;
           }
           if (body.priority !== undefined) {
-            const UT = { '🔴 Cao': 'Cao', '🟡 Trung bình': 'Trung bình', '🟢 Thấp': 'Thấp' };
+            const UT = {
+              '🔴 Khẩn cấp': 'Gấp', '🔵 Quan trọng': 'Cao', '🟠 Gấp': 'Trung bình', '🟢 Để sau': 'Thấp',
+              '🔴 Cao': 'Cao', '🟡 Trung bình': 'Trung bình', '🟢 Thấp': 'Thấp',   // tên cũ trước 05/11/2026
+            };
             if (UT[body.priority]) lpGiao.uuTienGoc = UT[body.priority];
           }
         }
@@ -2975,6 +3022,11 @@ async function api(req, res, url) {
         const rec = cache.records.find((r) => r.record_id === id);
         if (rec) applyLocal(rec, body);
       }
+
+      /* Deadline bị sửa thẳng (người order / quản lý, sau Yêu cầu điều chỉnh) →
+       * ghi một dòng vào Trao đổi; người làm thấy thẻ sáng đỏ cho tới khi mở xem. */
+      const tinDoi = DL.tinDoiDeadline(truoc, body);
+      if (tinDoi) ghiTinHeThong(id, tinDoi, await whoAmI(req));
 
       // vừa được phân công → báo người phụ trách mới
       if (body.owner) {

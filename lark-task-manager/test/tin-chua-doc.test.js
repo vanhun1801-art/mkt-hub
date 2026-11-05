@@ -53,8 +53,8 @@ const xem = (task, nguoi, at) => ({ record_id: 'x' + task + nguoi, cells: {
 function dung(cmts, dsXem) {
   goi = 0;
   // eslint-disable-next-line no-new-func
-  return new Function('cfg', 'lark', 'asText', 'asUsers', 'DONG_HAN', 'DF',
-    ma + '\nreturn { tinChuaDoc, demChuaDoc };')(cfg, lark(cmts, dsXem), asText, asUsers, DONG_HAN, DF);
+  return new Function('cfg', 'lark', 'asText', 'asUsers', 'DONG_HAN', 'DF', 'DL',
+    ma + '\nreturn { tinChuaDoc, demChuaDoc };')(cfg, lark(cmts, dsXem), asText, asUsers, DONG_HAN, DF, require('../doi-lich'));
 }
 
 const toi = { id: 'me', name: 'Tôi' };
@@ -98,6 +98,17 @@ const tasks = [
   const { tinChuaDoc: t2 } = dung(cmts, dsXem);
   const rong = await t2({ id: 'nguoi-la' }, tasks);
   ok('người không có việc nào thì 0 và không đọc bảng tin', rong.tong === 0 && goi === 0, 'goi=' + goi);
+
+  console.log('\n\x1b[1mDòng hoán đổi deadline\x1b[0m');
+  const { tinChuaDoc: t3 } = dung([
+    tin('d1', 'A', 'an', phut(20), 'Hoán đổi deadline, lên sớm: 22:00 → 02:00'),
+    tin('d2', 'A', 'an', phut(10), 'tin thường'),
+    tin('d3', 'B', 'an', phut(30), 'Hoán đổi deadline, lùi hạn: 02:00 → 22:00'),
+    tin('d4', 'B', 'an', phut(5), 'Hoán đổi deadline, lên sớm: a → b'),
+  ], []);
+  const kq3 = await t3(toi, tasks);
+  ok('có dòng hoán đổi thì doi = som (dù tin mới nhất là tin thường)', kq3.ds.find((x) => x.id === 'A').doi === 'som');
+  ok('bị lùi hạn không bị dòng sớm hơn sau đè', kq3.ds.find((x) => x.id === 'B').doi === 'lui');
 
   console.log('\n' + pass + ' pass · ' + fail + ' fail');
   process.exit(fail ? 1 : 0);

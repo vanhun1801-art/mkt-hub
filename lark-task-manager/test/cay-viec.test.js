@@ -55,6 +55,7 @@ function dung(ds, gap) {
     layDong('const idCha ='),
     layHam('parseDate'),
     layHam('daysLeft'),
+    layHam('hangUuTien'),
     layHam('laneOf'),
     layHam('laneSort'),
     layHam('xepTheoThuTuCon'),

@@ -186,7 +186,7 @@ function createService({ storage = createLarkStorage(), taskCall, publicUrl = ''
           const title = text(body.title, 200).trim();
           if (!title) throw error(400, 'Anh nhập tên công việc nhé.');
           const patch = { title, detail: text(body.detail, 12000), link,
-            priority: text(body.priority || '🟡 Trung bình', 80), workType: text(body.workType || 'Content', 100) };
+            priority: text(body.priority || '🟠 Gấp', 80), workType: text(body.workType || 'Content', 100) };
           if (body.deadline1) {
             if (!Number.isFinite(Date.parse(body.deadline1))) throw error(400, 'Deadline không hợp lệ.');
             patch.deadline1 = new Date(body.deadline1).toISOString();

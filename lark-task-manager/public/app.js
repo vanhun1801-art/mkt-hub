@@ -713,11 +713,21 @@ function colorOf(str) {
   return AVATAR_HUES[h % AVATAR_HUES.length];
 }
 
+/* Độ ưu tiên theo ma trận Eisenhower (anh Hùng 05/11/2026): thêm "Khẩn cấp" lên
+ * trên cùng, ba mức cũ đổi tên tại chỗ trên Base: Cao → Quan trọng, Trung bình
+ * → Gấp, Thấp → Để sau. Nhận cả tên cũ để việc liên phòng và dữ liệu cũ vẫn
+ * đứng đúng hạng. */
+function hangUuTien(p) {
+  const s = String(p || '');
+  if (!s) return 4;
+  if (/Khẩn/.test(s)) return 0;
+  if (/Quan trọng|Cao/.test(s)) return 1;
+  if (/Gấp|Trung/.test(s)) return 2;
+  return 3;
+}
 function priClass(p) {
   if (!p) return '';
-  if (p.includes('Cao')) return 'p-high';
-  if (p.includes('Trung')) return 'p-mid';
-  return 'p-low';
+  return ['p-high', 'p-qt', 'p-mid', 'p-low'][hangUuTien(p)] || 'p-low';
 }
 
 /** Bỏ emoji đầu chuỗi khi hiển thị dạng nhãn — màu nền đã mang nghĩa. */
@@ -813,13 +823,17 @@ function myTasks(boQua) {
   });
 }
 
-/** Ưu tiên trong lane: quá hạn trước, rồi deadline gần, rồi ưu tiên cao. */
+/** Ưu tiên trong lane: quá hạn trước, rồi deadline gần, rồi ưu tiên cao.
+ * Cùng ngày thì xét tới GIỜ (05/11/2026): hoán đổi 02:00 với 22:00 của cùng
+ * một ngày mà thứ tự đứng yên thì editor không thấy việc gấp đã lên trước. */
 function laneSort(list) {
-  const pri = (p) => (!p ? 3 : p.includes('Cao') ? 0 : p.includes('Trung') ? 1 : 2);
+  const pri = hangUuTien;
+  const gio =(t) => { const d = parseDate(t.deadline); return d ? d.getTime() : 8.64e15; };
   return list.slice().sort((a, b) => {
     const da = daysLeft(a.deadline), db = daysLeft(b.deadline);
     const va = da == null ? 9999 : da, vb = db == null ? 9999 : db;
     if (va !== vb) return va - vb;
+    if (gio(a) !== gio(b)) return gio(a) - gio(b);
     return pri(a.priority) - pri(b.priority);
   });
 }
@@ -1173,13 +1187,118 @@ function nhayTinMoi(c, t) {
   const x = S.chuaDoc && t && S.chuaDoc.get(t.id);
   if (!x || !x.n) return;
   c.classList.add('co-tin');
+  if (x.doi === 'lui' || x.doi === 'deadline') c.classList.add('doi-dl');   // bị lùi / đổi deadline: sáng đỏ
   c.style.setProperty('--tho-tre', -(Date.now() % NHIP_THO) + 'ms');
+}
+
+/* Hoán đổi deadline (05/11/2026): máy chủ ghi dòng "Hoán đổi deadline, …" vào
+ * Trao đổi, /api/tin-chua-doc gắn x.doi = 'som' | 'lui' | 'deadline'. Thẻ sáng
+ * như tin mới (bị lùi hạn thì đỏ), viên đổi nhãn; bấm vào mở thẳng Trao đổi,
+ * xem xong là tắt. Mốc đã xem riêng từng người, nên chỉ người order tắt được
+ * cờ của chính mình. */
+const NHAN_DOI = { som: 'Lên sớm', lui: 'Lùi deadline', deadline: 'Đổi deadline' };
+const DOI_DO = { lui: 1, deadline: 1 };
+function coDoiLich(t) {
+  const x = S.chuaDoc && t && S.chuaDoc.get(t.id);
+  return !!(x && x.n && x.doi);
+}
+function nhanTabOrder() {
+  const ids = new Set((S.orders || []).map((t) => t.id));
+  const n = [...(S.chuaDoc || new Map()).values()].filter((x) => x.doi && ids.has(x.id)).length;
+  const tab = document.querySelector('.tab[data-view="order"]');
+  if (tab) tab.textContent = (S.isManager ? 'Order & nghiệm thu' : 'Việc đã order') + (n ? '  ' + n : '');
+}
+
+/**
+ * Nút "Hoán đổi deadline" trong ô chi tiết (người làm). Chỉ liệt kê việc của
+ * chính mình, cùng loại, còn mở, chưa qua hạn; máy chủ kiểm lại đúng mấy điều
+ * này (doi-lich.js), ở đây lọc trước cho khỏi bấm vào thứ sẽ bị từ chối.
+ */
+const hanMs = (x) => (x && x.deadline1 ? new Date(x.deadline1).getTime() : 0);
+function hoanDoiDuoc(a, b) {
+  const me = S.meta && S.meta.me;
+  if (!me || !a || !b || a.id === b.id) return false;
+  const now = Date.now();
+  const cuaToi = (x) => [...(x.owner || []), ...(x.helper || [])].some((u) => u && u.id === me.id);
+  return cuaToi(a) && cuaToi(b) && !isClosed(a) && !isClosed(b) && !a.lienPhong && !b.lienPhong &&
+    (a.workType || '') === (b.workType || '') && hanMs(a) > now && hanMs(b) > now && hanMs(a) !== hanMs(b);
+}
+
+/** Hỏi lại rồi hoán đổi deadline của `t` với `x`. Dùng chung cho nút trong chi
+ * tiết việc và cho kéo thả thẻ. */
+async function hoanDoiDeadline(t, x) {
+  if (!confirm('Hoán đổi deadline với "' + (x.title || '') + '"?\n\n"' + (t.title || '') + '": ' +
+    fmtDate(t.deadline1, true) + ' → ' + fmtDate(x.deadline1, true) + '\n"' + (x.title || '') + '": ' +
+    fmtDate(x.deadline1, true) + ' → ' + fmtDate(t.deadline1, true) +
+    '\n\nNgười order của hai việc sẽ thấy thay đổi trong Trao đổi.')) { render(); return; }
+  try {
+    await req('/api/tasks/' + t.id + '/hoan-doi', { method: 'POST', body: JSON.stringify({ voi: x.id }) });
+    toast('Đã hoán đổi deadline. Người order đã được báo.');
+    closeDrawer();
+    await refresh(true);
+  } catch (e) { toast('Lỗi: ' + (e.message || e), true); render(); }
+}
+
+/** Thả thẻ lên việc cùng loại mà vừa gom được vừa hoán đổi được: hỏi chọn. */
+function moChonTha(dich, keo) {
+  dongXemNhanh();
+  const lop = el('div', 'xn-lop');
+  lop.id = 'xnLop';
+  const hop = el('div', 'xn-hop');
+  const dau = el('div', 'xn-dau');
+  dau.appendChild(el('b', '', keo.title || '(chưa có tên)'));
+  const nutX = el('button', 'xn-x', '✕');
+  nutX.type = 'button';
+  const dong = () => { dongXemNhanh(); render(); };
+  nutX.onclick = dong;
+  dau.appendChild(nutX);
+  hop.appendChild(dau);
+  const than = el('div', 'cvl');
+  than.appendChild(el('div', 'cvl-dau', 'Thả lên: ' + (dich.title || '(chưa có tên)')));
+  const ds = el('div', 'cvl-ds');
+  const nut = (chu, phu, lam) => {
+    const b = el('button', 'cvl-o');
+    b.type = 'button';
+    b.appendChild(el('span', 'cvl-ten', chu));
+    b.appendChild(el('span', 'cvl-so', phu));
+    b.onclick = () => { dongXemNhanh(); lam(); };
+    ds.appendChild(b);
+  };
+  nut('Hoán đổi deadline', fmtDate(keo.deadline1, true) + ' ⇄ ' + fmtDate(dich.deadline1, true),
+    () => hoanDoiDeadline(keo, dich));
+  nut('Gom làm việc con', 'vào việc này', () => gomVaoViec(dich, keo));
+  than.appendChild(ds);
+  hop.appendChild(than);
+  lop.appendChild(hop);
+  lop.onclick = (e) => { if (e.target === lop) dong(); };
+  document.body.appendChild(lop);
+}
+
+function ganHoanDoi(hero, t) {
+  if (hanMs(t) < Date.now()) return;
+  const ds = (S.tasks || []).filter((x) => hoanDoiDuoc(t, x)).sort((a, b) => hanMs(a) - hanMs(b));
+  if (!ds.length) return;
+  const nut = el('button', 'btn sg-hd-nut', 'Hoán đổi deadline');
+  nut.type = 'button';
+  const hop = el('div', 'sg-hd-ds hidden');
+  hop.appendChild(el('div', 'sg-nho', 'Chọn việc cùng loại để đổi deadline cho nhau. Người order của hai việc sẽ được báo.'));
+  for (const x of ds) {
+    const d = el('button', 'sg-hd-dong');
+    d.type = 'button';
+    d.appendChild(el('span', 'sg-hd-ten', x.title || '(chưa có tên)'));
+    d.appendChild(el('span', 'sg-hd-han', fmtDate(x.deadline1, true)));
+    d.onclick = () => hoanDoiDeadline(t, x);
+    hop.appendChild(d);
+  }
+  nut.onclick = () => hop.classList.toggle('hidden');
+  hero.appendChild(nut);
+  hero.appendChild(hop);
 }
 
 function vienTin(t) {
   const x = S.chuaDoc && t && S.chuaDoc.get(t.id);
   if (!x || !x.n) return null;
-  const v = el('span', 'vien-tin', x.n + ' tin mới');
+  const v = el('span', 'vien-tin' + (DOI_DO[x.doi] ? ' doi-dl' : ''), NHAN_DOI[x.doi] || x.n + ' tin mới');
   v.title = (x.nguoi ? x.nguoi + ': ' : '') + (x.trich || '') + ' (mở tab Trao đổi để đọc)';
   return v;
 }
@@ -1789,10 +1908,13 @@ function nhamChoTha() {
   dongKhe();
   k.dich = moi;
   if (!moi) return;
-  const ok = nhanConDuoc(moi.t, k.t);
-  moi.the.dataset.nhan = ok ? 'Thả vào đây' : viSaoKhongNhan(moi.t, k.t);
-  moi.the.classList.toggle('nhan-con', ok);
-  moi.the.classList.toggle('chan-con', !ok);
+  /* Cùng loại, cùng của mình: thả xuống còn hoán đổi deadline được (05/11/2026). */
+  const gom = nhanConDuoc(moi.t, k.t), doi = hoanDoiDuoc(k.t, moi.t);
+  const ok = gom;
+  moi.the.dataset.nhan = gom && doi ? 'Thả để chọn: hoán đổi hoặc gom'
+    : doi ? 'Thả để hoán đổi deadline' : gom ? 'Thả vào đây' : viSaoKhongNhan(moi.t, k.t);
+  moi.the.classList.toggle('nhan-con', gom || doi);
+  moi.the.classList.toggle('chan-con', !gom && !doi);
   /* Khe chỉ mở khi ngón tay DỪNG lại trên một thẻ. Mở ngay thì lướt qua năm
    * thẻ là năm lần cả danh sách nhấp nhô — anh Hùng 27/10/2026: "kéo đang
    * nhảy lung tung". Dừng lại nhắm mới là lúc cần thấy chỗ việc sẽ rơi vào. */
@@ -1841,7 +1963,9 @@ function ketThucKeo(thaThat) {
   cancelAnimationFrame(k.raf);
   document.removeEventListener('keydown', k.phim, true);
   const dich = k.dich;
-  const nhan = thaThat && dich && nhanConDuoc(dich.t, k.t);
+  const gom = !!(thaThat && dich && nhanConDuoc(dich.t, k.t));
+  const doi = !!(thaThat && dich && hoanDoiDuoc(k.t, dich.t));
+  const nhan = gom || doi;
   if (nhan) {
     const r = dich.the.getBoundingClientRect();
     hangCanhBong(k, { x: r.left + 18, y: r.bottom - 6 }, true);
@@ -1862,8 +1986,10 @@ function ketThucKeo(thaThat) {
       x.classList.add('vua-mo');
     });
   }
-  if (nhan) gomVaoViec(dich.t, k.t);
-  /* gomVaoViec() tự vẽ lại; không thả được thì phải tự trả nợ những lượt làm
+  if (gom && doi) moChonTha(dich.t, k.t);
+  else if (doi) hoanDoiDeadline(k.t, dich.t);
+  else if (gom) gomVaoViec(dich.t, k.t);
+  /* Mấy đường trên tự vẽ lại; không thả được thì phải tự trả nợ những lượt làm
    * mới đã bị hoãn trong lúc kéo. */
   else if (k.noVe) render();
 }
@@ -4515,6 +4641,7 @@ async function boNhap(id) {
  *   openDrawer(null, nhap)    — soạn tiếp một bản nháp
  */
 function openDrawer(task, nhap) {
+  if (task && coDoiLich(task)) DT_TAB = 'chat';   // có đổi lịch chưa xem: mở thẳng chỗ ghi thay đổi
   if (task) {
     S.editing = Object.assign({}, task);
     S.nhapId = null;           // mở việc có sẵn thì không dính gì tới nháp
@@ -4523,7 +4650,8 @@ function openDrawer(task, nhap) {
     S.editing = {
       isNew: true,
       status: 'Chờ tiếp nhận',
-      priority: '🟡 Trung bình',
+      /* Mức mặc định là mức "Trung bình" cũ, nay mang tên "Gấp" trên Base. */
+      priority: ((S.meta && S.meta.options && S.meta.options.priority) || []).find((x) => hangUuTien(x) === 2) || '🟡 Gấp',
       startAt: new Date().toISOString(),
       requester: S.meta && S.meta.me ? [S.meta.me] : [],
       campaign: S.isManager ? 'Operate' : null,
@@ -5266,8 +5394,7 @@ function vien(nhan, giaTri, tone) {
 }
 
 /** Màu cho độ ưu tiên / trạng thái — cùng bộ với thẻ ngoài danh sách. */
-const toneUuTien = (v) => (/cao|urgent|g\u1ea5p/i.test(v || '') ? 'red'
-  : /trung/i.test(v || '') ? 'orange' : /th\u1ea5p/i.test(v || '') ? 'green' : '');
+const toneUuTien = (v) => (v ? ['red', 'blue', 'orange', 'green'][hangUuTien(v)] || '' : '');
 const toneTrangThai = (v) => (v === 'Hoàn thành' ? 'green'
   : v === 'Trễ deadline' ? 'red'
   : v === 'Làm lại' ? 'orange'
@@ -5430,7 +5557,9 @@ function buildStaffDrawer(b, t, o) {
     } else if (!coMinhChung(t)) {
       hero.appendChild(el('div', 'sg-nho', 'Cần link hoặc tệp sản phẩm — đính ngay trong cửa sổ Gửi sản phẩm.'));
     }
-  } else if (!laChinh && stage !== 'done') {
+  }
+  if (laChinh && !t.lienPhong && stage !== 'done') ganHoanDoi(hero, t);
+  if (!laChinh && stage !== 'done') {
     hero.appendChild(el('div', 'sg-nho', 'Bạn là ' + (myRole === 'helper' ? 'người hỗ trợ' : 'người order') +
       ' — phụ trách chính là người cập nhật trạng thái.'));
   }
@@ -6918,6 +7047,7 @@ function filterOrders() {
 function orderCard(t) {
   const c = el('div', 'ord-card');
   c.dataset.id = t.id;
+  nhayTinMoi(c, t);
 
   const top = el('div', 'ord-top');
   top.appendChild(veTen('div', 'ord-title', t));
@@ -7099,6 +7229,7 @@ function render() {
    * làm mới tự động nào rơi vào đây thì ghi nợ, thả tay xong vẽ bù. */
   if (KEO) { KEO.noVe = true; return; }
   veKhoiTinChuaDoc();
+  nhanTabOrder();
   const isDash = S.view === 'dash';
   const isWork = S.view === 'work';
   const isCal  = S.view === 'cal';
@@ -7245,8 +7376,7 @@ function applyRoleChrome() {
   $('#oScope').value = S.orderScope;
   const reviewCount = S.orders.filter((t) => !t.lienPhong && t.daGiaiQuyet && !isClosed(t)).length;
   $('#oScope').options[1].textContent = 'Chờ nghiệm thu · toàn phòng (' + reviewCount + ')';
-  document.querySelector('[data-view="order"]').textContent = S.isManager
-    ? 'Order & nghiệm thu' : 'Việc đã order';
+  nhanTabOrder();
 
   // Nhân sự: chip tĩnh. Quản lý: chip là nút chuyển vai.
   $('#meChip').classList.toggle('hidden', !!S.isManager);

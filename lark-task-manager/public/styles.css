@@ -485,6 +485,8 @@ body { display: flex; flex-direction: column; overflow: hidden; }
 .tag.p-high { background: var(--red-bg);    color: var(--red-text);    font-weight: 500; }
 .tag.p-mid  { background: var(--orange-bg); color: var(--orange-text); font-weight: 500; }
 .tag.p-low  { background: var(--surface-3); color: var(--text-2); }
+/* "Quan trọng" (ma trận Eisenhower, 05/11/2026): quan trọng mà chưa gấp, nên xanh, không đỏ. */
+.tag.p-qt   { background: var(--blue-bg);   color: var(--blue-text);   font-weight: 500; }
 
 .tag.due { background: var(--surface-3); color: var(--text-2); }
 .tag.due.late { background: var(--red-bg);    color: var(--red-text);    font-weight: 600; }
@@ -1709,6 +1711,8 @@ html[data-skin="ios"] .soan-chu .sc-bang th { background: var(--ios-the); }
 .d-chip.t-green b, .d-chip.t-green .k   { color: var(--green-text); }
 .d-chip.t-blue   { background: var(--blue-bg);   border-color: transparent; }
 .d-chip.t-blue b, .d-chip.t-blue .k     { color: var(--blue-text); }
+.d-chip.t-blue   { background: var(--blue-bg);   border-color: transparent; }
+.d-chip.t-blue b, .d-chip.t-blue .k     { color: var(--blue-text); }
 
 /* Ảnh đính kèm là thứ cần xem, không phải thứ cần đoán — thumbnail to hẳn lên
    trong ô chi tiết, bấm phóng to được như cũ. */
@@ -2460,6 +2464,18 @@ body[data-fx="cham"] .ng-o.goi::after {
 .sg-goi-y { font-size: 14px; line-height: 1.5; color: var(--text); }
 .sg-nut { width: 100%; justify-content: center; min-height: 42px; font-size: 14.5px; font-weight: 650; border-radius: 12px; }
 .sg-nho { font-size: 12.5px; color: var(--text-2); line-height: 1.45; }
+/* Hoán đổi deadline (05/11/2026): nút phụ + danh sách việc cùng loại để chọn. */
+.sg-hd-nut { align-self: flex-start; border-radius: 999px; }
+.sg-hd-ds { display: flex; flex-direction: column; gap: 6px; }
+.sg-hd-dong {
+  display: flex; justify-content: space-between; gap: 10px; text-align: left;
+  padding: 9px 12px; border: 0; border-radius: 9px; cursor: pointer;
+  background: var(--surface-2, var(--border)); color: var(--text); font: inherit; font-size: 13px;
+  transition: background var(--cd-deu, .16s);
+}
+@media (hover: hover) and (pointer: fine) { .sg-hd-dong:hover { background: var(--blue-bg); } }
+.sg-hd-ten { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sg-hd-han { flex: none; color: var(--text-2); }
 
 /* Danh sách thông tin: hàng nhãn trái · giá trị phải, kẻ mảnh như iOS */
 .sg-nhom { border-radius: 14px; background: var(--surface); border: 1px solid var(--border); overflow: hidden; }
@@ -2473,6 +2489,7 @@ body[data-fx="cham"] .ng-o.goi::after {
 .sg-v.t-red { color: var(--red-text); }
 .sg-v.t-orange { color: var(--orange-text); }
 .sg-v.t-green { color: var(--green-text); }
+.sg-v.t-blue { color: var(--blue-text); }
 .sg-hang.bam { cursor: pointer; }
 .sg-hang.bam:hover { background: var(--surface-2); }
 .sg-hang.bam .sg-v { color: var(--blue-text); }
@@ -2750,8 +2767,10 @@ body.dang-keo-the .wcard-title { cursor: inherit; }
      chục giây một lần mà thẻ không giật về đầu nhịp.
    - Lớp iOS của hub đè nền thẻ, nên phải nêu cả html[data-skin]. */
 @keyframes wc-tho { 0%, 100% { opacity: .2; } 50% { opacity: 1; } }
-:is(html, html[data-skin]) .wcard.co-tin { isolation: isolate; }
-:is(html, html[data-skin]) .wcard.co-tin:not(.nhan-con):not(.chan-con)::after {
+:is(html, html[data-skin]) :is(.wcard, .ord-card).co-tin { isolation: isolate; }
+/* Thẻ lưới của "Việc đã order" sáng cùng kiểu (05/11/2026, đổi lịch edit). */
+.ord-card.co-tin { position: relative; }
+:is(html, html[data-skin]) :is(.wcard, .ord-card).co-tin:not(.nhan-con):not(.chan-con)::after {
   content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
   border-radius: inherit;
   background:
@@ -2760,9 +2779,15 @@ body.dang-keo-the .wcard-title { cursor: inherit; }
   animation: wc-tho 3.2s cubic-bezier(.45, 0, .55, 1) infinite;
   animation-delay: var(--tho-tre, 0s);
 }
+/* Deadline bị đổi (05/11/2026): cùng nhịp thở, đổi sang đỏ. */
+:is(html, html[data-skin]) :is(.wcard, .ord-card).co-tin.doi-dl:not(.nhan-con):not(.chan-con)::after {
+  background:
+    radial-gradient(90% 160% at 0% 50%, color-mix(in srgb, var(--red) 22%, transparent), transparent 72%),
+    linear-gradient(90deg, color-mix(in srgb, var(--red) 8%, transparent), color-mix(in srgb, var(--red) 2%, transparent));
+}
 @media (prefers-reduced-motion: reduce) {
   /* Không thở, nhưng vẫn phải nhận ra: đứng yên ở mức sáng vừa. */
-  :is(html, html[data-skin]) .wcard.co-tin:not(.nhan-con):not(.chan-con)::after { animation: none; opacity: .6; }
+  :is(html, html[data-skin]) :is(.wcard, .ord-card).co-tin:not(.nhan-con):not(.chan-con)::after { animation: none; opacity: .6; }
 }
 
 /* Đang kéo thì không cho chọn chữ, kéo qua đoạn mô tả là bôi đen cả trang. */
@@ -2882,6 +2907,7 @@ html:not(#_):not(#__):not(#___) .kh-than .vc-them input {
   font-size: 12px; font-weight: 650; line-height: 18px; padding: 0 8px;
   border-radius: 999px; background: var(--blue); color: #fff; white-space: nowrap;
 }
+.vien-tin.doi-dl { background: var(--red); }
 .cmt-moi {
   display: flex; align-items: center; gap: 10px; margin: 10px 0 6px;
   font-size: 12px; font-weight: 650; color: var(--blue-text);

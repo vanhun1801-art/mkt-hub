@@ -415,3 +415,12 @@ Anh Hùng: người được cấp "Xem tải của ai" trong Thiết lập ph�
 - **Bấm tên** ở đầu hàng trên bảng nhiệt: cửa sổ liệt kê mọi việc người đó gánh trong khoảng đang lọc, nhóm theo ngày. Đầu cửa sổ tóm số việc, số gấp / quá hạn, số đã xong, số việc hỗ trợ. **Bấm một ô ngày** vẫn ra việc của riêng ngày đó.
 - Mỗi việc ghi giờ, trạng thái, vai (phụ trách / hỗ trợ), loại và mức ưu tiên, base, và **ai cùng làm**.
 - Quyền xem tải không xuống app con. Việc của người khác chỉ bấm mở trong app được khi người xem vốn thấy hết Bảng công việc (quản lý, "Xem toàn bộ"); máy chủ báo bằng `moHet` / `toiId` trong `/api/lich-chung`. Còn lại chỉ xem tại chỗ, không đẩy vào ô việc báo "không tìm thấy".
+
+## 31. Hoán đổi deadline và độ ưu tiên 4 mức (05/11/2026, Bảng công việc)
+
+Anh Hùng: editor có lịch cố định, việc gấp không chen vào được; "chỉ hoán đổi thứ tự công việc và có sự cập nhật hoán đổi mốc deadline cho nhau". Muốn một mốc deadline mới thì vẫn gửi Yêu cầu điều chỉnh.
+
+- **Hoán đổi, không sửa tự do.** Editor đổi deadline của hai việc cho nhau: việc gấp nhận mốc sớm, việc chưa gấp nhận mốc muộn. Chỉ giữa hai việc của chính mình, cùng loại công việc, còn mở, chưa qua hạn. Hai lối: nút "Hoán đổi deadline" trong chi tiết việc, hoặc kéo thẻ thả lên việc cùng loại (thả lên thì hỏi chọn "Hoán đổi deadline" hay "Gom làm việc con").
+- **Không cần người order duyệt, nhưng phải báo.** Mỗi việc nhận một dòng trong Trao đổi mang tên người đổi. Thẻ của người order sáng như tin mới: bị lùi hạn thì đỏ, nhãn "Lùi deadline"; được lên sớm thì xanh, nhãn "Lên sớm". Tab "Việc đã order" có số đếm. Bấm vào mở thẳng Trao đổi, xem xong thì tắt; chỉ người order tắt được cờ của mình. Logic ở `lark-task-manager/doi-lich.js`.
+- **Danh sách trong làn xếp theo giờ deadline**, không chỉ theo ngày, để hoán đổi trong cùng một ngày cũng thấy thứ tự đổi.
+- **Độ ưu tiên theo ma trận Eisenhower, 4 mức**: Khẩn cấp (gấp và quan trọng, mới thêm, đỏ), Quan trọng (là "Cao" cũ, xanh), Gấp (là "Trung bình" cũ, cam), Để sau (là "Thấp" cũ, xám). Ba mức cũ đổi tên tại chỗ trên Base, không ghi lại từng việc. Code nhận cả tên cũ (`hangUuTien()` trong app.js).

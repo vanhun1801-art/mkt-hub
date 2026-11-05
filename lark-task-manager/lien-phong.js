@@ -87,7 +87,9 @@ const TRANG_THAI = {
   'Hoàn thành': 'Hoàn thành',
   'Từ chối': 'Hủy',
 };
-const UU_TIEN = { 'Gấp': '🔴 Cao', 'Cao': '🔴 Cao', 'Trung bình': '🟡 Trung bình', 'Thấp': '🟢 Thấp' };
+/* Độ ưu tiên phòng theo ma trận Eisenhower (05/11/2026): "Gấp" bên công ty là
+ * mức trên cùng của phòng; ba mức còn lại khớp ba mức cũ đã đổi tên. */
+const UU_TIEN = { 'Gấp': '🔴 Khẩn cấp', 'Cao': '🔵 Quan trọng', 'Trung bình': '🟠 Gấp', 'Thấp': '🟢 Để sau' };
 
 const chu = (v) => {
   if (v == null) return '';
