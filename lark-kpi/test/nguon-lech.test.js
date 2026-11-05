@@ -84,6 +84,8 @@ const LUAT = {
     ] },
     { kenh: 'Thiết kế', tenKenh: 'Rooty Trip Phú Quốc', loai: 'Chung', tieuChi: [
       cs('tyLe', 'ChinhAnh|Rooty Trip Phú Quốc|Lô|truong#tyLeDat'),
+      /* Trưởng phòng ghi tay trong bộ luật thì số đó thắng nguồn app. */
+      Object.assign(cs('tyLeTay', 'ChinhAnh|Kênh khác|Lô|truong#tyLeDat'), { soTay: 92 }),
     ] },
     { kenh: 'Tiktok', tenKenh: 'Trang C', loai: 'Live', tieuChi: [
       cs('lv', 'Tiktok|Trang C|Live#liveView'),
@@ -168,6 +170,11 @@ const LUAT = {
 
   await t('chỉnh ảnh của Trường: % lô Đạt trên lô đã nghiệm thu, chỉ của Trường', () => {
     assert.strictEqual(s['ChinhAnh|Rooty Trip Phú Quốc|Lô|truong#tyLeDat'], 90);
+  });
+
+  await t('số ghi tay trong bộ luật (soTay) được dùng thay nguồn app', () => {
+    assert.strictEqual(s['ChinhAnh|Kênh khác|Lô|truong#tyLeDat'], 92);
+    assert.strictEqual(dong('ChinhAnh|Kênh khác|Lô|truong#tyLeDat').nguon, 'Trưởng phòng ghi tay');
   });
 
   may.close();
