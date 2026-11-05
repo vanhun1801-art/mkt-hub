@@ -35,7 +35,8 @@ t('đạt NỬA mục tiêu CPA là làm TỐT GẤP ĐÔI', () => {
   const canh = [];
   const r = chamNhom(nhomCpa(true), { 'ads.cpa': 10000 }, canh);
   gan(r.tieuChi[0].datMucTieu, 2, 'CPA 10k trên mục tiêu 20k');
-  gan(r.diem, 2);
+  /* Điểm chặn ở trần 100% (anh Hùng 05/11/2026), % đạt vẫn là số thật. */
+  gan(r.diem, 1);
 });
 
 t('cùng con số đó, nếu KHÔNG khai dao thì bị chấm ngược', () => {
@@ -93,7 +94,7 @@ t('chỉ số rời CÓ mục tiêu thì điểm là tỷ lệ đạt, không ph
   /* Không có bước này thì CPA 22.400 đồng vào thẳng làm điểm, và điểm của
      Hùng thành 22.400 lần trọng số. */
   const r = chamThang(luatHung(true, 20000), { 'ads.cpa': 10000 }, {}, '2026-10');
-  gan(r.nguoi[0].tieuChi[0].diem, 2);
+  gan(r.nguoi[0].tieuChi[0].diem, 1, 'đạt 200% nhưng điểm chặn ở trần 100%');
 });
 
 t('chỉ số rời KHÔNG khai mục tiêu thì giữ đường cũ', () => {

@@ -16,6 +16,14 @@
  */
 const L = require('./luat');
 
+/* TRẦN ĐIỂM MỖI CHỈ SỐ. Anh Hùng 05/11/2026: đặt trần 100%. Một chỉ số vượt
+ * xa (Instagram 468% tháng 10) không được bù cho các chỉ số khác đang hụt.
+ * % đạt vẫn hiện số thật, chỉ phần cộng vào điểm bị chặn. Áp TỪ tháng
+ * 10/2026: các tháng trước đã trả lương theo Excel, vốn không có trần. */
+const TRAN = 1;
+const TRAN_TU = '2026-10';
+const tranCua = (thang) => (!thang || thang >= TRAN_TU ? TRAN : Infinity);
+
 const soHopLe = (v) => typeof v === 'number' && Number.isFinite(v);
 
 /**
@@ -23,7 +31,7 @@ const soHopLe = (v) => typeof v === 'number' && Number.isFinite(v);
  * Trả { khoa, ten, tieuChi[], diem, boQuaHet } — `diem` là null nếu cả nhóm
  * không đo được cái gì (đừng trả 0, vì 0 có nghĩa là "làm mà không ra kết quả").
  */
-function chamNhom(nhom, soLieu, canhBao) {
+function chamNhom(nhom, soLieu, canhBao, tran = TRAN) {
   const khoa = L.khoaNhom(nhom);
   const ten = [nhom.kenh, nhom.tenKenh, nhom.loai].filter(Boolean).join(' · ');
   const tc = Array.isArray(nhom.tieuChi) ? nhom.tieuChi : [];
@@ -96,7 +104,7 @@ function chamNhom(nhom, soLieu, canhBao) {
       return;
     }
     const tyTrong = t.tyTrong / tongDoDuoc;   // chia lại về tổng 100%
-    const d = tyTrong * dat;
+    const d = tyTrong * Math.min(dat, tran);
     diem += d;
     ra.push({
       ma: t.ma, ten: t.ten || t.ma, nguon: t.nguon,
@@ -182,7 +190,7 @@ function chamThang(luat, soLieu, chamTay, thang) {
   soLieu = soLieu || {};
   chamTay = chamTay || {};
 
-  const nhom = (luat.nhom || []).map((n) => chamNhom(n, soLieu, canhBao));
+  const nhom = (luat.nhom || []).map((n) => chamNhom(n, soLieu, canhBao, tranCua(thang)));
   const banNhom = new Map(nhom.map((n) => [n.khoa, n]));
 
   const nguoi = (luat.nguoi || []).map((ng) => {
@@ -221,6 +229,7 @@ function chamThang(luat, soLieu, chamTay, thang) {
            *
            * `dao` cho chỉ số thấp-là-tốt: CPA, CPC, chi phí. */
           diem = t.dao ? (v > 0 ? t.mucTieu / v : null) : v / t.mucTieu;
+          if (diem != null) diem = Math.min(diem, tranCua(thang));
           if (diem == null) {
             canhBao.push({
               muc: 'canhBao', o: (ng.ten || ng.ma) + ' · ' + (t.ten || t.ma),
