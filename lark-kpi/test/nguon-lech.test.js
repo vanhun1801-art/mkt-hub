@@ -52,6 +52,16 @@ const may = http.createServer((req, res) => {
     });
   }
   if (p === '/api/tin-nhan') return tra({ rows: [], chuaNoi: [] });
+  if (p === '/api/tasks') {
+    const v = (owner, status, deadline) => ({ workType: 'Edit Video', status, deadline, owner: [{ name: owner }] });
+    return tra({ tasks: [
+      v('Nguyễn Long Khánh (Pinky)', 'Hoàn thành', '2026-10-05 17:00:00'),
+      v('Nguyễn Long Khánh (Pinky)', 'Hoàn thành', '2026-10-31T23:00:00.000+07:00'),
+      v('Nguyễn Long Khánh (Pinky)', 'Đang tiến hành', '2026-10-06 17:00:00'),
+      v('Nguyễn Long Khánh (Pinky)', 'Hoàn thành', '2026-11-01 09:00:00'),
+      v('Danh Minh Trường', 'Hoàn thành', '2026-10-07 17:00:00'),
+    ] });
+  }
   return tra({});
 });
 
@@ -71,6 +81,9 @@ const LUAT = {
       cs('ngoc', 'FB|Trang A|Bài viết|ngoc#viewQuyDoi'),
       cs('ngocBan', 'FB|Trang A|Bài viết|ngoc#viewBanHang'),
     ] },
+    { kenh: 'Fanpage + Tiktok', tenKenh: 'Rooty Trip Phú Quốc', loai: 'Chung', tieuChi: [
+      cs('soVideo', 'CongViec|Edit Video|Việc|khanh#viecXong'),
+    ] },
     { kenh: 'Tiktok', tenKenh: 'Rooty Trip Phú Quốc', loai: 'Bài viết', tieuChi: [
       cs('hang', 'Tiktok|Rooty Trip Phú Quốc|Bài viết|hang#viewBanHang'),
     ] },
@@ -84,6 +97,7 @@ const LUAT = {
   const nguon = require('../nguon');
   nguon.DIA_CHI.social = dc;
   nguon.DIA_CHI['quang-cao'] = dc;
+  nguon.DIA_CHI['cong-viec'] = dc;
 
   const r = await nguon.docTuApp('2026-10', LUAT);
   const s = r.soLieu;
@@ -124,6 +138,10 @@ const LUAT = {
 
   await t('bài trống tên ở kênh chia đều thì mỗi bạn một phần ba', () => {
     assert.strictEqual(s['Tiktok|Rooty Trip Phú Quốc|Bài viết|hang#viewBanHang'], 1000);
+  });
+
+  await t('số video của Khánh: task Edit Video hoàn thành, đến hạn trong tháng, đúng người', () => {
+    assert.strictEqual(s['CongViec|Edit Video|Việc|khanh#viecXong'], 2);
   });
 
   may.close();

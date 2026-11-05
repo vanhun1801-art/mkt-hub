@@ -115,10 +115,10 @@ function boNguoi(ma) {
   return t && t.nguoiDang ? [t.kenh, t.tenKenh, t.loai].join('|') + '#' + t.chiSo : null;
 }
 
-function goi(url, giay = 20) {
+function goi(url, giay = 20, them = {}) {
   return new Promise((giai, tu) => {
     const mod = url.startsWith('https') ? https : http;
-    const req = mod.get(url, { headers: { Accept: 'application/json' } }, (res) => {
+    const req = mod.get(url, { headers: { Accept: 'application/json', ...them } }, (res) => {
       let s = '';
       res.on('data', (c) => { s += c; });
       res.on('end', () => {
@@ -345,9 +345,32 @@ async function docTuApp(thang, luat, khoangRieng, kho) {
     });
   };
 
+  /* VIỆC XONG TRÊN BẢNG CÔNG VIỆC, mã `CongViec|<loại việc>|Việc|<người>#viecXong`.
+   * Anh Hùng 05/11/2026: Khánh chấm bằng số task Edit Video của bạn. Bảng việc
+   * không có ngày hoàn thành, nên "trong kỳ" là việc ĐẾN HẠN trong kỳ, cùng quy
+   * ước với bao-cao.js. Gọi với vai quản lý để thấy việc của cả phòng. */
+  let viec = null;
+  if (dsTc.some((tc) => String(tc.nguon).startsWith('CongViec|'))) {
+    try {
+      const r = await goi(DIA_CHI['cong-viec'] + '/api/tasks', 60, { 'x-hub-user-manager': '1' });
+      viec = (r && r.tasks) || [];
+    } catch (e) { loiApp.viec = e.message; }
+  }
+
   dsTc.forEach((tc) => {
     const t = tach(tc.nguon);
     if (!t) { ghi(tc.nguon, '', null, 'thieu', 'Mã nguồn không theo dạng Kênh|Tên|Loại#chỉ số', 'luat'); return; }
+
+    if (t.kenh === 'CongViec') {
+      if (loiApp.viec) return ghi(tc.nguon, 'Bảng công việc', null, 'loi', loiApp.viec, 'noi');
+      const pv = t.nguoiDang ? (PV.cua(t.nguoiDang) || (PV.MAC_DINH || {})[t.nguoiDang]) : null;
+      if (t.nguoiDang && !pv) return ghi(tc.nguon, 'Bảng công việc', null, 'thieu', 'Chưa khai phạm vi cho mã "' + t.nguoiDang + '"', 'luat');
+      const xong = viec.filter((v) => chuan(v.workType) === chuan(t.tenKenh)
+        && v.status === 'Hoàn thành'
+        && (!pv || (v.owner || []).some((u) => PV.laCuaNguoi(pv, u.name)))
+        && String(v.deadline || '').slice(0, 10) >= tu && String(v.deadline || '').slice(0, 10) <= den);
+      return ghi(tc.nguon, 'Bảng công việc · ' + t.tenKenh + ' hoàn thành', xong.length, 'lay-duoc');
+    }
 
     const nt = NEN_TANG[chuan(t.kenh)];
     const laLive = chuan(t.loai) === 'live' || !!CHI_SO_LIVE[t.chiSo];
