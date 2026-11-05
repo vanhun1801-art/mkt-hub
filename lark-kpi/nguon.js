@@ -354,7 +354,7 @@ async function docTuApp(thang, luat, khoangRieng, kho) {
   const an = new Set();
   dsTc.slice().forEach((tc) => {
     const m = boNguoi(tc.nguon);
-    if (m && !coSan.has(m)) { coSan.add(m); an.add(m); dsTc.push({ nguon: m }); }
+    if (m && !coSan.has(m)) { coSan.add(m); an.add(m); dsTc.push({ nguon: m, soTay: tc.soTay }); }
   });
 
   const ghi = (ma, nguon, so, trangThai, chuThich, cach) => {
@@ -394,6 +394,13 @@ async function docTuApp(thang, luat, khoangRieng, kho) {
   }
 
   dsTc.forEach((tc) => {
+    /* SỐ TRƯỞNG PHÒNG GHI TAY trong bộ luật (`soTay`) thắng mọi nguồn. Anh Hùng
+     * 06/11/2026 ghi tỷ lệ ảnh đạt tháng 10 của Trường là 92% thay vì duyệt
+     * từng lô, để không lô nào đổi trạng thái và không ai nhận tin. Đặt ở đây
+     * nên màn KPI, phiếu và đổ số cùng thấy một con số. */
+    if (tc.soTay != null && Number.isFinite(Number(tc.soTay))) {
+      return ghi(tc.nguon, 'Trưởng phòng ghi tay', Number(tc.soTay), 'lay-duoc', tc.lyDoTay || '');
+    }
     const t = tach(tc.nguon);
     if (!t) { ghi(tc.nguon, '', null, 'thieu', 'Mã nguồn không theo dạng Kênh|Tên|Loại#chỉ số', 'luat'); return; }
 
