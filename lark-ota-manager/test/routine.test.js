@@ -276,6 +276,27 @@ console.log('— tin khách nhắn qua Agoda');
     JSON.stringify(thieu) === JSON.stringify({ 'Kênh': ['Zalo', 'Walk-in'] }), JSON.stringify(thieu));
   t('đủ lựa chọn thì không thêm gì', Object.keys(luaChonThieu([{ 'Kênh': 'Agoda' }], { 'Kênh': ['Agoda'] })).length === 0);
 
+  /* Cảnh báo hỏng lâu: 10 phút mới nhắn, nhắc lại mỗi 3 giờ, khỏi thì báo một lần. */
+  const CB = require('../routine/canh-bao');
+  const s = { tu: 0, daBao: 0, loi: '' };
+  const P = 60e3, T0 = Date.parse('2026-11-04T11:15:00Z');
+  t('lỗi mới chưa nhắn', CB.xet('800030005', T0, s) === null && CB.xet('800030005', T0 + 9 * P, s) === null);
+  t('chập chờn tự hết trong 10 phút thì không báo khỏi', (() => {
+    const s2 = { tu: 0, daBao: 0, loi: '' };
+    CB.xet('x', T0, s2); return CB.xet('', T0 + 3 * P, s2) === null && s2.tu === 0;
+  })());
+  const v1 = CB.xet('800030005', T0 + 10 * P, s);
+  t('hỏng liên tục 10 phút thì nhắn', v1 && v1.loai === 'hong' && v1.tu === T0);
+  CB.daGui(v1, T0 + 10 * P, s);
+  t('đã nhắn thì phút sau không nhắn lại', CB.xet('800030005', T0 + 11 * P, s) === null);
+  t('vẫn hỏng sau 3 giờ thì nhắc lại', (CB.xet('800030005', T0 + 10 * P + 3 * 3600e3, s) || {}).loai === 'hong');
+  const v2 = CB.xet('', T0 + 4 * 3600e3, s);
+  t('khỏi sau khi đã báo thì nhắn đã chạy lại', v2 && v2.loai === 'khoi' && v2.tu === T0);
+  CB.daGui(v2, T0 + 4 * 3600e3, s);
+  t('khỏi rồi không nhắn nữa', CB.xet('', T0 + 4 * 3600e3 + P, s) === null);
+  const the = CB.dungThe({ loai: 'hong', loi: 'Lark API 800030005', tu: T0 }, 'pito@routinehospitality.vn');
+  t('thẻ hỏng ghi giờ VN và lỗi', the.header.template === 'red' && /2026-11-04 18:15/.test(the.elements[0].content) && /800030005/.test(the.elements[0].content));
+
   console.log(`\n${pass} pass · ${fail} fail`);
   process.exit(fail ? 1 : 0);
 })();

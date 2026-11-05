@@ -13,6 +13,7 @@ const { dongBo } = require('./dong-bo');
 const TK = require('./thongke');
 const bang = require('./bang');
 const baoNhom = require('./bao-nhom');
+const canhBao = require('./canh-bao');
 
 const R = cfg.routine;
 
@@ -66,6 +67,12 @@ async function chayDongBo() {
   } finally {
     tinhTrang.dangChay = false;
     tinhTrang.luc = new Date().toISOString();
+  }
+  /* Bản tự đọc (Render) hỏng liên tục 10 phút thì nhắn riêng anh Hùng (canh-bao.js). */
+  if (R.chuKyMs) {
+    const loiNhom = ((tinhTrang.baoNhom && tinhTrang.baoNhom.loi) || []).join(' | ');
+    const loi = [tinhTrang.loi, loiNhom && 'Gửi tin nhóm: ' + loiNhom].filter(Boolean).join(' · ');
+    await canhBao.sauLuot(loi, { hop: R.hop });
   }
   return tinhTrang.lan;
 }
