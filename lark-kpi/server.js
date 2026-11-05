@@ -147,11 +147,24 @@ function loc(kq, nx) {
 }
 
 /* ---------------- tính một tháng ---------------- */
-function tinhThang(th, luatThayThe) {
+/* PHIẾU VÀ CSV CỦA THÁNG CHƯA CHỐT đọc số mới từ các app, như màn KPI. Bản
+ * trước tính bằng số lưu từ lần "đổ số" gần nhất, nên phiếu Khánh tháng 10
+ * ra 17% trong khi màn KPI ghi 80% (anh Hùng 05/11/2026: "xuất phiếu KPI lỗi").
+ * Số lưu vẫn là nền: ô nào app không trả (số tải tệp) thì giữ số lưu. Tháng đã
+ * chốt thì giữ đúng số đã chốt. */
+async function tinhThangMoi(th) {
+  const t = store.thang(th);
+  if (!t || t.chot) return tinhThang(th);
+  const r = await nguon.docTuApp(th, t.luat);
+  return tinhThang(th, null, r.soLieu);
+}
+
+function tinhThang(th, luatThayThe, soLieuMoi) {
   const t = store.thang(th);
   if (!t) return null;
   const luat = luatThayThe || t.luat;
-  const kq = chamThang(luat, t.soLieu, t.chamTay, th);
+  const sl = soLieuMoi ? { ...t.soLieu, ...soLieuMoi } : t.soLieu;
+  const kq = chamThang(luat, sl, t.chamTay, th);
   const c = chotDuoc(luat, kq);
   /* Dán ghi chú chấm tay vào đúng tiêu chí. Làm ở đây chứ không trong tinh.js:
    * lõi tính lương chỉ nên biết về SỐ, còn "vì sao chấm thế" là chuyện của
@@ -1050,7 +1063,7 @@ async function api(req, res, u) {
   if (p === '/api/xuat-kpi') {
     const th = u.searchParams.get('thang') || store.danhSachThang()[0];
     const kieu = u.searchParams.get('kieu') || 'phong';
-    const kq0 = tinhThang(th);
+    const kq0 = await tinhThangMoi(th);
     if (!kq0) return fail(res, 404, 'Chưa có dữ liệu tháng ' + thangDoc(th));
     const kq = loc(kq0, nx);
     const logo = await X.logoHtml(store.THU_MUC);
@@ -1080,7 +1093,7 @@ async function api(req, res, u) {
   if (p === '/api/xuat') {
     const th = u.searchParams.get('thang') || store.danhSachThang()[0];
     const kieu = u.searchParams.get('kieu') || 'phong';
-    const kq0 = tinhThang(th);
+    const kq0 = await tinhThangMoi(th);
     if (!kq0) return fail(res, 404, 'Chưa có dữ liệu tháng ' + thangDoc(th));
     const kq = loc(kq0, nx);
     const nhan = 'Tháng ' + Number(th.slice(5)) + '-' + th.slice(0, 4);
