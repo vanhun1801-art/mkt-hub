@@ -66,11 +66,13 @@ const CHI_SO_BAI = {
 };
 
 /* Kênh chỉ một người làm: bài trống ô Người đăng thì là của người đó. Anh Hùng
- * 05/11/2026: MICE giao hết cho Thư, Cuộc sống tại Phú Quốc chỉ có Hằng. Tên
- * ghi theo plugin Người đăng ("Phương Ái" là Thư), khoá là nền tảng|kênh không dấu. */
+ * 05/11/2026: MICE giao hết cho Thư, Cuộc sống tại Phú Quốc chỉ có Hằng, còn
+ * TikTok Rooty Trip thì chia đều ba bạn. Tên ghi theo plugin Người đăng
+ * ("Phương Ái" là Thư, "Lý Thư Bạch" là Ngọc), khoá là nền tảng|kênh không dấu. */
 const CHU_KENH = {
   'facebook|rooty mice phu quoc': 'Phương Ái',
   'tiktok|cuoc song tai phu quoc': 'Võ Hằng',
+  'tiktok|rooty trip phu quoc': ['Phương Ái', 'Võ Hằng', 'Lý Thư Bạch'],
 };
 
 /* Nhãn mục đích trong Base, so không dấu. */
@@ -259,8 +261,11 @@ async function docTuApp(thang, luat, khoangRieng, kho) {
     const nen = chuan(p.platform);
     const ken = chuan(p.channel || p.channelExtId || '');
     gomBai(nen + '|' + ken, p);
-    const ai = p.poster || CHU_KENH[nen + '|' + ken];
-    if (ai) gomBai(nen + '|' + ken + '|' + chuan(ai), p);
+    /* Kênh nhiều người làm thì chia đều số của bài trống tên cho từng người. */
+    const ai = [].concat(p.poster || CHU_KENH[nen + '|' + ken] || []);
+    const phan = ai.length > 1 ? Object.assign({}, p,
+      ...CONG.concat('clicks').filter((f) => p[f] != null).map((f) => ({ [f]: Number(p[f]) / ai.length }))) : p;
+    ai.forEach((x) => gomBai(nen + '|' + ken + '|' + chuan(x), phan));
   });
 
   /* Tên trong plugin Người đăng KHÁC tên trong bộ luật, và không giống nhau một
