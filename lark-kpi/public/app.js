@@ -27,6 +27,10 @@ function thanhPt(v, nhip) {
     + (nhip != null ? '<b style="left:' + Math.min(100, nhip * 100) + '%"></b>' : '') + '</div>';
 }
 const pt = (v) => (v == null ? '—' : (Math.round(v * 1000) / 10).toString().replace('.', ',') + '%');
+/* Số đầy đủ, không viết tắt: "511.210" chứ không "511k". Anh Hùng 05/11/2026
+ * muốn đọc số tự nhiên ở bảng chỉ số chấm KPI. */
+const soDu = (n) => (n == null || !Number.isFinite(Number(n)) ? '—' : Math.round(Number(n)).toLocaleString('vi-VN'));
+
 function gon(n) {
   if (n == null || !Number.isFinite(n)) return '—';
   const d = Math.abs(n);

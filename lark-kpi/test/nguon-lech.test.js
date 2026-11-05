@@ -49,6 +49,13 @@ const may = http.createServer((req, res) => {
         { platform: 'TikTok', name: 'Rooty Trip Phú Quốc', views: 3000, followUp: 0 },
       ],
       live: LIVE,
+      /* LIVE TikTok về bằng tệp LIVE Center, ghi theo ngày. */
+      liveNgay: [
+        { platform: 'TikTok', channel: 'Trang C', date: '2026-10-02', luotXem: 700, followerMoi: 9, nguoiBinhLuan: 4, soPhien: 2 },
+        { platform: 'TikTok', channel: 'Trang C', date: '2026-10-03', luotXem: 300, followerMoi: 1, nguoiBinhLuan: 1, soPhien: 1 },
+        /* Kênh đã có phiên thì bản theo ngày không được cộng thêm. */
+        { platform: 'Facebook', channel: 'Trang A', date: '2026-10-02', luotXem: 99999, soPhien: 1 },
+      ],
     });
   }
   if (p === '/api/tin-nhan') return tra({ rows: [], chuaNoi: [] });
@@ -72,6 +79,10 @@ const LUAT = {
     { kenh: 'FB', tenKenh: 'Trang A', loai: 'Live', tieuChi: [
       cs('lv', 'FB|Trang A|Live#liveView'),
       cs('lf', 'FB|Trang A|Live#liveFollow'),
+    ] },
+    { kenh: 'Tiktok', tenKenh: 'Trang C', loai: 'Live', tieuChi: [
+      cs('lv', 'Tiktok|Trang C|Live#liveView'),
+      cs('lf', 'Tiktok|Trang C|Live#liveFollow'),
     ] },
     { kenh: 'Tiktok', tenKenh: 'Trang A', loai: 'Live', tieuChi: [
       cs('lv', 'Tiktok|Trang A|Live#liveView'),
@@ -142,6 +153,11 @@ const LUAT = {
 
   await t('số video của Khánh: task Edit Video hoàn thành, đến hạn trong tháng, đúng người', () => {
     assert.strictEqual(s['CongViec|Edit Video|Việc|khanh#viecXong'], 2);
+  });
+
+  await t('LIVE TikTok đọc được từ bảng theo ngày (tệp LIVE Center)', () => {
+    assert.strictEqual(s['Tiktok|Trang C|Live#liveView'], 1000);
+    assert.strictEqual(s['Tiktok|Trang C|Live#liveFollow'], 10);
   });
 
   may.close();
