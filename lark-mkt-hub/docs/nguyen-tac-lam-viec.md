@@ -442,3 +442,12 @@ Anh Hùng: editor có lịch cố định, việc gấp không chen vào đượ
 - **Ô chọn Độ ưu tiên mở ra ma trận 2×2** thay cho danh sách xổ xuống (anh Hùng: "ấn vào chọn thì mới hiện", "thêm tí lưới"): trục Gấp / Chưa gấp và Quan trọng / Ít quan trọng, bốn ô liền có chữ thập kẻ mảnh, mỗi ô một dòng ngắn nói phải làm gì. Bấm ô là chọn và đóng. Mã ở `chonUuTien()`.
   - Làm đẹp lại cùng ngày (anh Hùng: "làm đẹp đẹp tí"): khung bo 14px như bảng chọn, bốn ô bo 9px ở góc ngoài, chữ thập là khe 1px lộ nền kẻ. Màu ô trong suốt nên phải lót nền đặc bên dưới, không thì ô bạc màu. Ô đang chọn có tick tròn, ô khác nhạt còn 70%; chưa chọn gì thì cả bốn rõ màu. Nhãn trục dọc nằm ngang không gãy dòng trên máy tính, xoay dọc trên điện thoại. Đóng có hiệu ứng, bấm ra ngoài hoặc Esc cũng đóng.
   - Hiệu ứng (anh Hùng: "hiệu ứng hay chọn có vẻ chưa ổn"): khối mở ra giữa form thì **co giãn chiều cao**, để phần bên dưới trượt theo, không giật; nhịp trượt không nảy. Chọn xong thì tick nảy, chờ khoảng 0,26s cho thấy rồi mới gập. Ô nằm khít trong lưới thì gắn `data-khong-nhan` (bỏ kiểu nhấn thu nhỏ chung, vì nó làm lộ khe và lệch góc bo), thay bằng tối nhẹ tại chỗ. Ô chọn phía trên sáng viền xanh khi khối đang mở.
+
+## 32. Thông báo Lark: chỉ nhắc cần thiết (06/11/2026)
+
+Anh Hùng muốn mọi thông báo của phòng đều do bot **Marketing Hub** gửi, thay cho tin mang tên Base "Tracking" và "HOẠT ĐỘNG TÁC NGHIỆP" (đó là automation trong Base). Học từ bot "Quản lý công việc" của Rooty Workspace, nhưng anh thấy bên đó nhắc nhiều quá nên phiền: **chỉ nhắc cần thiết**.
+
+- **Điều học từ Rooty Workspace phải hỏi anh duyệt trước khi làm.** Đã duyệt: nhắc lần 2 có giới hạn (chưa xong sau một khoảng thì nhắc đúng một lần nữa rồi thôi), hiện mới là khung `buocNhac()` trong `lark-chung/nhac-gon.js`, chưa bật cho loại tin nào. Chưa duyệt: đổi mẫu thẻ thống nhất, sửa thẻ cũ thay vì gửi thẻ mới, dòng "vì sao bạn nhận tin này".
+- **Nhớ "đã báo" trên Base, không nhớ trong tệp.** Ổ Render bị xoá mỗi lần deploy; nhớ trong tệp là sau deploy báo lại từ đầu (06/11 thẻ "Đồng bộ quảng cáo có vấn đề" đến 3 lần, mỗi lần sau một deploy). Dùng `lark-chung/nhac-gon.js`: mỗi khoá một dòng `da-bao:<khoá>` trong bảng kho Hub (cột Ô, Cập nhật), tự dọn sau 30 ngày.
+- **Thẻ lỗi API chỉ báo lỗi hỏng thật**: hết hạn hay sai khoá, mất quyền. Gọi quá dày (429, 99991400, QPS), máy chủ dịch vụ lỗi, mạng chập thì không nhắn, chỉ ghi log. Mỗi lỗi tối đa một thẻ trong 24 giờ.
+- Một vấn đề lúc có lúc không không được làm thẻ bắn lại: chỉ vấn đề chưa báo mới tính là mới.

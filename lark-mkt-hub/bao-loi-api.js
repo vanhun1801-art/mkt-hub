@@ -6,16 +6,18 @@
  * con POST về /_noi-bo/loi-api kèm khoá ngẫu nhiên hub cấp lúc bật (HUB_KHOA_NOI_BO) —
  * chỉ nhận từ 127.0.0.1, không phải cửa ra Internet.
  *
+ * CHỈ BÁO LỖI HỎNG THẬT (anh Hùng chốt 06/11/2026, "chỉ nhắc cần thiết thôi"):
+ *   sai khoá / token hết hạn (401, 99991661–8, Meta 190) và mất quyền (403, mã thiếu
+ *   quyền của Lark). Đó là lỗi phải có NGƯỜI đi sửa. Gọi quá dày (429, 99991400),
+ *   máy chủ dịch vụ lỗi (5xx), mạng chập: KHÔNG nhắn nữa. App nào cũng tự chờ rồi
+ *   gọi lại, và chiều 06/11 riêng loại này đã nổ khoảng 8 thẻ trong 4 tiếng. Mọi lỗi
+ *   vẫn được ghi vào danh sách gần đây (ganDay) và log để soi khi cần.
+ *
  * GOM ĐỂ KHỎI NHIỄU:
  *   - lỗi đầu tiên → chờ 45 giây gom các lỗi đi kèm (một sự cố thường nổ một chùm) →
  *     MỘT thẻ;
- *   - cùng một khoá (app · dịch vụ · kiểu lỗi · mã) đã báo thì im 60 phút, chỉ đếm; hết
- *     60 phút mà vẫn lỗi thì báo lại kèm "lặp lại N lần";
- *   - lỗi MẠNG (hết giờ chờ, DNS…) chỉ nổ MỘT lần thì chưa nhắn: máy chập chờn một nhịp
- *     rồi tự nối lại là chuyện thường (13/10 07:52 nhắn một thẻ UND_ERR_CONNECT_TIMEOUT
- *     mà Lark vẫn sống). Trong 15 phút lặp lại thì mới nhắn, đếm cả lần trước;
- *   - 429 (gọi quá dày) cũng vậy: app nào cũng đã tự chờ rồi gọi lại, một lần lẻ
- *     là đã tự khỏi (14:31 13/10 Tourwell). Lặp lại thì mới đáng nhắn.
+ *   - cùng một khoá (app · dịch vụ · kiểu lỗi · mã) đã báo thì im 24 giờ. Dấu "đã
+ *     báo" nhớ trên Base (lark-chung/nhac-gon.js) nên deploy lại cũng không báo lại.
  *
  * NGƯỜI NHẬN: open_id DƯỚI APP MARKETING HUB lấy từ bảng Phân quyền (cột open_id hub tự
  * vá khi người đó đăng nhập) — tìm theo tên HUB_BAO_LOI_TEN (mặc định "Lê Văn Hùng"),
@@ -27,7 +29,9 @@ const canh = require('../lark-chung/canh-api');
 const nhip = require('./nhip');
 
 const KHOA = crypto.randomBytes(24).toString('hex');
-const GOM_MS = 45 * 1000, IM_MS = 60 * 60 * 1000, NGHI_MS = 15 * 60 * 1000;
+const nhacGon = require('../lark-chung/nhac-gon');
+
+const GOM_MS = 45 * 1000, IM_MS = 24 * 3600 * 1000;
 const TEN = process.env.HUB_BAO_LOI_TEN || 'Lê Văn Hùng';
 const LECH = 7 * 3600000;
 const MAY = process.env.RENDER ? 'Render (bản cả phòng dùng)' : 'máy ' + require('os').hostname() + ' (hub chạy tại chỗ)';
@@ -46,29 +50,21 @@ const DICH_VU = [
 ];
 const tenDichVu = (h) => { for (const [re, t] of DICH_VU) if (re.test(h)) return t; return h; };
 
+/* Hai loại lỗi hỏng thật, cần người sửa. */
+const MA_QUYEN = [1254302, 1254301, 91403, 99991672, 99991679, 40004];
+const laHetKhoa = (s) => { const ma = Number(s.ma) || 0; return s.status === 401 || /^9999166[1-8]$/.test(String(ma)) || ma === 190; };
+const laMatQuyen = (s) => s.status === 403 || MA_QUYEN.includes(Number(s.ma) || 0);
+const laHongThat = (s) => s.kieu !== 'mang' && (laHetKhoa(s) || laMatQuyen(s));
+
 /* gợi ý việc cần làm theo kiểu lỗi */
 function goiY(s) {
-  const ma = Number(s.ma) || 0;
-  if (s.status === 401 || /^9999166[1-8]$/.test(String(ma)) || ma === 190) return 'Token / khoá truy cập hết hạn hoặc sai — cần cấp lại.';
-  if (s.status === 403 || [1254302, 1254301, 91403, 99991672, 99991679, 40004].includes(ma)) return 'Thiếu quyền — app chưa được cấp quyền hoặc chưa được thêm vào Base/nhóm.';
-  if (s.status === 429 || MA_CHAN_NHANH.includes(ma)) return 'Gọi quá dày, dịch vụ đang chặn tạm — thường tự hết sau vài phút.';
-  if (s.kieu === 'mang') return 'Không nối được tới dịch vụ (mạng/DNS/hết giờ chờ) — thường tự hết; kéo dài thì dịch vụ đang sập.';
-  if (s.status >= 500) return 'Máy chủ của dịch vụ đang lỗi — thường tự hết.';
+  if (laHetKhoa(s)) return 'Token hoặc khoá truy cập hết hạn hay bị sai, cần cấp lại.';
+  if (laMatQuyen(s)) return 'Thiếu quyền: app chưa được cấp quyền, hoặc chưa được thêm vào Base hay nhóm.';
   return '';
 }
 
-/* Lỗi tự hết: một nhịp lẻ thì chưa nhắn. Lark báo "gọi quá dày" bằng HTTP 400
- * kèm mã 99991400 chứ không phải 429 (14:40 03/11, Hộp thư đọc tám hộp cùng lúc,
- * đã tự chờ rồi đọc lại được mà vẫn nổ thẻ đỏ). */
-const MA_CHAN_NHANH = [99991400, 1254290];
-const laTamThoi = (s, loi) => s.kieu === 'mang' || s.status === 429 || s.status >= 500 ||
-  MA_CHAN_NHANH.includes(Number(s.ma) || 0) ||
-  /internal[_ ]error|frequency limit/i.test(String(loi || s.loi || ''));
-
 let guiTin = null, tenApp = (id) => id, docQuyen = null, urlHub = 'https://mkt-hub-w6hi.onrender.com';
 const cho = new Map();                                    // khoá → nhóm đang gom
-const daBao = new Map();                                  // khoá → { luc, dem }
-const nghi = new Map();                                   // khoá lỗi mạng mới nổ một lần → lúc
 const ganDay = [];                                        // 100 sự kiện gần nhất cho trang xem
 let hen = null;
 
@@ -78,17 +74,11 @@ const gio = (t) => { const d = new Date(t + LECH); return String(d.getUTCHours()
 function nhan(s) {
   if (!s || !s.host) return;
   ganDay.push(s); if (ganDay.length > 100) ganDay.shift();
+  if (!laHongThat(s)) return;                             // chỉ ghi lại, không nhắn
   const k = khoaCua(s);
-  const cu = daBao.get(k);
-  if (cu && s.luc - cu.luc < IM_MS) { cu.dem++; return; }
   const g = cho.get(k);
   if (g) { g.dem++; g.cuoi = s.luc; g.duong.add(s.duong); if (s.loi) g.loi = s.loi; }
-  else {
-    const truoc = nghi.get(k);
-    const coTruoc = truoc && s.luc - truoc < NGHI_MS;
-    nghi.delete(k);
-    cho.set(k, { s, dem: coTruoc ? 2 : 1, dau: coTruoc ? truoc : s.luc, cuoi: s.luc, duong: new Set([s.duong]), loi: s.loi, lapLai: cu ? cu.dem : 0, coTruoc: Boolean(coTruoc) });
-  }
+  else cho.set(k, { s, dem: 1, dau: s.luc, cuoi: s.luc, duong: new Set([s.duong]), loi: s.loi });
   if (!hen) hen = setTimeout(xa, GOM_MS);
 }
 
@@ -99,7 +89,7 @@ function theLoi(nhom) {
     if (i) el.push({ tag: 'hr' });
     const loiChu = s.kieu === 'mang' ? 'Không nối được' + (g.loi ? ' · ' + g.loi : '')
       : 'HTTP ' + (s.status || '?') + (s.ma ? ' · mã ' + s.ma : '') + (g.loi ? ' · ' + g.loi : '');
-    el.push({ tag: 'markdown', content: '**' + tenApp(s.app) + '**  →  **' + tenDichVu(s.host) + '**' + (g.dem > 1 ? '  ·  ' + g.dem + ' lần' : '') + (g.lapLai ? '  ·  <font color="red">lặp lại ' + g.lapLai + ' lần trong 1 giờ qua</font>' : '') +
+    el.push({ tag: 'markdown', content: '**' + tenApp(s.app) + '**  →  **' + tenDichVu(s.host) + '**' + (g.dem > 1 ? '  ·  ' + g.dem + ' lần' : '') +
       '\n<font color="red">' + loiChu + '</font>' });
     el.push({ tag: 'div', fields: [
       { is_short: true, text: { tag: 'lark_md', content: '**API**\n' + s.pt + ' ' + s.host + [...g.duong].slice(0, 2).join(', ') } },
@@ -129,32 +119,29 @@ async function nguoiNhan() {
   return h ? h.openId : null;
 }
 
+let nho = null;                                           // lark-chung/nhac-gon, tạo khi cần
+const boNho = () => nho || (nho = nhacGon.mot());
+
 async function xa() {
   hen = null;
-  const luc = Date.now();
-  const nhom = [];
-  for (const [k, g] of cho) {
-    /* "Một lần" tính theo THỜI GIAN chứ không theo số lời gọi: 11:36 14/10 một nhịp
-     * mạng chập làm hỏng cùng lúc hai lời gọi đang chạy song song, đếm ra "2 lần"
-     * mà thật ra vẫn chỉ là một nhịp. Chùm lỗi gói gọn trong một phút, lại chưa
-     * từng nổ trước đó, thì vẫn coi là một nhịp. */
-    const motNhip = !g.coTruoc && g.cuoi - g.dau < 60000;
-    /* Lỗi nội bộ của máy chủ Lark (mã 800100001 "internal_error", 13:36 15/10 ở Bảng
-     * công việc) cũng là loại tự hết: một nhịp lẻ thì chưa nhắn. */
-    if (laTamThoi(g.s, g.loi) && motNhip && !g.lapLai) nghi.set(k, g.dau);
-    else nhom.push(g);
-  }
+  const tatCa = [...cho.values()];
   cho.clear();
-  for (const [k, t] of nghi) if (luc - t > NGHI_MS) nghi.delete(k);
-  if (!nhom.length) return;
-  nhom.forEach((g) => daBao.set(khoaCua(g.s), { luc, dem: 0 }));
-  const card = theLoi(nhom);
+  if (!tatCa.length) return;
+  if (!guiTin) {                                          // hub trên máy: không có khoá app, không gửi
+    console.log('[LỖI API] chưa gửi được (thiếu khoá app):', tatCa.map((g) => khoaCua(g.s)).join(' ; '));
+    return;
+  }
+  /* Đọc Base cũng là lời gọi Lark: phải im, kẻo chính lời gọi đó hỏng lại nổ thẻ. */
   await canh.imLang(async () => {
     try {
+      const nhom = [];
+      for (const g of tatCa) if (await boNho().nenBao('loi-api:' + khoaCua(g.s), IM_MS)) nhom.push(g);
+      if (!nhom.length) return;
       const id = await nguoiNhan();
-      if (!id || !guiTin) { console.log('[LỖI API] chưa gửi được (thiếu người nhận hoặc khoá app):', nhom.map((g) => khoaCua(g.s)).join(' ; ')); return; }
-      const r = await guiTin({ userId: id, card });
+      if (!id) { console.log('[LỖI API] chưa gửi được (thiếu người nhận):', nhom.map((g) => khoaCua(g.s)).join(' ; ')); return; }
+      const r = await guiTin({ userId: id, card: theLoi(nhom) });
       console.log('[LỖI API]', r && r.ok ? 'đã báo ' + nhom.length + ' lỗi' : 'gửi hỏng: ' + (r && r.loi), '·', nhom.map((g) => khoaCua(g.s)).join(' ; '));
+      if (r && r.ok) for (const g of nhom) await boNho().ghi('loi-api:' + khoaCua(g.s));
     } catch (e) { console.error('[LỖI API] gửi hỏng:', e.message); }
   });
 }
@@ -221,4 +208,6 @@ async function guiAnhHung({ card, khoa }) {
   return canh.imLang(() => guiTin({ userId: id, card, khoa }));
 }
 
-module.exports = { bat, xuLy, nhan, theLoi, ganDay: () => ganDay.slice().reverse(), _xa: xa, _laTamThoi: laTamThoi };
+module.exports = { bat, xuLy, nhan, theLoi, ganDay: () => ganDay.slice().reverse(), _xa: xa, _laHongThat: laHongThat,
+  /* chỉ cho test */
+  _datBoNho: (b) => { nho = b; }, _datGui: (g, docQ) => { guiTin = g; if (docQ) docQuyen = docQ; } };

@@ -11,12 +11,20 @@
  *
  * Chống làm phiền: cùng một vấn đề chỉ nhắn lại sau `imLangGio` giờ. Khi hết lỗi
  * thì nhắn một lần báo đã trở lại bình thường.
+ *
+ * 06/11/2026: thẻ "Đồng bộ quảng cáo có vấn đề" (Google Ads trễ 15 ngày) đến 3 lần
+ * trong một buổi, 11:49 · 12:59 · 15:04, mỗi lần ngay sau một lần deploy. Mốc "đã
+ * nhắc" nằm trong trang-thai.json, mà ổ Render xoá tệp đó mỗi lần deploy. Giờ mỗi
+ * vấn đề nhớ riêng trên Base (lark-chung/nhac-gon.js, khoá "qc:<loại>:<kênh>").
+ * Một vấn đề lúc có lúc không (TikTok vượt QPS nhịp này, nhịp sau hết) cũng không
+ * còn làm thẻ bắn lại, vì chỉ vấn đề CHƯA báo mới tính là mới.
  */
 const fs = require('fs');
 const path = require('path');
 const ketnoi = require('./sync/ketnoi');
 const live = require('./sync/live');
 const store = require('./store');
+const nhacGon = require('../lark-chung/nhac-gon');
 
 const FILE_TT = path.join(__dirname, 'trang-thai.json');
 
@@ -44,6 +52,8 @@ function caiDatNhac() {
 }
 
 /* ---------------- chấm sức khoẻ ---------------- */
+const laTamThoi = (loi) => /\b429\b|QPS|too many requests|rate ?limit|frequency limit/i.test(String(loi || ''));
+
 /**
  * @returns {{ khoe:boolean, van_de:Array, tomTat:string, luc:string }}
  */
@@ -57,7 +67,9 @@ async function chamDiem() {
   try {
     const { nenTang, loi } = await live.layRows(store.addDays(homNay, -2), homNay);
     nenTangSong = nenTang;
-    loi.forEach((x) => vanDe.push({
+    /* Gọi quá dày (429, TikTok "reaches the QPS limit") là lỗi tự hết: lượt sau
+     * gọi lại là xong. Không coi là kênh hỏng, kẻo thẻ báo bật tắt theo nhịp. */
+    loi.filter((x) => !laTamThoi(x.loi)).forEach((x) => vanDe.push({
       loai: 'ket-noi', nang: true, kenh: x.platform,
       mo_ta: `${x.platform}: ${x.loi}`,
     }));
@@ -197,21 +209,29 @@ function soanTin(tt) {
 }
 
 /* ---------------- chạy ---------------- */
-async function chay({ imLang = false, cli = null } = {}) {
+/** Khoá nhớ của từng vấn đề, dùng chung với lark-chung/nhac-gon. */
+const khoaVanDe = (v) => 'qc:' + v.loai + ':' + v.kenh;
+
+async function chay({ imLang = false, cli = null, boNho = null } = {}) {
   const tt = await chamDiem();
   const truoc = doc(FILE_TT, {});
   const nhac = caiDatNhac();
+  const nho = boNho || nhacGon.mot();
+  const imMs = nhac.imLangGio * 3600000;
 
   const kyMoi = chuKy(tt);
-  const kyCu = truoc.chuKy || '';
-  const gioTuLanNhac = truoc.nhacLuc ? (Date.now() - Date.parse(truoc.nhacLuc)) / 3600000 : 1e9;
+  /* Vấn đề nào chưa báo trong imLangGio giờ qua. Nhớ trên Base, deploy không quên. */
+  const chuaBao = [];
+  for (const v of tt.van_de) if (await nho.nenBao(khoaVanDe(v), imMs)) chuaBao.push(v);
+  const daBaoTruoc = await nho.danhSach('qc:');
 
-  // Có nhắn hay không: vấn đề mới, hoặc vấn đề cũ nhưng đã im lâu, hoặc vừa khỏi hẳn
+  // Có nhắn hay không: có vấn đề chưa báo (mới, hoặc đã im quá imLangGio), hoặc vừa khỏi hẳn
   let nen = false;
   let lyDo = '';
-  if (!tt.khoe && kyMoi !== kyCu) { nen = true; lyDo = 'vấn đề mới'; }
-  else if (!tt.khoe && gioTuLanNhac >= nhac.imLangGio) { nen = true; lyDo = `vẫn hỏng sau ${nhac.imLangGio}h`; }
-  else if (tt.khoe && kyCu) { nen = true; lyDo = 'đã khắc phục'; }
+  if (!tt.khoe && chuaBao.length) {
+    nen = true;
+    lyDo = chuaBao.some((v) => daBaoTruoc.includes(khoaVanDe(v))) ? `vẫn hỏng sau ${nhac.imLangGio}h` : 'vấn đề mới';
+  } else if (tt.khoe && daBaoTruoc.length) { nen = true; lyDo = 'đã khắc phục'; }
 
   const ra = {
     ...tt,
@@ -223,6 +243,10 @@ async function chay({ imLang = false, cli = null } = {}) {
   if (nen && nhac.bat && !imLang) {
     const kq = await nhanLark(tt, cli);
     ra.guiLark = kq.ok ? 'đã gửi' : ('lỗi: ' + kq.loi);
+    if (kq.ok) {
+      if (tt.khoe) for (const k of daBaoTruoc) await nho.quen(k);
+      else for (const v of tt.van_de) await nho.ghi(khoaVanDe(v));
+    }
   } else if (nen) {
     ra.guiLark = nhac.bat ? 'bỏ qua (gọi ở chế độ im lặng)' : 'nhắc qua Lark đang TẮT';
   }
@@ -231,7 +255,7 @@ async function chay({ imLang = false, cli = null } = {}) {
   return ra;
 }
 
-module.exports = { chay, chamDiem, soanTin, dungThe, chuKy, FILE_TT, caiDatNhac };
+module.exports = { chay, chamDiem, soanTin, dungThe, chuKy, FILE_TT, caiDatNhac, laTamThoi };
 
 /* chạy trực tiếp: node giam-sat.js [--im-lang] */
 if (require.main === module) {
