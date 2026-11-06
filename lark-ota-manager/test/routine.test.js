@@ -193,7 +193,7 @@ console.log('— báo nhóm Booking KS');
   t('tiêu đề "Agoda - Khách Việt Nam"', bai.title === 'Agoda - Khách Việt Nam', bai.title);
   t('mã booking + mã GoHost', chu.includes('Mã booking: 1793490711  (GoHost PIOAAAAA1)'));
   t('thời gian lưu trú', chu.includes('Thời gian lưu trú: 13/11/2026 - 14/11/2026 (1 đêm)'));
-  t('loại phòng + gói + số phòng', chu.includes('Loại phòng: Superior Double Room (Room + 2 Cable Car & Water Park Tickets), phòng 202'));
+  t('loại phòng + số phòng, gói tách dòng riêng', chu.includes('Loại phòng: Superior Double Room, phòng 202') && chu.includes('Gói: Phòng + 2 cáp'), chu);
   t('02 NL + 01 TE', chu.includes('Số lượng khách: 02 NL + 01 TE'));
   t('số tiền Agoda thanh toán', chu.includes('Số tiền: 2.137.806 đ (Agoda thanh toán)'), chu);
   t('đặt trước 10 ngày', chu.includes('Đặt lúc: 16:58 03/11, trước 10 ngày'));
@@ -325,6 +325,21 @@ console.log('— tin khách nhắn qua Agoda');
   await TU.thu({ guiTin: gia, docRows: async () => dsTuan, chatId: 'oc', ms: Date.parse('2026-11-07T10:01:00Z') });
   await TU.thu({ guiTin: gia, docRows: async () => dsTuan, chatId: 'oc', ms: Date.parse('2026-11-07T09:00:00Z') });
   t('thứ 7 chỉ gửi một lần', guiLan === 1, String(guiLan));
+  const { tachGoi } = require('../routine/bao-nhom');
+  t('gói giá Agoda: chỉ phòng / 1 cáp / 2 cáp',
+    tachGoi('Superior Double Room (Chính sách khách sạn đặc biệt (Room Only))').goi === 'Chỉ phòng' &&
+    tachGoi('Premier Double Room with Bathtub (Room + 1 Cable Car & Water Park Tickets)').goi === 'Phòng + 1 cáp' &&
+    tachGoi('Cozy Double Room (Room + 2 Cable Car & Water Park Tickets)').goi === 'Phòng + 2 cáp' &&
+    tachGoi('Premier Bathtub').goi === '');
+  const thGoi = TU.tongHop([
+    donT({ ma: 'G1', ngayDat: '2026-11-01 10:00', hangPhong: 'Cozy (Room + 2 Cable Car & Water Park Tickets)', soTien: 2000000, soDem: 1 }),
+    donT({ ma: 'G2', ngayDat: '2026-11-01 11:00', hangPhong: 'Superior (Chính sách khách sạn đặc biệt (Room Only))', soTien: 1000000, soDem: 1 }),
+    donT({ ma: 'G3', kenh: 'Booking.com', ngayDat: '2026-11-02 11:00', soTien: 3000000, soDem: 2 }),
+  ], '2026-10-31', '2026-11-06');
+  t('bảng gói: chỉ phòng → 2 cáp → chưa rõ (kèm kênh)',
+    thGoi.goi.map((g) => g.goi).join('|') === 'Chỉ phòng|Phòng + 2 cáp|Chưa rõ gói' && thGoi.goi[2].kenh[0] === 'Booking.com', JSON.stringify(thGoi.goi));
+  const theGoi = JSON.stringify(TU.soanTuan([donT({ ma: 'G1', ngayDat: '2026-11-01 10:00', hangPhong: 'Cozy (Room + 2 Cable Car)', soTien: 1, soDem: 1 })], '2026-11-07').the);
+  t('thẻ tuần rộng hết khung và có bảng gói', /"width_mode":"fill"/.test(theGoi) && /Theo gói giá/.test(theGoi));
   t('thẻ hỏng ghi giờ VN và lỗi', the.header.template === 'red' && /2026-11-04 18:15/.test(the.elements[0].content) && /800030005/.test(the.elements[0].content));
 
   console.log(`\n${pass} pass · ${fail} fail`);

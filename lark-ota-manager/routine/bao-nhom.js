@@ -53,6 +53,21 @@ function tieuDe(b) {
 /* Ghi chú OTA của Booking.com có dòng "OTA Commission: …" là số tiền nội bộ, bỏ ra. */
 const ghiChuSach = (s) => String(s || '').split('\n').filter((x) => x.trim() && !/^OTA Commission:/i.test(x.trim())).join('; ');
 
+/**
+ * Gói giá từ hạng phòng. Chỉ thư Agoda ghi gói ("Tên chính sách giá"), app ghép vào
+ * hạng phòng dạng "Cozy Double Room (Room + 2 Cable Car & Water Park Tickets)".
+ * Ba gói đang bán (06/11/2026): Chỉ phòng (Room Only), Phòng + 1 cáp, Phòng + 2 cáp
+ * (cáp treo kèm vé công viên nước). Kênh khác: thư GoHost không có gói → ''.
+ * @returns {{ loai: string, goi: string }}
+ */
+function tachGoi(hangPhong) {
+  const h = String(hangPhong || '').trim();
+  const cap = /(\d+)\s*cable\s*car/i.exec(h);
+  const goi = cap ? 'Phòng + ' + cap[1] + ' cáp' : /room\s*only/i.test(h) ? 'Chỉ phòng' : '';
+  const i = h.indexOf(' (');
+  return { loai: goi && i > 0 ? h.slice(0, i).trim() : h, goi };
+}
+
 /** Booking → nội dung tin dạng bài của Lark. */
 function soanBai(b) {
   const dong = [];
@@ -61,7 +76,9 @@ function soanBai(b) {
   them('Mã booking', (b.maOta || b.ma) + (b.maOta && b.ma && !b.ma.startsWith('OTA-') ? '  (GoHost ' + b.ma + ')' : ''));
   them('Tên khách', b.tenKhach);
   if (b.nhanPhong) them('Thời gian lưu trú', dmy(b.nhanPhong) + ' - ' + dmy(b.traPhong) + (b.soDem ? ' (' + b.soDem + ' đêm)' : ''));
-  them('Loại phòng', [b.hangPhong, b.phong ? 'phòng ' + b.phong : ''].filter(Boolean).join(', '));
+  const { loai, goi } = tachGoi(b.hangPhong);
+  them('Loại phòng', [loai, b.phong ? 'phòng ' + b.phong : ''].filter(Boolean).join(', '));
+  them('Gói', goi);
   const khach = b.nguoiLon ? hai(b.nguoiLon) + ' NL' + (b.treEm ? ' + ' + hai(b.treEm) + ' TE' : '') : (b.soKhach ? b.soKhach + ' khách' : '');
   them('Số lượng khách', khach);
   if (b.soTien != null) {
@@ -230,4 +247,4 @@ async function guiBu({ ma, guiTin = tin() }) {
   return { ...r, ma: b.ma };
 }
 
-module.exports = { soanBai, soanTraLoi, canBao, tieuDe, tenQuocGia, chay, batBao, guiThu, guiBu, dichTin, laTiengViet, tin };
+module.exports = { soanBai, soanTraLoi, canBao, tieuDe, tenQuocGia, chay, batBao, guiThu, guiBu, dichTin, laTiengViet, tin, tachGoi };

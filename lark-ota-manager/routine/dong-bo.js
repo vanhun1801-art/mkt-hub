@@ -106,10 +106,10 @@ async function docBang() {
   return lark.voiBase(R.baseToken, async () => {
     const cot = await lark.listFields(R.tableId);
     const id = (ten) => (cot.find((c) => c.name === ten) || {}).id;
-    const fMa = id('Mã đặt phòng'), fLs = id('Lịch sử'), fTra = id('Trả phòng');
+    const fMa = id('Mã đặt phòng'), fLs = id('Lịch sử'), fTra = id('Trả phòng'), fHang = id('Hạng phòng');
     if (!fMa || !fLs) throw new Error('Bảng Routine thiếu cột "Mã đặt phòng" hoặc "Lịch sử"');
     const ds = await lark.listAll(R.tableId);
-    return ds.map((r) => ({ id: r.id, ma: chu(r.c[fMa]).trim(), lichSu: chu(r.c[fLs]), coTra: !!(fTra && r.c[fTra]) }));
+    return ds.map((r) => ({ id: r.id, ma: chu(r.c[fMa]).trim(), lichSu: chu(r.c[fLs]), coTra: !!(fTra && r.c[fTra]), coHang: !!(fHang && chu(r.c[fHang]).trim()) }));
   });
 }
 
@@ -132,7 +132,9 @@ async function dongBo({ ghi = true } = {}) {
      * có thư nhận phòng GoHost, cách nối thêm từ 03/11/2026). */
     const cu = r.lichSu.split('\n').filter(Boolean);
     const gopLai = [...new Set([...cu, ...b.suKien])].sort((x, y) => (x.slice(0, 16) < y.slice(0, 16) ? -1 : x.slice(0, 16) > y.slice(0, 16) ? 1 : 0));
-    if (gopLai.length === cu.length && !(b.traPhong && !r.coTra)) continue;
+    /* 06/11/2026: thêm cả khi Base trống hạng phòng mà thư Agoda có (hạng phòng + gói
+     * giá), để điền bù gói cho đơn Agoda nhập trước khi app đọc dòng gói. */
+    if (gopLai.length === cu.length && !(b.traPhong && !r.coTra) && !(b.hangPhong && !r.coHang)) continue;
     sua[r.id] = sangDong({ ...b, suKien: gopLai });
   }
 

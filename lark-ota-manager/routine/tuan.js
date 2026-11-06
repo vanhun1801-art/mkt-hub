@@ -9,7 +9,10 @@
  *
  * Phần tính và soạn thẻ là hàm thuần (test được); phần hẹn giờ và gửi ở cuối tệp.
  */
-const { tenQuocGia } = require('./bao-nhom');
+const { tenQuocGia, tachGoi } = require('./bao-nhom');
+
+const THU_TU_GOI = ['Chỉ phòng', 'Phòng + 1 cáp', 'Phòng + 2 cáp'];
+const CHUA_RO = 'Chưa rõ gói';
 
 const cong = (ngay, n) => new Date(Date.parse(ngay + 'T00:00:00Z') + n * 864e5).toISOString().slice(0, 10);
 const homNayVN = (ms = Date.now()) => new Date(ms + 7 * 3600e3).toISOString().slice(0, 10);
@@ -39,6 +42,18 @@ function tongHop(rows, tu, den) {
     if (huy(b)) o.huy++;
     else { o.dem += Number(b.soDem) || 0; o.tien += tien(b); }
   }
+  const theoGoi = {};
+  for (const b of trong) {
+    const g = tachGoi(b.hangPhong).goi || CHUA_RO;
+    const o = theoGoi[g] || (theoGoi[g] = { goi: g, dat: 0, huy: 0, dem: 0, tien: 0, kenh: new Set() });
+    o.dat++;
+    if (!tachGoi(b.hangPhong).goi) o.kenh.add(b.kenh || 'Khác');
+    if (huy(b)) o.huy++;
+    else { o.dem += Number(b.soDem) || 0; o.tien += tien(b); }
+  }
+  const thuTu = (g) => (THU_TU_GOI.includes(g) ? THU_TU_GOI.indexOf(g) : g === CHUA_RO ? 99 : 50);
+  const goi = Object.values(theoGoi).sort((a, b) => thuTu(a.goi) - thuTu(b.goi))
+    .map((o) => ({ ...o, kenh: [...o.kenh] }));
   const qg = {};
   for (const b of con) {
     const t = tenQuocGia(b.quocGia);
@@ -55,6 +70,7 @@ function tongHop(rows, tu, den) {
     tien: con.reduce((t, b) => t + tien(b), 0),
     datTruocTb: truoc.length ? Math.round(truoc.reduce((t, x) => t + x, 0) / truoc.length) : null,
     kenh: Object.values(theoKenh).sort((a, b) => b.tien - a.tien || b.dat - a.dat),
+    goi,
     quocGia: Object.entries(qg).sort((a, b) => b[1] - a[1]),
   };
 }
@@ -106,17 +122,34 @@ function dungThe(th, truoc, { nhanToi = null } = {}) {
       rows: th.kenh.map((k) => ({ kenh: k.kenh, dat: k.dat, huy: k.huy, dem: k.dem, tien: vnd(k.tien) })),
     });
   }
+  if (th.goi && th.goi.some((g) => g.goi !== CHUA_RO)) {
+    el.push({ tag: 'markdown', content: '**Theo gói giá**' });
+    el.push({
+      tag: 'table', page_size: 10, row_height: 'low',
+      header_style: { bold: true, background_style: 'grey', text_align: 'center' },
+      columns: [
+        { name: 'goi', display_name: 'Gói', data_type: 'text', width: 'auto' },
+        { name: 'dat', display_name: 'Đặt', data_type: 'number', horizontal_align: 'right', width: 'auto' },
+        { name: 'huy', display_name: 'Huỷ', data_type: 'number', horizontal_align: 'right', width: 'auto' },
+        { name: 'dem', display_name: 'Đêm', data_type: 'number', horizontal_align: 'right', width: 'auto' },
+        { name: 'tien', display_name: 'Doanh thu', data_type: 'text', horizontal_align: 'right', width: 'auto' },
+      ],
+      rows: th.goi.map((g) => ({ goi: g.goi === CHUA_RO && g.kenh.length ? CHUA_RO + ' (' + g.kenh.join(', ') + ')' : g.goi,
+        dat: g.dat, huy: g.huy, dem: g.dem, tien: vnd(g.tien) })),
+    });
+  }
   const dong = [];
   if (th.quocGia.length) dong.push('**Khách theo quốc gia:** ' + th.quocGia.slice(0, 6).map(([t, n]) => t + ' ' + n).join(' · '));
   if (nhanToi != null) dong.push('**Nhận phòng 7 ngày tới:** ' + nhanToi + ' booking');
   if (dong.length) el.push({ tag: 'markdown', content: dong.join('\n') });
   el.push({ tag: 'markdown', text_size: 'notation',
     content: '<font color="grey">Tính theo ngày đặt, từ thứ 7 ' + dm(th.tu) + ' đến thứ 6 ' + dm(th.den) +
-      '. Doanh thu là số tiền GoHost ghi của booking chưa huỷ.</font>' });
+      '. Doanh thu là số tiền GoHost ghi của booking chưa huỷ. Gói giá lấy từ thư Agoda; thư GoHost của kênh khác không ghi gói.</font>' });
 
   return {
     schema: '2.0',
-    config: { wide_screen_mode: true },
+    /* Rộng hết khung chat như thẻ Bảng công (anh Hùng, 06/11/2026). */
+    config: { wide_screen_mode: true, width_mode: 'fill' },
     header: {
       template: 'turquoise',
       title: { tag: 'plain_text', content: 'Booking khách sạn tuần ' + dm(th.tu) + ' – ' + dm(th.den) },
