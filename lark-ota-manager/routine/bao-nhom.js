@@ -230,4 +230,4 @@ async function guiBu({ ma, guiTin = tin() }) {
   return { ...r, ma: b.ma };
 }
 
-module.exports = { soanBai, soanTraLoi, canBao, tieuDe, tenQuocGia, chay, batBao, guiThu, guiBu, dichTin, laTiengViet };
+module.exports = { soanBai, soanTraLoi, canBao, tieuDe, tenQuocGia, chay, batBao, guiThu, guiBu, dichTin, laTiengViet, tin };

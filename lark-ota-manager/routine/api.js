@@ -14,6 +14,7 @@ const TK = require('./thongke');
 const bang = require('./bang');
 const baoNhom = require('./bao-nhom');
 const canhBao = require('./canh-bao');
+const tuan = require('./tuan');
 
 const R = cfg.routine;
 
@@ -82,6 +83,13 @@ function henGio() {
   if (!R.chuKyMs) return;
   setTimeout(chayDongBo, 20000).unref();
   setInterval(chayDongBo, Math.max(60000, R.chuKyMs)).unref();
+  /* Thống kê tuần vào nhóm Booking KS: 17:00 thứ 7 (tuan.js). */
+  if (baoNhom.batBao()) {
+    setInterval(() => {
+      tuan.thu({ guiTin: baoNhom.tin(), docRows: () => bang.doc({ force: true }), chatId: R.nhomChatId })
+        .catch((e) => console.error('[routine] thống kê tuần:', e.message));
+    }, 60000).unref();
+  }
 }
 
 const gioVN = () => new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 19).replace('T', ' ');
@@ -117,6 +125,20 @@ async function xuLy(req, res, u, { ok, fail, send, quyenCua, readBody, nguoiDung
       baseUrl: R.baseUrl,
       loi,
     });
+    return true;
+  }
+
+  /* Gửi thử thẻ thống kê tuần cho RIÊNG người bấm (quản lý). ?ngay=YYYY-MM-DD là thứ 7 gửi. */
+  if (p === '/api/routine/thu-tuan' && req.method === 'POST') {
+    if (!quyenCua(req).quanLy) { fail(res, 403, 'Chỉ quản lý được gửi thử thống kê tuần.'); return true; }
+    if (!baoNhom.batBao()) { fail(res, 400, 'Máy này không gửi tin. Gửi thử trên bản chạy chung.'); return true; }
+    const ai = await nguoiDung(req).catch(() => null);
+    if (!ai || !ai.id) { fail(res, 400, 'Không biết bạn là ai để gửi thử. Mở app qua Marketing Hub.'); return true; }
+    const ngay = /^\d{4}-\d{2}-\d{2}$/.test(u.searchParams.get('ngay') || '') ? u.searchParams.get('ngay') : TK.homNayVN();
+    const { the, th } = tuan.soanTuan(await bang.doc({ force: true }), ngay);
+    the.header.title.content = '[Thử] ' + the.header.title.content;
+    const r = await baoNhom.tin().gui({ userId: ai.id, card: the });
+    if (r.ok) ok(res, { ...r, th }); else fail(res, 502, r.loi || 'Gửi thử không được');
     return true;
   }
 

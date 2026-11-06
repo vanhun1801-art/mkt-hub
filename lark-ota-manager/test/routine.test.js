@@ -295,6 +295,36 @@ console.log('— tin khách nhắn qua Agoda');
   CB.daGui(v2, T0 + 4 * 3600e3, s);
   t('khỏi rồi không nhắn nữa', CB.xet('', T0 + 4 * 3600e3 + P, s) === null);
   const the = CB.dungThe({ loai: 'hong', loi: 'Lark API 800030005', tu: T0 }, 'pito@routinehospitality.vn');
+  /* Thống kê tuần: thứ 7 tuần trước → thứ 6, gửi 17:00 thứ 7. */
+  const TU = require('../routine/tuan');
+  const donT = (o) => ({ id: o.ma, ma: o.ma, kenh: 'Agoda', trangThai: 'Đã đặt', chamSoc: '', ...o });
+  const k = TU.khungTuan('2026-11-07');
+  t('khung tuần gửi thứ 7 07/11 là 31/10 → 06/11', k.tu === '2026-10-31' && k.den === '2026-11-06');
+  const dsTuan = [
+    donT({ ma: 'T1', kenh: 'Agoda', ngayDat: '2026-10-31 00:10', soTien: 1000000, soDem: 2, quocGia: 'South Korea', nhanPhong: '2026-11-10' }),
+    donT({ ma: 'T2', kenh: 'Agoda', ngayDat: '2026-11-06 23:50', soTien: 500000, soDem: 1, trangThai: 'Đã huỷ' }),
+    donT({ ma: 'T3', kenh: 'Zalo', ngayDat: '2026-11-03 09:00', soTien: 2000000, soDem: 1, nhanPhong: '2026-11-08' }),
+    donT({ ma: 'T4', kenh: 'Agoda', ngayDat: '2026-10-30 22:00', soTien: 9000000, soDem: 3 }),
+    donT({ ma: 'T5', kenh: 'Agoda', ngayDat: '2026-11-07 08:00', soTien: 9000000, soDem: 3 }),
+  ];
+  const th = TU.tongHop(dsTuan, k.tu, k.den);
+  t('chỉ tính đơn đặt trong khung, cả hai đầu', th.dat === 3, String(th.dat));
+  t('huỷ không tính doanh thu và đêm', th.huy === 1 && th.con === 2 && th.tien === 3000000 && th.dem === 3, JSON.stringify(th));
+  t('theo kênh xếp theo doanh thu', th.kenh[0].kenh === 'Zalo' && th.kenh[1].kenh === 'Agoda' && th.kenh[1].huy === 1);
+  t('nhận phòng 7 ngày tới', TU.nhanTuanToi(dsTuan, '2026-11-07') === 2);
+  t('chỉ gửi trong 17:00–17:59 thứ 7 giờ VN',
+    TU.toiGio(Date.parse('2026-11-07T10:00:00Z')) && !TU.toiGio(Date.parse('2026-11-07T09:59:00Z')) &&
+    !TU.toiGio(Date.parse('2026-11-07T11:00:00Z')) && !TU.toiGio(Date.parse('2026-11-06T10:30:00Z')));
+  const theTuan = TU.soanTuan(dsTuan.filter((b) => b.ma !== 'T4'), '2026-11-07').the;
+  t('tuần trước không có đơn thì không so sánh', !/tuần trước/.test(JSON.stringify(theTuan)) && /31\/10 – 06\/11/.test(theTuan.header.title.content));
+  t('tuần trước có đơn thì so sánh', /so với tuần trước/.test(JSON.stringify(TU.soanTuan(dsTuan, '2026-11-07').the)));
+  let guiLan = 0;
+  const gia = { gui: async () => { guiLan++; return { ok: true }; } };
+
+  await TU.thu({ guiTin: gia, docRows: async () => dsTuan, chatId: 'oc', ms: Date.parse('2026-11-07T10:00:00Z') });
+  await TU.thu({ guiTin: gia, docRows: async () => dsTuan, chatId: 'oc', ms: Date.parse('2026-11-07T10:01:00Z') });
+  await TU.thu({ guiTin: gia, docRows: async () => dsTuan, chatId: 'oc', ms: Date.parse('2026-11-07T09:00:00Z') });
+  t('thứ 7 chỉ gửi một lần', guiLan === 1, String(guiLan));
   t('thẻ hỏng ghi giờ VN và lỗi', the.header.template === 'red' && /2026-11-04 18:15/.test(the.elements[0].content) && /800030005/.test(the.elements[0].content));
 
   console.log(`\n${pass} pass · ${fail} fail`);
