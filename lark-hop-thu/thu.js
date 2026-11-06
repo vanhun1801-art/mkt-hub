@@ -205,11 +205,52 @@ function tachTrich(html) {
   return { moi: htmlSangChu(h.slice(0, m.index)), trich: htmlSangChu(h.slice(m.index)) };
 }
 
-/** Một thư đầy đủ, dạng chữ (giao diện không bao giờ chèn HTML của thư). */
+/*
+ * Bản gốc của thư (06/11/2026, anh Hùng: "giao diện email không đọc được các
+ * định dạng hiện có, như ảnh, tệp đính kèm"). HTML của thư là dữ liệu lạ:
+ * giao diện chỉ bày nó trong iframe sandbox KHÔNG có allow-scripts, kèm CSP
+ * script-src 'none'. Ở đây gỡ thêm một lớp cho chắc: script, khung lồng,
+ * form, thuộc tính on*, link javascript:. Ảnh nhúng "cid:" đổi thành mốc
+ * hopthu-tep:<mã tệp> để giao diện thay bằng đường tải tệp của app.
+ */
+const TRAN_HTML = 800000;
+const LA_MA_TEP = /^[A-Za-z0-9_-]{4,128}$/;
+function sachHtml(html, cid = {}) {
+  let s = String(html || '');
+  if (s.length > TRAN_HTML) s = s.slice(0, TRAN_HTML);
+  return s
+    .replace(/<(script|iframe|frame|frameset|object|embed|applet|noscript|template)\b[\s\S]*?<\/\1\s*>/gi, '')
+    .replace(/<\/?(script|iframe|frame|frameset|object|embed|applet|form|base|meta|link|noscript|template)\b[^>]*>/gi, '')
+    /* Lark chèn sẵn luật kiểu ".msg-xxx *{border:1px solid #589cfa…}" (vốn là
+     * luật :focus bị gọt mất), làm mọi ô bảng có viền xanh. Bỏ luật nào mà mọi
+     * bộ chọn đều kết thúc bằng "*": thư thật không định dạng kiểu đó. */
+    .replace(/<style\b([^>]*)>([\s\S]*?)<\/style>/gi, (m, tt, css) => '<style' + tt + '>' +
+      css.replace(/(^|[{}])\s*([^{}@]+)\{[^{}]*\}/g, (r, dau, chon) =>
+        chon.split(',').every((x) => /\*\s*$/.test(x)) ? dau : r) + '</style>')
+    .replace(/\s(on[a-z]+)\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+    .replace(/(href|src|action|background)\s*=\s*(["']?)\s*(javascript|vbscript|data:text\/html)[^"'>\s]*\2/gi, '$1="#"')
+    .replace(/(["'(\s=])cid:([^"')\s>]+)/gi, (m, dau, ma) => {
+      const t = cid[ma.replace(/^<|>$/g, '').toLowerCase()];
+      return t ? dau + 'hopthu-tep:' + t : m;
+    });
+}
+
+/** Một thư đầy đủ: chữ cho AI và khuôn gọn, kèm bản HTML gốc đã gỡ phần chạy được. */
 async function doc(hop, id, tk = '') {
   const d = tk ? await quaApi(() => mapi.message(tk, hop, id))
     : await cli(['mail', '+message', ...U, '--mailbox', hop, '--message-id', id]);
   const phan = d.body_html ? tachTrich(d.body_html) : { moi: String(d.body_plain_text || d.body_preview || ''), trich: '' };
+  const tepTho = (d.attachments || []).filter((a) => a && a.id && LA_MA_TEP.test(a.id));
+  const cid = {};
+  for (const a of tepTho) if (a.cid) cid[String(a.cid).replace(/^<|>$/g, '').toLowerCase()] = a.id;
+  /* Bản gốc: phần mới viết, bỏ thư cũ trích lại (đã có nút "Thư trước"). */
+  let html = '';
+  if (d.body_html) {
+    const m = MOC_TRICH.exec(d.body_html);
+    const dau = m && m.index > 0 ? d.body_html.slice(0, m.index) : '';
+    html = sachHtml(dau && (/<img\b/i.test(dau) || htmlSangChu(dau)) ? dau : d.body_html, cid);
+  }
+  const daNhung = new Set((html.match(/hopthu-tep:[A-Za-z0-9_-]+/g) || []).map((x) => x.slice(11)));
   const nguoi = (x) => ({ ten: (x && x.name) || '', email: String((x && x.mail_address) || '').toLowerCase() });
   return {
     hop,
@@ -222,10 +263,24 @@ async function doc(hop, id, tk = '') {
     tieuDe: d.subject || '',
     noiDung: phan.moi,
     trich: phan.trich,
-    tep: (d.attachments || []).map((a) => ({ ten: a.filename || a.name || 'tệp', co: a.size || 0 })),
+    /* Tệp đã hiện ngay trong thân thư (ảnh nhúng) thì không bày lại thành thẻ tệp. */
+    tep: tepTho.filter((a) => !daNhung.has(a.id)).map((a) => ({
+      ma: a.id, ten: a.filename || a.name || 'tệp', co: a.size || 0, kieu: a.content_type || '',
+    })),
+    html,
+    coDang: /<img\b|<table\b/i.test(html),
     nhan: d.label_ids || [],
     canhBao: d.security_level && Object.keys(d.security_level).length ? d.security_level : null,
   };
+}
+
+/** Link tải một tệp đính kèm của thư. Chỉ đọc. */
+async function linkTep(hop, id, ma, tk = '') {
+  if (tk) return quaApi(() => mapi.linkTep(tk, hop, id, ma));
+  const d = await cli(['mail', 'user_mailbox.message.attachments', 'download_url', ...U,
+    '--user-mailbox-id', hop, '--message-id', id, '--attachment-ids', ma]);
+  const x = (d.download_urls || [])[0];
+  return (x && x.download_url) || '';
 }
 
 /** Đổi nhãn / thư mục. Tất cả đều hoàn tác được. */
@@ -297,4 +352,4 @@ async function traLoi(hop, id, chu, { gui = false, tatCa = false, chuKy = '' } =
   return cli(a, { ghi: true });
 }
 
-module.exports = { LoiChuaNoi, loiGon, coCli, cacHop, danhSach, doc, doi, traLoi, tachNguoi, veHtml, veChuKy, thanThu, chuKyLark, taoLich, htmlSangChu, tachTrich };
+module.exports = { LoiChuaNoi, loiGon, coCli, cacHop, danhSach, doc, doi, linkTep, sachHtml, LA_MA_TEP, traLoi, tachNguoi, veHtml, veChuKy, thanThu, chuKyLark, taoLich, htmlSangChu, tachTrich };

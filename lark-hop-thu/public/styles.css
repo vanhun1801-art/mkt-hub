@@ -340,7 +340,27 @@ svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width:
 .trich-cu.mo { grid-template-rows: 1fr; transition: grid-template-rows .36s var(--vao); }
 .trich-cu > div { overflow: hidden; }
 .trich-cu .noi-dung { color: var(--chu-2); font-size: 13px; border-left: 2px solid var(--vien); padding: 4px 0 4px 12px; margin-top: 10px; }
-.tep { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+.tep { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+/* Thẻ tệp đính kèm: bấm là mở (ảnh, PDF) hoặc tải về. */
+.the-tep {
+  display: inline-flex; align-items: center; gap: 8px; max-width: 100%; min-height: 40px;
+  padding: 6px 12px 6px 6px; border-radius: 12px; background: var(--mat); border: 1px solid var(--vien);
+  color: var(--chu); text-decoration: none; font-size: 13px; transition: border-color .2s, background .2s;
+}
+a.the-tep:hover { border-color: var(--xanh); }
+.the-tep .bieu-tep {
+  flex: none; display: grid; place-items: center; width: 34px; height: 28px; border-radius: 8px;
+  background: color-mix(in srgb, var(--xanh) 12%, transparent); color: var(--xanh); font-size: 12px; font-weight: 600;
+}
+.the-tep img { flex: none; width: 44px; height: 44px; object-fit: cover; border-radius: 8px; background: var(--mat-2); }
+.the-tep.co-anh { padding: 4px 12px 4px 4px; }
+.the-tep .ten-tep { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 260px; }
+/* Bản gốc của thư: nền trắng như tờ thư thật, cả khi giao diện tối. */
+.ban-goc { margin-bottom: 4px; }
+.ban-goc .dau-goc { display: flex; justify-content: flex-end; margin: -4px 0 6px; font-size: 13px; }
+.khung-goc { display: block; width: 100%; height: 240px; border: 1px solid var(--vien); border-radius: 14px; background: #fff; }
+.vo-bong.co-goc { width: 100%; max-width: 100%; }
+.vo-bong.co-goc .than-bong { width: 100%; }
 
 /* ---------- soạn trả lời ---------- */
 /* Ô soạn ghim ở đáy khung đọc: thân thư cuộn phía trên, ô này đứng yên.

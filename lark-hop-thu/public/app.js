@@ -929,12 +929,11 @@ function veDoc(tam) {
     h += '<button class="nut mo-trich" data-viec="trich" aria-expanded="false">Thư trước</button>' +
       '<div class="trich-cu"><div><div class="noi-dung cau-truc" data-no-i18n>' + veChu(t.trich) + '</div></div></div>';
   }
-  if (t.tep.length) {
-    h += '<div class="tep" data-no-i18n>' + t.tep.map((x) => '<span class="nhan">📎 ' + esc(x.ten) + '</span>').join('') + '</div>';
-  }
+  h += veTep(t);
   const cuon = $('#docThan').dataset.k === S.chon ? $('#docThan').scrollTop : 0;
   $('#docThan').innerHTML = h;
   $('#docThan').dataset.k = S.chon;
+  apGoc();
   ganSoan(tom.daGui);
   nutDich(t);
   $('#docThan').scrollTop = cuon;           // vẽ lại cùng thư (gắn sao, AI xong) thì giữ chỗ đang đọc
@@ -1066,7 +1065,109 @@ function thanBong(ct, chinh, ca = false, kieu = 'thu') {
   return '<div class="noi-dung' + (ca ? ' hien-ca' : '') + '"' + (chinh ? ' id="ndChinh"' : '') + ' data-no-i18n>' + veChu(loi || ct.noiDung, kieu === 'don' ? 'don' : 'thu') + '</div>' +
     /* Chỉ thư đang mở mới có nút: hai mươi nút giống nhau là nhiễu. */
     (loi && chinh ? '<button class="xem-ca" data-viec="xem-ca">Xem cả thư</button>' : '') +
-    (ct.tep && ct.tep.length ? '<div class="tep" data-no-i18n>' + ct.tep.map((f) => '<span class="nhan">📎 ' + esc(f.ten) + '</span>').join('') + '</div>' : '');
+    veTep(ct);
+}
+
+/* ---------------- bản gốc của thư, tệp đính kèm ----------------
+ * 06/11/2026, anh Hùng: "giao diện email không đọc được các định dạng hiện
+ * có, như ảnh, tệp đính kèm". Khuôn gọn (chữ) vẫn là mặc định cho thư người
+ * viết tay; thư có ảnh hay bảng (Agoda, Trip.com, hoá đơn…) mở thẳng bản gốc.
+ * Bản gốc nằm trong iframe sandbox không có allow-scripts: thư không chạy
+ * được mã nào, chỉ hiện chữ, ảnh, bảng, link mở ra tab mới. */
+const KHOA_GOC = 'hopThu.banGoc';
+function cheDoGoc() { try { return localStorage.getItem(KHOA_GOC) || ''; } catch (_) { return ''; } }
+const ANH_MO = /^image\/(png|jpe?g|gif|webp|bmp|avif)$/i;
+const duongTep = (ct, ma, ten) => 'api/' + duongThu(ct, 'tep/' + encodeURIComponent(ma)) + '?ten=' + encodeURIComponent(ten || 'tep');
+
+function veTep(ct) {
+  if (!ct || !ct.tep || !ct.tep.length) return '';
+  return '<div class="tep" data-no-i18n>' + ct.tep.map((f) => {
+    const duoi = (/\.([a-z0-9]{1,5})$/i.exec(f.ten || '') || ['', 'tệp'])[1].toUpperCase();
+    if (!f.ma) return '<span class="the-tep"><span class="bieu-tep">' + esc(duoi) + '</span><span class="ten-tep">' + esc(f.ten) + '</span></span>';
+    const anh = ANH_MO.test(f.kieu || '');
+    return '<a class="the-tep' + (anh ? ' co-anh' : '') + '" href="' + esc(duongTep(ct, f.ma, f.ten)) + '" target="_blank" rel="noopener" title="' + esc(f.ten) + '">' +
+      (anh ? '<img src="' + esc(duongTep(ct, f.ma, f.ten)) + '" alt="" loading="lazy">' : '<span class="bieu-tep">' + esc(duoi) + '</span>') +
+      '<span class="ten-tep">' + esc(f.ten) + '</span></a>';
+  }).join('') + '</div>';
+}
+
+/* Thư đang mở: thân chữ của nó và dữ liệu đầy đủ. */
+function thuDangMo() {
+  const nd = $('#docThan > .noi-dung.cau-truc') || $('#ndChinh');
+  const ct = S.chon ? chiTiet.get(S.chon) || (S.ct && S.ct.thu) : null;
+  return nd && ct && !ct.loi ? { nd, ct } : null;
+}
+
+function apGoc() {
+  const m = thuDangMo();
+  if (!m || !m.ct.html) return;
+  const { nd, ct } = m;
+  const vo = nd.parentElement;
+  const cu = vo.querySelector(':scope > .ban-goc');
+  if (cu) cu.remove();
+  /* Thư báo tin nhắn Agoda đã được lọc ra đúng lời khách: giữ khuôn gọn, trừ khi anh chọn bản gốc. */
+  const cd = cheDoGoc();
+  const goc = cd ? cd === 'goc' : Boolean(ct.coDang) && !loiNhanMoi(ct.noiDung);
+  const bg = document.createElement('div');
+  bg.className = 'ban-goc';
+  bg.dataset.goc = goc ? '1' : '';
+  bg.innerHTML = '<div class="dau-goc"><button class="lien" data-viec="doi-goc">' + (goc ? 'Xem dạng gọn' : 'Xem bản gốc') + '</button></div>';
+  nd.insertAdjacentElement('beforebegin', bg);
+  if (goc) {
+    const f = khungGoc(ct);
+    bg.appendChild(f);
+    const vb = nd.closest('.vo-bong');
+    if (vb) vb.classList.add('co-goc');
+  }
+  dongBoGoc();
+}
+
+/* Bản gốc, khuôn gọn, bản dịch: mỗi lúc chỉ hiện một. */
+function dongBoGoc() {
+  const m = thuDangMo();
+  if (!m) return;
+  const bg = m.nd.parentElement.querySelector(':scope > .ban-goc');
+  const bd = banDich.get(S.chon);
+  const dich = Boolean(bd && bd.than && !bd.xemGoc);
+  const goc = Boolean(bg && bg.dataset.goc);
+  m.nd.hidden = dich || goc;
+  if (bg) bg.hidden = dich;
+}
+
+function khungGoc(ct) {
+  const f = document.createElement('iframe');
+  f.className = 'khung-goc';
+  f.title = 'Bản gốc của thư';
+  f.setAttribute('sandbox', 'allow-same-origin allow-popups allow-popups-to-escape-sandbox');
+  f.setAttribute('referrerpolicy', 'no-referrer');
+  const goc = new URL('.', location.href).href;
+  const html = ct.html.replace(/hopthu-tep:([A-Za-z0-9_-]+)/g, (x, ma) => goc + duongTep(ct, ma, 'anh'));
+  f.srcdoc = '<!doctype html><html><head><meta charset="utf-8">' +
+    '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; script-src \'none\'; img-src https: http: data: ' + location.origin + '; style-src \'unsafe-inline\' https:; font-src https: data:">' +
+    '<meta name="referrer" content="no-referrer"><base target="_blank">' +
+    '<style>html,body{margin:0;background:#fff;color:#1d1d1f}body{padding:16px;overflow:hidden;word-wrap:break-word;' +
+    'font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}img{max-width:100%;height:auto}a{color:#0a66d8}</style>' +
+    '</head><body>' + html + '</body></html>';
+  f.addEventListener('load', () => vuaKhung(f));
+  return f;
+}
+
+/* Khung cao đúng bằng thư; thư bề ngang cố định (600–700px) thì thu nhỏ cho vừa, không bắt kéo ngang. */
+function vuaKhung(f) {
+  let d;
+  try { d = f.contentDocument; } catch (_) { return; }
+  if (!d || !d.body) return;
+  const do_ = () => {
+    if (!f.isConnected) return;
+    d.body.style.zoom = '';
+    const rong = d.documentElement.scrollWidth, khung = f.clientWidth;
+    if (khung && rong > khung + 2) d.body.style.zoom = String(Math.max(0.4, khung / rong));
+    f.style.height = Math.ceil(d.documentElement.scrollHeight) + 'px';
+  };
+  do_();
+  try { new ResizeObserver(do_).observe(d.body); } catch (_) {}
+  [300, 1200, 3000].forEach((ms) => setTimeout(do_, ms));
+  if (!f._vua) { f._vua = true; window.addEventListener('resize', () => { if (f.isConnected) do_(); }); }
 }
 
 /* Thay nội dung đúng một bong bóng khi thư đó tải xong. */
@@ -1075,6 +1176,7 @@ function thayBong(x) {
   if (!b) return;
   b.innerHTML = thanBong(chiTiet.get(khoa(x)), khoa(x) === S.chon, false, kieuThu(x, chiTiet.get(khoa(x))));
   doBong(b);
+  if (khoa(x) === S.chon) apGoc();
 }
 
 /* Bong bóng gập chỉ hiện nút "Xem hết" khi thật sự bị cắt. */
@@ -1123,6 +1225,7 @@ function veLuong(d, tom, l, tam) {
   o.innerHTML = h;
   o.dataset.k = tam ? '' : S.chon;
   o.querySelectorAll('.than-bong.gon').forEach(doBong);
+  apGoc();
   ganSoan(tom.daGui);
   if (!tam) nutDich(t);
   /* Mở luồng mới thì cuộn tới thư đang mở (thường là thư mới nhất), như app
@@ -1369,8 +1472,7 @@ function veBanDich() {
     (bd.xemGoc ? '' : (bd.td ? '<div class="td-dich" data-no-i18n>' + esc(bd.td) + '</div>' : '') +
       '<div class="noi-dung" data-no-i18n>' + linkHoa(bd.than) + '</div>') + '</div>';
   /* Đang xem bản dịch thì ẩn thân gốc, đỡ phải đọc hai lần. */
-  const goc = $('#docThan > .noi-dung') || $('#ndChinh');
-  if (goc) goc.hidden = !bd.xemGoc;
+  dongBoGoc();
 }
 
 async function dichThu() {
@@ -1898,6 +2000,14 @@ $('#cotDoc').addEventListener('click', (e) => {
   if (b.dataset.goiY) { aiViet(b.dataset.goiY); return; }
   const v = b.dataset.viec;
   if (v === 'xem-het') { moBong(b); return; }
+  if (v === 'doi-goc') {
+    const bg = b.closest('.ban-goc');
+    try { localStorage.setItem(KHOA_GOC, bg && bg.dataset.goc ? 'gon' : 'goc'); } catch (_) {}
+    const vb = b.closest('.vo-bong');
+    if (vb) vb.classList.remove('co-goc');
+    apGoc();
+    return;
+  }
   if (v === 'xem-ca') {
     /* Bày cả thư gốc (kèm lịch sử trò chuyện) ngay trong bong bóng. */
     const bb = b.closest('.bong'), than = bb && bb.querySelector('.than-bong');

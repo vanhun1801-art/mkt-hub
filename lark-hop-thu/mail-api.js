@@ -270,4 +270,12 @@ async function taoLich(tk, { tieuDe, moTa = '', batDau, ketThuc }) {
   return { event_id: (d.event || {}).event_id || '', app_link: (d.event || {}).app_link || '' };
 }
 
-module.exports = { LoiToken, LoiQuyenLich, LoiThieuQuyen, taoLich, cacHop, triage, message, modify, traLoi, dungTraLoi, ngayVN, giaiMime, tachDsDiaChi };
+/** Đường tải một tệp đính kèm (Lark trả link ký sẵn, sống ngắn, không cần token). */
+async function linkTep(tk, hop, id, ma) {
+  const d = await goi(tk, 'GET', hopDuong(hop) + '/messages/' + encodeURIComponent(id) + '/attachments/download_url',
+    { query: { attachment_ids: ma } });
+  const x = (d.download_urls || [])[0];
+  return (x && x.download_url) || '';
+}
+
+module.exports = { LoiToken, LoiQuyenLich, LoiThieuQuyen, taoLich, cacHop, triage, message, modify, linkTep, traLoi, dungTraLoi, ngayVN, giaiMime, tachDsDiaChi };

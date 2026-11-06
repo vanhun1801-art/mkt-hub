@@ -4,7 +4,7 @@
  * ty: thứ gì lọt qua đây còn nguyên thẻ HTML là lỗ hổng, vì giao diện coi kết
  * quả là chữ (dù giao diện vẫn thoát ký tự thêm một lần nữa).
  */
-const { htmlSangChu, tachTrich, veHtml, tachNguoi } = require('../thu');
+const { htmlSangChu, tachTrich, veHtml, tachNguoi, sachHtml } = require('../thu');
 
 let pass = 0, fail = 0;
 const fails = [];
@@ -43,6 +43,19 @@ console.log('\nNgười gửi');
 const n = tachNguoi('Phạm Quang Hậu <CEO@rootytrip.com>');
 ok('tách tên và email, email viết thường', n.ten === 'Phạm Quang Hậu' && n.email === 'ceo@rootytrip.com');
 ok('chỉ có email', tachNguoi('a@b.vn').email === 'a@b.vn');
+
+console.log('\nBản gốc của thư: gỡ phần chạy được');
+const g = sachHtml('<p onclick="x()">Chào</p><script>alert(1)</script><iframe src="https://x"></iframe>' +
+  '<a href="javascript:alert(1)">bấm</a><form action="https://x"><input></form><img src=x onerror=alert(1)>' +
+  '<base href="https://la"><meta http-equiv="refresh" content="0;url=https://la"><img src="cid:anh1@ab">');
+ok('không còn script, iframe, form, base, meta', !/<(script|iframe|form|base|meta)\b/i.test(g), g);
+ok('không còn thuộc tính on*', !/\son[a-z]+\s*=/i.test(g), g);
+ok('link javascript: thành #', !/javascript:/i.test(g) && /href="#"/.test(g), g);
+ok('ảnh cid: không có tệp thì giữ nguyên', /cid:anh1@ab/.test(g));
+ok('ảnh cid: đổi thành mã tệp', /src="hopthu-tep:T123abc"/.test(sachHtml('<img src="cid:Anh1@AB">', { 'anh1@ab': 'T123abc' })));
+const st = sachHtml('<style>.msg-A9 *,.msg-A9 *{margin-top:6px;border:1px solid #589cfa}.dep td{color:red}</style><table></table>');
+ok('bỏ luật viền xanh Lark chèn, giữ luật thật', !/589cfa/.test(st) && /\.dep td\{color:red\}/.test(st), st);
+ok('giữ bảng, ảnh, chữ đậm', /<table>/.test(st) && /<b>x<\/b><img src="https:\/\/a\/b.png">/.test(sachHtml('<b>x</b><img src="https://a/b.png">')));
 
 console.log('\n' + (fail ? '\x1b[31m' : '\x1b[32m') + pass + ' pass · ' + fail + ' fail\x1b[0m');
 if (fail) { console.log(fails.map((x) => ' - ' + x).join('\n')); process.exit(1); }

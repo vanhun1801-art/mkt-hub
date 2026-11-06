@@ -22,6 +22,7 @@
  * xảy ra ở POST …/tra-loi với gui:true, giao diện chỉ gọi sau hộp xác nhận.
  */
 const http = require('http');
+const { Readable } = require('stream');
 const fs = require('fs');
 const path = require('path');
 const cfg = require('./config');
@@ -794,6 +795,37 @@ async function api(req, res, url) {
     if (b.ngan && !LA_NGAN.has(b.ngan)) return loi(res, 400, 'Ngăn không hợp lệ');
     kho.datLuat(email, b.ngan || null, n.nguoi);
     return json(res, { ok: true, luat: kho.luat(n.nguoi) });
+  }
+
+  /* Tệp đính kèm và ảnh nhúng của thư: app tải hộ từ Lark rồi trả lại, chỉ đọc.
+   * Chỉ ảnh, PDF, chữ thuần được mở ngay trong trình duyệt; còn lại (kể cả
+   * .html, .svg) luôn tải về, để tệp lạ không chạy được trên tên miền của Hub. */
+  const mtep = /^\/api\/thu\/([^/]+)\/([^/]+)\/tep\/([^/]+)$/.exec(p);
+  if (mtep && m === 'GET') {
+    const k = await thuTuDuong(res, n, mtep[1], mtep[2]);
+    if (!k) return;
+    let ma = '';
+    try { ma = decodeURIComponent(mtep[3]); } catch (_) {}
+    if (!thu.LA_MA_TEP.test(ma)) return loi(res, 400, 'Mã tệp không hợp lệ');
+    const link = await thu.linkTep(k.hop, k.id, ma, n.tk);
+    if (!/^https:\/\//.test(link)) return loi(res, 404, 'Lark không trả link tải tệp này');
+    const r = await fetch(link, { signal: AbortSignal.timeout(60000) });
+    if (!r.ok || !r.body) return loi(res, 502, 'Lark chưa trả tệp (HTTP ' + r.status + ')');
+    const kieu = String(r.headers.get('content-type') || 'application/octet-stream').split(';')[0].trim().toLowerCase();
+    const moNgay = /^image\/(png|jpe?g|gif|webp|bmp|avif)$|^application\/pdf$|^text\/plain$/.test(kieu) && url.searchParams.get('tai') !== '1';
+    const ten = String(url.searchParams.get('ten') || 'tep').replace(/[\r\n"\\/]/g, '').slice(0, 180) || 'tep';
+    const dau = {
+      'Content-Type': moNgay ? kieu + (kieu === 'text/plain' ? '; charset=utf-8' : '') : 'application/octet-stream',
+      'Content-Disposition': (moNgay ? 'inline' : 'attachment') + "; filename*=UTF-8''" + encodeURIComponent(ten),
+      'X-Content-Type-Options': 'nosniff',
+      'Cache-Control': 'private, max-age=3600',
+    };
+    /* PDF thì không sandbox: Chrome chặn trình xem PDF trong trang sandbox. */
+    if (kieu !== 'application/pdf' || !moNgay) dau['Content-Security-Policy'] = "sandbox; default-src 'none'; img-src 'self'; style-src 'unsafe-inline'";
+    if (r.headers.get('content-length')) dau['Content-Length'] = r.headers.get('content-length');
+    res.writeHead(200, dau);
+    Readable.fromWeb(r.body).on('error', () => res.destroy()).pipe(res);
+    return;
   }
 
   const mt = /^\/api\/thu\/([^/]+)\/([^/]+)(?:\/([a-z-]+))?$/.exec(p);

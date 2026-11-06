@@ -1252,6 +1252,8 @@
     'Dịch sang tiếng Việt': 'Translate to Vietnamese',
     'Bản dịch tiếng Việt': 'Vietnamese translation',
     'Xem bản gốc': 'Show original',
+    'Xem dạng gọn': 'Show simplified',
+    'Bản gốc của thư': 'Original email',
     'Xem bản dịch': 'Show translation',
     'Gửi bằng tiếng Anh': 'Send in English',
     'Bản tiếng Việt anh viết': 'Your Vietnamese draft',
