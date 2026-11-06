@@ -128,6 +128,20 @@ async function xuLy(req, res, u, { ok, fail, send, quyenCua, readBody, nguoiDung
     return true;
   }
 
+  /* Gửi thẻ thống kê tuần vào NHÓM Booking KS ngay (quản lý bấm, ngoài lịch 17:00 thứ 7).
+   * ?ngay=YYYY-MM-DD là thứ 7 của khung; mặc định thứ 7 gần nhất sắp tới. */
+  if (p === '/api/routine/gui-tuan' && req.method === 'POST') {
+    if (!quyenCua(req).quanLy) { fail(res, 403, 'Chỉ quản lý được gửi thống kê tuần vào nhóm.'); return true; }
+    if (!baoNhom.batBao()) { fail(res, 400, 'Máy này không gửi tin. Gửi trên bản chạy chung.'); return true; }
+    const nay = TK.homNayVN();
+    const thu7 = TK.cong(nay, (6 - new Date(nay + 'T00:00:00Z').getUTCDay() + 7) % 7);
+    const ngay = /^\d{4}-\d{2}-\d{2}$/.test(u.searchParams.get('ngay') || '') ? u.searchParams.get('ngay') : thu7;
+    const { the, th } = tuan.soanTuan(await bang.doc({ force: true }), ngay);
+    const r = await baoNhom.tin().gui({ chatId: R.nhomChatId, card: the, khoa: 'rt-tuan-tay-' + ngay + '-' + gioVN().slice(0, 13) });
+    if (r.ok) ok(res, { ...r, th }); else fail(res, 502, r.loi || 'Gửi không được');
+    return true;
+  }
+
   /* Gửi thử thẻ thống kê tuần cho RIÊNG người bấm (quản lý). ?ngay=YYYY-MM-DD là thứ 7 gửi. */
   if (p === '/api/routine/thu-tuan' && req.method === 'POST') {
     if (!quyenCua(req).quanLy) { fail(res, 403, 'Chỉ quản lý được gửi thử thống kê tuần.'); return true; }
