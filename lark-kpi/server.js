@@ -791,8 +791,14 @@ async function api(req, res, u) {
     const kenhMap = new Map();      // khoa -> { ten, theoThang[] }
     const tcMap = new Map();        // ma tiêu chí -> thống kê toàn phòng
 
+    /* Tháng chưa chốt đọc số mới từ app, như màn KPI và phiếu. Bản trước dùng
+     * số lưu nên Tổng quan ghi Khánh T10 22%, Trường 0% trong khi màn KPI ghi
+     * đủ số video, thiết kế, LIVE TikTok (06/11/2026). Tháng đã chốt giữ số chốt. */
+    const kqTheoThang = new Map();
+    for (const th of ths) kqTheoThang.set(th, await tinhThangMoi(th));
+
     ths.forEach((th) => {
-      const kq = tinhThang(th);
+      const kq = kqTheoThang.get(th);
       if (!kq) return;
 
       const diems = kq.nguoi.map((n) => n.tong).filter(Number.isFinite);
