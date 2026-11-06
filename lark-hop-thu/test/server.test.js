@@ -153,6 +153,23 @@ server.listen(0, '127.0.0.1', async () => {
     ok('gui:true mới gửi', goi[0] && goi[0][4].gui === true);
     goi.length = 0;
     ok('thư trống: 400, không gọi Lark', (await hoi('POST', duong('hunglv@rootytrip.com', 'aaaaaaaaaa==', 'tra-loi'), { than: { chu: '  ' } })).ma === 400 && !goi.length);
+    /* Người nhận từng trả thư về (06/11/2026, thư trả lời Airbnb/Expedia bị trả lại). */
+    console.log('\nCảnh báo người nhận trước khi gửi');
+    const xem = async (hop, id) => (await hoi('POST', duong(hop, id, 'xem-truoc'), { than: { chu: 'Dạ', soatAi: false } })).j;
+    ok('người nhận bình thường: không cảnh báo', (await xem('hunglv@rootytrip.com', 'aaaaaaaaaa==')).canhBao.length === 0);
+    const cbTuDong = (await xem('sales@rootytrip.com', 'bbbbbbbbbb==')).canhBao;
+    ok('địa chỉ no-reply: cảnh báo địa chỉ tự động', cbTuDong.length === 1 && cbTuDong[0].kieu === 'tu-dong' && cbTuDong[0].email === 'no-reply@misa.vn');
+    THU.push({ hop: 'hunglv@rootytrip.com', id: 'tvtvtvtvtv==', ngay: '2026-10-28 11:00', tu: { ten: 'Mail Delivery Subsystem', email: 'mailer-daemon@googlemail.com' },
+      tieuDe: 'Delivery Status Notification (Failure)', chuaDoc: true, sao: false, nhan: [],
+      noiDung: "Address not found\nYour message wasn't delivered to CEO@rootytrip.com because the address couldn't be found. Contact hunglv@rootytrip.com" });
+    await hoi('GET', '/api/thu?lam=1');
+    const cbTraVe = (await xem('hunglv@rootytrip.com', 'aaaaaaaaaa==')).canhBao;
+    ok('địa chỉ từng trả thư về: cảnh báo kèm ngày và lý do', cbTraVe.length === 1 && cbTraVe[0].kieu === 'tra-ve' &&
+      cbTraVe[0].email === 'ceo@rootytrip.com' && cbTraVe[0].ngay === '2026-10-28 11:00' && cbTraVe[0].lyDo === 'địa chỉ không nhận thư', JSON.stringify(cbTraVe));
+    ok('xem trước vẫn không gọi gửi', !goi.some((x) => x[0] === 'traLoi'));
+    THU.pop();
+    await hoi('GET', '/api/thu?lam=1');
+
     /* Học giọng văn (05/11/2026): chỉ thư thật sự gửi đi mới thành mẫu. */
     const soMau = async () => (await hoi('GET', '/api/hop')).j.soMau;
     const mau0 = await soMau();

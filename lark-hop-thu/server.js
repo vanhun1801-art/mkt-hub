@@ -427,6 +427,56 @@ function keoXong(ds) {
   });
 }
 
+/*
+ * Địa chỉ đã trả thư về (06/11/2026). Anh Hùng gửi thư trả lời từ app rồi
+ * Lark báo lỗi: thư đi đúng, nhưng người nhận là địa chỉ chỉ để GỬI thông báo
+ * của nền tảng (discover@airbnb.com, partnercentral@expedia.com), không nhận
+ * thư. Nên trước khi gửi, xem trước nói ra nếu địa chỉ đó từng trả thư về
+ * (thư báo của mailer-daemon/postmaster trong chính các hộp này) hoặc trông
+ * như địa chỉ tự động. Chỉ cảnh báo, vẫn gửi được.
+ */
+const LA_THU_BAO_LOI = /mailer-daemon|postmaster/i;
+const LA_DIA_CHI_TU_DONG = /(^|[._+-])(no-?reply|do-?not-?reply|donotreply|notifications?|notify|automated|mailer|bounces?)([._+-]|@)/i;
+const thuBaoLoiDaDoc = new Map();                      // hộp|id → { ngay, lyDo, dc: [email] }
+function lyDoTraVe(chu) {
+  if (/not found|does not exist|NoSuchUser|no such user|unknown user|không tồn tại/i.test(chu)) return 'địa chỉ không nhận thư';
+  if (/rejected|refused|blocked|denied|5\.7\.1|từ chối/i.test(chu)) return 'bên nhận từ chối thư';
+  return 'thư bị trả lại';
+}
+async function diaChiTraVe(n, ds) {
+  const baoLoi = ds.filter((t) => LA_THU_BAO_LOI.test((t.tu && t.tu.email) || ''))
+    .sort((a, b) => (a.ngay < b.ngay ? 1 : -1)).slice(0, 15);
+  const ra = new Map();
+  for (const t of baoLoi) {
+    const k = t.hop + '|' + t.id;
+    if (!thuBaoLoiDaDoc.has(k)) {
+      try {
+        const d = await thu.doc(t.hop, t.id, n.tk);
+        const chu = String(d.noiDung || '') + '\n' + String(d.trich || '');
+        const dc = [...new Set((chu.match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/gi) || []).map((x) => x.toLowerCase()))]
+          .filter((x) => x !== t.hop.toLowerCase() && !LA_THU_BAO_LOI.test(x) && !/google\.com$|larksuite\.com$/.test(x));
+        thuBaoLoiDaDoc.set(k, { ngay: t.ngay, lyDo: lyDoTraVe(chu), dc });
+      } catch (_) { continue; }                         // đọc hỏng thì lần sau đọc lại
+    }
+    const b = thuBaoLoiDaDoc.get(k);
+    for (const e of b.dc) if (!ra.has(e)) ra.set(e, { ngay: b.ngay, lyDo: b.lyDo });
+  }
+  return ra;
+}
+/** Cảnh báo cho danh sách người nhận: [{ email, kieu: 'tra-ve' | 'tu-dong', ngay?, lyDo? }]. */
+async function canhBaoNhan(n, nhan) {
+  if (!nhan.length) return [];
+  let traVe = new Map();
+  try { traVe = await diaChiTraVe(n, (dsDem.get(n.khoa) || { ds: [] }).ds || []); } catch (_) { /* không chặn xem trước */ }
+  const ra = [];
+  for (const x of nhan) {
+    const e = String(x.email || '').toLowerCase();
+    if (traVe.has(e)) ra.push(Object.assign({ email: e, kieu: 'tra-ve' }, traVe.get(e)));
+    else if (LA_DIA_CHI_TU_DONG.test(e)) ra.push({ email: e, kieu: 'tu-dong' });
+  }
+  return ra;
+}
+
 /** Cả luồng của một thư (cùng hộp, cùng chủ đề), thư đến lẫn thư đã gửi, cũ trước. */
 function luongCua(k, ds, daGui) {
   const goc = ds.find((t) => t.hop === k.hop && t.id === k.id) || (daGui || []).find((t) => t.hop === k.hop && t.id === k.id);
@@ -832,7 +882,8 @@ async function api(req, res, url) {
       try { loiChu = chinhTa.gopAi(chu, loiChu, await ai.soatChinhTa(chu)); aiSoat = true; } catch (_) { /* AI hỏng vẫn còn bộ soát trên máy */ }
     }
     const tieuDe = /^(re|trả lời|tl)\s*:/i.test(g.tieuDe || '') ? g.tieuDe : 'Re: ' + (g.tieuDe || '');
-    return json(res, { tu: k.hop, den: motLan(nhan), cc: motLan(cc), tieuDe, html, chuKy, loi: loiChu, aiSoat });
+    const canhBao = await canhBaoNhan(n, motLan(nhan.concat(cc)));
+    return json(res, { tu: k.hop, den: motLan(nhan), cc: motLan(cc), tieuDe, html, chuKy, loi: loiChu, aiSoat, canhBao });
   }
 
   if (viec === 'tra-loi' && m === 'POST') {

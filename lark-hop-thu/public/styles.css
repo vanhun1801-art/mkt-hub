@@ -925,3 +925,7 @@ svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width:
   .hang-nut .nut[data-viec="viec"] { display: none; }
   .menu-noi .chi-hep { display: block; }
 }
+
+/* Cảnh báo người nhận trong xem trước (06/11/2026). */
+.canh-bao.xt-nhan p { margin: 0; line-height: 1.5; }
+.canh-bao.xt-nhan p + p { margin-top: 6px; }

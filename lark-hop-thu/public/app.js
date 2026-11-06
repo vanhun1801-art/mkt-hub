@@ -1444,6 +1444,17 @@ function veXemTruoc() {
     '<dt>Tới</dt><dd>' + (ds(kq.den) || '<span class="loi-chu">Chưa có người nhận</span>') + '</dd>' +
     (kq.cc.length ? '<dt>CC</dt><dd>' + ds(kq.cc) + '</dd>' : '') +
     '<dt>Tiêu đề</dt><dd>' + esc(kq.tieuDe) + '</dd></dl>';
+  /* Người nhận đã từng trả thư về, hoặc là địa chỉ tự động của nền tảng
+   * (06/11/2026, thư trả lời Airbnb, Expedia bị trả lại). Vẫn gửi được. */
+  const cb = kq.canhBao || [];
+  if (cb.length) {
+    h += '<div class="canh-bao xt-nhan">' + cb.map((x) => x.kieu === 'tra-ve'
+      ? '<p><b data-no-i18n>' + esc(x.email) + '</b> <span>' +
+        (x.lyDo === 'địa chỉ không nhận thư' ? 'đã trả thư về vì địa chỉ không nhận thư.' : x.lyDo === 'bên nhận từ chối thư' ? 'đã trả thư về vì bên nhận từ chối thư.' : 'đã trả thư về.') +
+        '</span> <span data-no-i18n>(' + esc(String(x.ngay || '').slice(0, 10).split('-').reverse().join('/')) + ')</span> <span>Gửi nữa nhiều khả năng cũng bị trả lại.</span></p>'
+      : '<p><b data-no-i18n>' + esc(x.email) + '</b> <span>trông như địa chỉ tự động, thường không nhận thư trả lời.</span></p>').join('') +
+      '<p>Thư báo của nền tảng (Airbnb, Expedia, Agoda…) nên trả lời trong trang đối tác của nền tảng đó.</p></div>';
+  }
   if (b.tiengAnh) {
     h += '<div class="xt-anh">Gửi bản tiếng Anh, dịch từ chữ anh viết. Muốn sửa câu chữ thì bấm Sửa tiếp và sửa bản tiếng Việt.' +
       '<details><summary>Bản tiếng Việt anh viết</summary><div class="trich" data-no-i18n>' + esc(b.chuViet) + '</div></details></div>';
@@ -1468,7 +1479,8 @@ function veXemTruoc() {
   $('#hopGuiThan').innerHTML = h;
   $('#hopGuiOk').disabled = !kq.den.length;
   $('#hopGuiLyDo').textContent = !kq.den.length ? 'Thư chưa có người nhận'
-    : kq.loi.length ? 'Còn ' + kq.loi.length + ' chỗ nên sửa, vẫn gửi được' : '';
+    : (kq.canhBao || []).some((x) => x.kieu === 'tra-ve') ? 'Người nhận từng trả thư về, vẫn gửi được'
+      : kq.loi.length ? 'Còn ' + kq.loi.length + ' chỗ nên sửa, vẫn gửi được' : '';
 }
 
 /** Áp lỗi (một hoặc tất cả) vào chữ đang soạn, từ cuối lên để vị trí không lệch. */
