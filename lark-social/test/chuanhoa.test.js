@@ -649,6 +649,27 @@ t('Instagram không xin follower_count ngoài tầm 30 ngày', () => {
   assert.ok(/CHUOI_TG_GAN = \[[^\]]*follower_count/.test(src));
 });
 
+t('ngày Instagram không hỏi được follow thì không ghi đè ô follow trên Base', () => {
+  /* 06/11/2026: đồng bộ 01/10 → 06/11 ghi 0 đè lên follow cả 01–28/10. */
+  const idx = require('../sync/index');
+  const store = require('../store');
+  const f = store.T.daily.f;
+  const dong = { platform: 'Instagram', extId: '1', date: '2026-10-05', followUp: 0, followDown: 0, views: 9 };
+  const giu = idx.dongDaily({ ...dong, khongCoFollow: true });
+  assert.ok(!(f.followUp in giu) && !(f.followDown in giu), 'ô follow vẫn bị gửi đi');
+  assert.strictEqual(giu[f.views], 9);
+  const ghi = idx.dongDaily({ ...dong, followUp: 4 });
+  assert.strictEqual(ghi[f.followUp], 4);
+  assert.strictEqual(idx.gopDong({ ...dong, khongCoFollow: true }, { ...dong, khongCoFollow: true }).khongCoFollow, true);
+  assert.strictEqual(idx.gopDong({ ...dong, khongCoFollow: true }, { ...dong }).khongCoFollow, false);
+});
+
+t('Instagram hỏi follower riêng, bắt đầu từ mốc 30 ngày', () => {
+  const src = require('fs').readFileSync(require.resolve('../sync/instagram'), 'utf8');
+  assert.ok(/chiaKhoang\(tuF, to, 29\)/.test(src), 'follower phải hỏi từ mốc tuF, không theo cửa sổ của reach');
+  assert.ok(!/CHUOI_TG\.concat\(CHUOI_TG_GAN\)/.test(src), 'còn hỏi follower chung cửa sổ reach');
+});
+
 t('lượt hiển thị của Facebook không được đổ vào cột tiếp cận', () => {
   /* v23.0 đã gỡ sạch chỉ số đếm NGƯỜI duy nhất của Page — thử tay 21 tên, chỉ
      page_posts_impressions_organic còn sống, và nó đếm LẦN hiển thị. Đổ nó vào

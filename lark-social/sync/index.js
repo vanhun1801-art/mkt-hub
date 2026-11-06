@@ -36,6 +36,7 @@ function gopDong(a, b) {
   CONG.forEach((k) => { out[k] = num(a[k]) + num(b[k]); });
   // Follower là số chốt, không phải số cộng
   out.followers = Math.max(num(a.followers), num(b.followers));
+  out.khongCoFollow = Boolean(a.khongCoFollow && b.khongCoFollow);
   return out;
 }
 
@@ -243,6 +244,9 @@ function dongDaily(row, kenhId) {
     [f.source]: row.source,
   };
   if (kenhId) o[f.channel] = [{ id: kenhId }];
+  /* Nền tảng không trả follow cho ngày này (Instagram quá 30 ngày): không gửi
+   * ô follow, ghiTheoKhoa chỉ sửa ô có mặt nên số cũ trên Base được giữ. */
+  if (row.khongCoFollow) { delete o[f.followUp]; delete o[f.followDown]; }
   return o;
 }
 
@@ -522,4 +526,4 @@ async function thu(chi = '') {
   return out;
 }
 
-module.exports = { dongBo, thu, keoVe, chenhLech, gopDong, taoLayToken };
+module.exports = { dongBo, thu, keoVe, chenhLech, gopDong, taoLayToken, dongDaily };

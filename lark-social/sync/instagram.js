@@ -165,6 +165,10 @@ async function ngayCuaIg(fb, token, acc, from, to, canhBao) {
     return theoNgay.get(d);
   };
 
+  /* Ngày nào hỏi được follower thật. Ngày ngoài tập này không được ghi ô
+   * follow, để giữ nguyên số đã lưu thay vì đè số 0 lên. */
+  const daCoFollow = new Set();
+
   /* --- họ chuỗi thời gian ---
    * Instagram chặn ở ĐÚNG 30 ngày và trả "(#100) There cannot be more than 30
    * days between since and until" cho cả request. Hỏi cả năm là mất trắng, nên
@@ -174,19 +178,34 @@ async function ngayCuaIg(fb, token, acc, from, to, canhBao) {
     const boTatCa = new Set();
     const gioiHan = new Date(Date.now() - (SO_NGAY_FOLLOWER - 1) * 86400000)
       .toISOString().slice(0, 10);
-    let boFollower = false;
     /* 29 chứ không phải 30: until đã cộng thêm một ngày để không rớt ngày cuối,
      * nên cửa sổ 30 ngày sẽ thành 31 và Instagram từ chối cả request. */
     for (const [tu, den] of chiaKhoang(from, to, 29)) {
       const url0 = g(fb) + '/' + igId + '/insights?period=day'
         + '&since=' + tu + '&until=' + ngayKe(den)
         + '&access_token=' + encodeURIComponent(token);
-      const xin = den >= gioiHan ? CHUOI_TG.concat(CHUOI_TG_GAN) : CHUOI_TG;
-      if (den < gioiHan) boFollower = true;
-      const r = await doInsights(url0, xin, 'Instagram insights ' + (acc.name || igId));
+      const r = await doInsights(url0, CHUOI_TG, 'Instagram insights ' + (acc.name || igId));
       data.push(...r.data);
       r.bo.forEach((x) => boTatCa.add(x));
     }
+
+    /* FOLLOWER HỎI RIÊNG, CHỈ TỪ MỐC 30 NGÀY. Bản trước hỏi chung với cửa sổ
+     * của reach: cửa sổ nào chạm vào 30 ngày gần nhất mà bắt đầu xa hơn thì
+     * Instagram từ chối follower_count cho cả cửa sổ. Ngày 06/11/2026 một lượt
+     * đồng bộ 01/10 → 06/11 đã ghi 0 đè lên follow của cả 01–28/10, Ngọc tụt từ
+     * 191 xuống 14 follow trong KPI. Lùi thêm một ngày so với mốc để khỏi vấp
+     * chênh múi giờ giữa máy chủ và Instagram. */
+    const tuF = from > ngayKe(gioiHan) ? from : ngayKe(gioiHan);
+    for (const [tu, den] of (tuF <= to ? chiaKhoang(tuF, to, 29) : [])) {
+      const url0 = g(fb) + '/' + igId + '/insights?period=day'
+        + '&since=' + tu + '&until=' + ngayKe(den)
+        + '&access_token=' + encodeURIComponent(token);
+      const r = await doInsights(url0, CHUOI_TG_GAN, 'Instagram follower ' + (acc.name || igId));
+      if (r.bo.length) { r.bo.forEach((x) => boTatCa.add(x)); continue; }
+      data.push(...r.data);
+      for (const [a] of chiaKhoang(tu, den, 1)) daCoFollow.add(a);
+    }
+    const boFollower = from < tuF;
     const bo = [...boTatCa];
     if (bo.length) {
       canhBao.push('Instagram · ' + (acc.name || igId) + ': API không còn nhận '
@@ -268,6 +287,8 @@ async function ngayCuaIg(fb, token, acc, from, to, canhBao) {
    * cuối cùng thôi để không bịa lịch sử. */
   const cuoi = theoNgay.get(to);
   if (cuoi && acc.followers) cuoi.followers = acc.followers;
+
+  theoNgay.forEach((row, d) => { if (!daCoFollow.has(d)) row.khongCoFollow = true; });
 
   return [...theoNgay.values()];
 }
