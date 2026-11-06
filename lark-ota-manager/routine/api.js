@@ -136,8 +136,8 @@ async function xuLy(req, res, u, { ok, fail, send, quyenCua, readBody, nguoiDung
     const nay = TK.homNayVN();
     const thu7 = TK.cong(nay, (6 - new Date(nay + 'T00:00:00Z').getUTCDay() + 7) % 7);
     const ngay = /^\d{4}-\d{2}-\d{2}$/.test(u.searchParams.get('ngay') || '') ? u.searchParams.get('ngay') : thu7;
-    const { the, th } = tuan.soanTuan(await bang.doc({ force: true }), ngay);
-    const r = await baoNhom.tin().gui({ chatId: R.nhomChatId, card: the, khoa: 'rt-tuan-tay-' + ngay + '-' + gioVN().slice(0, 13) });
+    const { the, th } = (u.searchParams.get('loai') === 'thang' ? tuan.soanThang : tuan.soanTuan)(await bang.doc({ force: true }), ngay);
+    const r = await baoNhom.tin().gui({ chatId: R.nhomChatId, card: the, khoa: 'rt-' + (u.searchParams.get('loai') === 'thang' ? 'thang' : 'tuan') + '-tay-' + ngay + '-' + gioVN().slice(0, 13) });
     if (r.ok) ok(res, { ...r, th }); else fail(res, 502, r.loi || 'Gửi không được');
     return true;
   }
@@ -149,7 +149,7 @@ async function xuLy(req, res, u, { ok, fail, send, quyenCua, readBody, nguoiDung
     const ai = await nguoiDung(req).catch(() => null);
     if (!ai || !ai.id) { fail(res, 400, 'Không biết bạn là ai để gửi thử. Mở app qua Marketing Hub.'); return true; }
     const ngay = /^\d{4}-\d{2}-\d{2}$/.test(u.searchParams.get('ngay') || '') ? u.searchParams.get('ngay') : TK.homNayVN();
-    const { the, th } = tuan.soanTuan(await bang.doc({ force: true }), ngay);
+    const { the, th } = (u.searchParams.get('loai') === 'thang' ? tuan.soanThang : tuan.soanTuan)(await bang.doc({ force: true }), ngay);
     the.header.title.content = '[Thử] ' + the.header.title.content;
     const r = await baoNhom.tin().gui({ userId: ai.id, card: the });
     if (r.ok) ok(res, { ...r, th }); else fail(res, 502, r.loi || 'Gửi thử không được');

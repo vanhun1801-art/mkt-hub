@@ -81,11 +81,11 @@ function nhanTuanToi(rows, ngayGui) {
   return rows.filter((b) => !huy(b) && b.nhanPhong && b.nhanPhong >= ngayGui && b.nhanPhong <= den).length;
 }
 
-function lech(nay, truoc, dinhDang = (x) => String(x)) {
+function lech(nay, truoc, dinhDang = (x) => String(x), ky = 'tuần trước') {
   if (truoc == null) return '';
   const d = nay - truoc;
-  if (!d) return 'bằng tuần trước';
-  return (d > 0 ? '▲ ' : '▼ ') + dinhDang(Math.abs(d)) + ' so với tuần trước';
+  if (!d) return 'bằng ' + ky;
+  return (d > 0 ? '▲ ' : '▼ ') + dinhDang(Math.abs(d)) + ' so với ' + ky;
 }
 
 const o = (nhan, giaTri, phu, mau) => ({
@@ -95,11 +95,11 @@ const o = (nhan, giaTri, phu, mau) => ({
 });
 
 /** Thẻ Lark (schema 2.0). */
-function dungThe(th, truoc, { nhanToi = null } = {}) {
+function dungThe(th, truoc, { nhanToi = null, tieuDe = '', khung = '', ky = 'tuần trước' } = {}) {
   const el = [];
   el.push({ tag: 'column_set', horizontal_spacing: '8px', columns: [
-    o('Booking giữ được', th.con, lech(th.con, truoc && truoc.con), 'green-100'),
-    o('Doanh thu', trieu(th.tien), lech(th.tien, truoc && truoc.tien, trieu), 'turquoise-100'),
+    o('Booking giữ được', th.con, lech(th.con, truoc && truoc.con, undefined, ky), 'green-100'),
+    o('Doanh thu', trieu(th.tien), lech(th.tien, truoc && truoc.tien, trieu, ky), 'turquoise-100'),
   ] });
   el.push({ tag: 'column_set', horizontal_spacing: '8px', columns: [
     o('Booking mới', th.dat, '', 'grey-100'),
@@ -143,7 +143,7 @@ function dungThe(th, truoc, { nhanToi = null } = {}) {
   if (nhanToi != null) dong.push('**Nhận phòng 7 ngày tới:** ' + nhanToi + ' booking');
   if (dong.length) el.push({ tag: 'markdown', content: dong.join('\n') });
   el.push({ tag: 'markdown', text_size: 'notation',
-    content: '<font color="grey">Tính theo ngày đặt, từ thứ 7 ' + dm(th.tu) + ' đến thứ 6 ' + dm(th.den) +
+    content: '<font color="grey">Tính theo ngày đặt, ' + (khung || 'từ thứ 7 ' + dm(th.tu) + ' đến thứ 6 ' + dm(th.den)) +
       '. Doanh thu là số tiền GoHost ghi của booking chưa huỷ. Gói giá lấy từ thư Agoda; thư GoHost của kênh khác không ghi gói.</font>' });
 
   return {
@@ -152,7 +152,7 @@ function dungThe(th, truoc, { nhanToi = null } = {}) {
     config: { wide_screen_mode: true, width_mode: 'fill' },
     header: {
       template: 'turquoise',
-      title: { tag: 'plain_text', content: 'Booking khách sạn tuần ' + dm(th.tu) + ' – ' + dm(th.den) },
+      title: { tag: 'plain_text', content: tieuDe || 'Booking khách sạn tuần ' + dm(th.tu) + ' – ' + dm(th.den) },
       subtitle: { tag: 'plain_text', content: 'Pito Hotel · Routine Hospitality' },
     },
     body: { elements: el },
@@ -168,6 +168,34 @@ function soanTuan(rows, ngayGui) {
   return { th, the: dungThe(th, truoc.dat ? truoc : null, { nhanToi: nhanTuanToi(rows, ngayGui) }) };
 }
 
+/* ---------------- tháng ---------------- */
+
+/** Ngày cuối tháng của ngày (YYYY-MM-DD). */
+const cuoiThang = (ngay) => cong(cong(ngay.slice(0, 8) + '01', 32).slice(0, 8) + '01', -1);
+
+/** Khung tháng chứa ngày gửi: ngày 1 → ngày cuối tháng. */
+function khungThang(ngay) {
+  return { tu: ngay.slice(0, 8) + '01', den: cuoiThang(ngay) };
+}
+
+/**
+ * Thẻ tháng, gửi 17:00 ngày cuối tháng (anh Hùng chốt 06/11/2026). Số tính tới lúc
+ * gửi; booking tối ngày cuối tháng vẫn nằm trong Base và thẻ tháng sau so sánh đủ.
+ */
+function soanThang(rows, ngay) {
+  const { tu, den } = khungThang(ngay);
+  const th = tongHop(rows, tu, den);
+  const tuTruoc = cong(tu, -1).slice(0, 8) + '01';
+  const truoc = tongHop(rows, tuTruoc, cong(tu, -1));
+  const thang = tu.slice(5, 7) + '/' + tu.slice(0, 4);
+  return { th, the: dungThe(th, truoc.dat ? truoc : null, {
+    nhanToi: nhanTuanToi(rows, cong(ngay, 1)),
+    tieuDe: 'Booking khách sạn tháng ' + thang,
+    khung: 'từ ' + dm(tu) + ' đến ' + dm(den),
+    ky: 'tháng trước',
+  }) };
+}
+
 /* ---------------- hẹn giờ ---------------- */
 
 /** Có tới giờ gửi chưa: thứ 7, từ 17:00 tới 17:59 giờ VN. */
@@ -176,20 +204,37 @@ function toiGio(ms = Date.now()) {
   return d.getUTCDay() === 6 && d.getUTCHours() === 17;
 }
 
+/** 17:00–17:59 giờ VN của ngày cuối tháng. */
+function toiGioThang(ms = Date.now()) {
+  const d = new Date(ms + 7 * 3600e3);
+  const ngay = d.toISOString().slice(0, 10);
+  return d.getUTCHours() === 17 && ngay === cuoiThang(ngay);
+}
+
 let daGui = '';
+let daGuiThang = '';
 /**
  * Mỗi phút gọi một lần. Đúng khung giờ thì gửi một lần trong ngày. `uuid` của Lark
  * (khoá theo ngày) chặn gửi trùng khi Render khởi động lại trong cùng giờ.
  */
 async function thu({ guiTin, docRows, chatId, ms = Date.now() }) {
-  if (!toiGio(ms)) return null;
   const ngay = homNayVN(ms);
-  if (daGui === ngay) return null;
-  const { the, th } = soanTuan(await docRows(), ngay);
-  const r = await guiTin.gui({ chatId, card: the, khoa: 'rt-tuan-' + ngay });
-  if (r && r.ok) daGui = ngay;
-  else console.error('[routine] gửi thống kê tuần hỏng:', r && r.loi);
-  return { ...r, th };
+  const ra = {};
+  if (toiGio(ms) && daGui !== ngay) {
+    const { the, th } = soanTuan(await docRows(), ngay);
+    const r = await guiTin.gui({ chatId, card: the, khoa: 'rt-tuan-' + ngay });
+    if (r && r.ok) daGui = ngay;
+    else console.error('[routine] gửi thống kê tuần hỏng:', r && r.loi);
+    ra.tuan = { ...r, th };
+  }
+  if (toiGioThang(ms) && daGuiThang !== ngay) {
+    const { the, th } = soanThang(await docRows(), ngay);
+    const r = await guiTin.gui({ chatId, card: the, khoa: 'rt-thang-' + ngay });
+    if (r && r.ok) daGuiThang = ngay;
+    else console.error('[routine] gửi thống kê tháng hỏng:', r && r.loi);
+    ra.thang = { ...r, th };
+  }
+  return ra.tuan || ra.thang ? ra : null;
 }
 
-module.exports = { khungTuan, tongHop, nhanTuanToi, dungThe, soanTuan, toiGio, thu };
+module.exports = { khungTuan, khungThang, cuoiThang, tongHop, nhanTuanToi, dungThe, soanTuan, soanThang, toiGio, toiGioThang, thu };

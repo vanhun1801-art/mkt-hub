@@ -325,6 +325,22 @@ console.log('— tin khách nhắn qua Agoda');
   await TU.thu({ guiTin: gia, docRows: async () => dsTuan, chatId: 'oc', ms: Date.parse('2026-11-07T10:01:00Z') });
   await TU.thu({ guiTin: gia, docRows: async () => dsTuan, chatId: 'oc', ms: Date.parse('2026-11-07T09:00:00Z') });
   t('thứ 7 chỉ gửi một lần', guiLan === 1, String(guiLan));
+  t('cuối tháng: 30/11, 31/12, 28/02', TU.cuoiThang('2026-11-06') === '2026-11-30' && TU.cuoiThang('2026-12-01') === '2026-12-31' && TU.cuoiThang('2027-02-10') === '2027-02-28');
+  t('gửi tháng 17:00–17:59 ngày cuối tháng giờ VN',
+    TU.toiGioThang(Date.parse('2026-11-30T10:00:00Z')) && !TU.toiGioThang(Date.parse('2026-11-29T10:00:00Z')) &&
+    !TU.toiGioThang(Date.parse('2026-11-30T11:00:00Z')));
+  const thg = TU.soanThang([
+    donT({ ma: 'M1', ngayDat: '2026-11-01 08:00', soTien: 1000000, soDem: 1 }),
+    donT({ ma: 'M2', ngayDat: '2026-11-30 16:00', soTien: 2000000, soDem: 2 }),
+    donT({ ma: 'M3', ngayDat: '2026-10-31 23:00', soTien: 5000000, soDem: 1 }),
+  ], '2026-11-30');
+  t('thẻ tháng: khung 01→30/11, so tháng trước', thg.th.dat === 2 && thg.th.tien === 3000000 &&
+    thg.the.header.title.content === 'Booking khách sạn tháng 11/2026' && /so với tháng trước/.test(JSON.stringify(thg.the)), JSON.stringify(thg.th));
+  let guiThang = 0;
+  const giaT = { gui: async (o) => { if (/thang/.test(o.khoa)) guiThang++; return { ok: true }; } };
+  await TU.thu({ guiTin: giaT, docRows: async () => dsTuan, chatId: 'oc', ms: Date.parse('2026-11-30T10:00:00Z') });
+  await TU.thu({ guiTin: giaT, docRows: async () => dsTuan, chatId: 'oc', ms: Date.parse('2026-11-30T10:05:00Z') });
+  t('ngày cuối tháng chỉ gửi thẻ tháng một lần', guiThang === 1, String(guiThang));
   const { tachGoi } = require('../routine/bao-nhom');
   t('gói giá Agoda: chỉ phòng / 1 cáp / 2 cáp',
     tachGoi('Superior Double Room (Chính sách khách sạn đặc biệt (Room Only))').goi === 'Chỉ phòng' &&
