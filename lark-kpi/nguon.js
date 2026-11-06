@@ -73,6 +73,8 @@ const CHU_KENH = {
   'facebook|rooty mice phu quoc': 'Phương Ái',
   'tiktok|cuoc song tai phu quoc': 'Võ Hằng',
   'tiktok|rooty trip phu quoc': ['Phương Ái', 'Võ Hằng', 'Lý Thư Bạch'],
+  /* Anh Hùng 06/11/2026: "Instagram là của Ngọc hết". */
+  'instagram|rooty trip phu quoc': 'Lý Thư Bạch',
 };
 
 /* Nhãn mục đích trong Base, so không dấu. */
