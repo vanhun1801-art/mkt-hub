@@ -73,6 +73,13 @@ const THU = {
   ok('mạng hỏng → không gọi được', /Không gọi được/.test(await (async () => {
     try { await ai.phanTich(THU, { fetchFn: async () => { throw new Error('ECONNRESET'); } }); return ''; } catch (e) { return e.message; }
   })()));
+  ok('hết tiền → nói nạp ở đâu', /hết tiền.*console\.anthropic\.com/.test(await loi({ status: 400, body: { error: { message: 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.' } } })));
+  ok('hết tiền → nghỉ gọi API', ai.hetTien() && !ai.apiDung());
+  const ghiNghi = [];
+  const loiNghi = await ai.phanTich(THU, { fetchFn: fetchGia(traLoiAi({}), ghiNghi) }).catch((e) => e);
+  ok('đang nghỉ thì không gọi lại', loiNghi.hetTien === true && ghiNghi.length === 0);
+  ai._datHetTien(0);
+  ok('hết nghỉ thì dùng lại', ai.apiDung() === ai.coKhoa());
 
   console.log('\nXếp nhanh cả loạt');
   const ds = [

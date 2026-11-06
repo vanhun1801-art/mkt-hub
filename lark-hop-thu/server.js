@@ -383,6 +383,8 @@ function lamGiau(ds, hop, nguoi = '') {
  * riêng (n.tk) không bao giờ được mượn gói của chủ máy.
  */
 const coHoiAi = (n) => ai.coKhoa() || (!n.tk && ai.coClaudeCode());
+/* Đi API khi khoá còn dùng được; khoá hết tiền thì người chủ máy hỏi qua Claude Code. */
+const hoiQuaMay = (n) => !ai.apiDung() && !n.tk && ai.coClaudeCode();
 
 /** Danh sách đã gom chủ đề, xếp ngăn, ghép với Đã gửi: dùng chung cho /api/thu và /api/hoi-thu. */
 async function ghepDs(n, d0) {
@@ -728,7 +730,7 @@ async function api(req, res, url) {
      * cả luồng của thư đang mở, cả thư đến lẫn thư mình đã gửi. */
     const moSan = b.luong === true && moKhoa ? luongCua(moKhoa, ds, daGui).map(maHoi) : [];
     /* Có khoá API thì đi API; không thì Claude Code của chủ máy (coHoiAi đã chặn người khác). */
-    const kq = await (ai.coKhoa() ? ai.hoiDap : ai.hoiDapMay)({
+    const kq = await (hoiQuaMay(n) || !ai.coKhoa() ? ai.hoiDapMay : ai.hoiDap)({
       cauHoi,
       lichSu: Array.isArray(b.lichSu) ? b.lichSu : [],
       ds: muc,
@@ -771,11 +773,16 @@ async function api(req, res, url) {
    * danh sách; mỗi thư chỉ xếp một lần vì kết quả nằm trong bộ đệm. */
   if (p === '/api/xep-ai' && m === 'POST') {
     if (!ai.coKhoa()) return json(res, { xep: 0, khongKhoa: true });
+    if (ai.hetTien()) return json(res, { xep: 0, hetTien: true });
     const d = await docHet(n, false);
     const hop = await cacHop(n);
     const can = lamGiau(d.ds, hop, n.nguoi).filter((t) => t.nguon === 'mac-dinh' && !kho.layAi(t.hop, t.id)).slice(0, 80);
     if (!can.length) return json(res, { xep: 0 });
-    const kq = await ai.xepNhanh(can, { nguoi: quyen.n.ten || 'anh Hùng' });
+    let kq;
+    try { kq = await ai.xepNhanh(can, { nguoi: quyen.n.ten || 'anh Hùng' }); } catch (e) {
+      if (e.hetTien) return json(res, { xep: 0, hetTien: true });
+      throw e;
+    }
     kho.datAiNhieu(kq.map((x) => ({ hop: x.thu.hop, id: x.thu.id, v: { ngan: x.ngan, chiXep: true } })));
     return json(res, { xep: kq.length });
   }

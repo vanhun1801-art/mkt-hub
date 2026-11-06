@@ -293,7 +293,7 @@ async function xepAi() {
   try {
     const d = await api('xep-ai', { body: {} });
     if (d.xep) await napThu(false);
-  } catch (e) { bao('AI chưa xếp được thư: ' + e.message, 'loi'); }
+  } catch (e) { console.warn('Hộp thư: AI chưa xếp được thư', e.message); }
 }
 
 /* ---------------- lọc ---------------- */

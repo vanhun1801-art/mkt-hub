@@ -23,6 +23,16 @@ const coKhoa = () => Boolean(cfg.ai.key);
 
 class LoiAi extends Error {}
 
+/* Tài khoản API hết tiền (06/11/2026): Anthropic trả 400 "credit balance is
+ * too low". Gọi lại cũng vô ích, nên nghỉ 30 phút: Hỏi AI chuyển sang Claude
+ * Code trên máy, việc xếp nền thì lặng lẽ để luật xếp. */
+const NGHI_HET_TIEN = 30 * 60e3;
+let hetTienDen = 0;
+const LA_HET_TIEN = /credit balance|billing|purchase credits/i;
+const hetTien = () => Date.now() < hetTienDen;
+const apiDung = () => coKhoa() && !hetTien();
+const CAU_HET_TIEN = 'Tài khoản Claude API đã hết tiền. Anh nạp thêm ở console.anthropic.com, mục Billing, rồi thử lại.';
+
 async function goi({ he, noiDung, schema, effort = 'low', maxTokens = 4000, fetchFn = fetch }) {
   const d = await goiTho({
     max_tokens: maxTokens,
@@ -39,6 +49,7 @@ const chuCua = (d) => (d.content || []).filter((b) => b.type === 'text').map((b)
 /** Một lượt gọi /v1/messages; trả nguyên phản hồi để người gọi tự đọc khối nào cần. */
 async function goiTho(phan, fetchFn = fetch) {
   if (!coKhoa()) throw new LoiAi('Chưa có khoá Claude API (ANTHROPIC_API_KEY).');
+  if (hetTien()) throw Object.assign(new LoiAi(CAU_HET_TIEN), { hetTien: true });
   const than = Object.assign({ model: cfg.ai.model }, phan, {
     /* Bộ lọc an toàn thỉnh thoảng chặn nhầm; "default" để máy chủ Anthropic tự
      * chạy lại bằng model dự phòng thay vì trả về trắng. */
@@ -65,6 +76,10 @@ async function goiTho(phan, fetchFn = fetch) {
     const m = (d.error && d.error.message) || ('HTTP ' + r.status);
     if (r.status === 401) throw new LoiAi('Khoá Claude API không đúng hoặc đã bị thu hồi.');
     if (r.status === 429) throw new LoiAi('Claude API đang giới hạn tần suất, thử lại sau ít phút.');
+    if (r.status === 402 || LA_HET_TIEN.test(m)) {
+      hetTienDen = Date.now() + NGHI_HET_TIEN;
+      throw Object.assign(new LoiAi(CAU_HET_TIEN), { hetTien: true });
+    }
     throw new LoiAi('Claude API báo lỗi: ' + m);
   }
   if (d.stop_reason === 'refusal') throw new LoiAi('Claude từ chối xử lý thư này.');
@@ -567,5 +582,6 @@ async function hoiDapMay({ cauHoi, lichSu = [], ds, docThu, dangMo = '', moSan =
 }
 
 module.exports = {
-  coKhoa, coClaudeCode, phanTich, xepNhanh, vietNhap, soatChinhTa, dich, hoiDap, hoiDapMay, goiThu, LoiAi, TRAN_CHU, khoiGiong,
+  coKhoa, apiDung, hetTien, coClaudeCode, phanTich, xepNhanh, vietNhap, soatChinhTa, dich, hoiDap, hoiDapMay, goiThu, LoiAi, TRAN_CHU, khoiGiong,
+  _datHetTien: (den) => { hetTienDen = den; },
 };
