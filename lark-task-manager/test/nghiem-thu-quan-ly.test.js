@@ -87,6 +87,33 @@ async function action(manager, requester, method) {
   await vm.runInContext('(async () => {\n' + sv.slice(actionStart, actionEnd) + '\n})()', ctx);
   return { ...response, written };
 }
+test('Tự order việc đã trễ: bấm là Hoàn thành, giữ mốc giải quyết', async () => {
+  const record = { id: 'recTu', record_id: 'recTu', status: 'Trễ deadline', deadline: '2026-01-01',
+    linkKetQua: 'https://example.com/product', requester: [{ id: 'me' }], owner: [{ id: 'me' }] };
+  let written;
+  const response = {};
+  const ctx = vm.createContext({ p: '/api/tasks/recTu/nop',
+    req: { method: 'POST' }, res: response, url: new URL('http://test/'),
+    getRecords: async () => [record], toTask: t => t,
+    isManager: async () => false, whoAmI: async () => ({ id: 'me' }),
+    ownedBy: (t, id) => t.owner.some(u => u.id === id),
+    json: (_r, data, status = 200) => Object.assign(response, { data, status }),
+    readBody: async () => ({}),
+    cfg: { chanHoanThanhKhiTre: true, proofRequiredFor: 'Hoàn thành' },
+    lark: { updateRecord: async (_id, patch) => { written = patch; } },
+    toCells: t => t, applyLocal: Object.assign, baoTin: () => { throw new Error('không nhắn cho chính mình'); },
+    botNghiemThu: { submission: async () => { throw new Error('không có khâu nghiệm thu'); } },
+    XD: '\n', duoiTin: () => '', laTreTheoHan: () => true,
+    themVaoBaoCao: async () => ({}),
+  });
+  vm.runInContext(fn(sv, 'laNguoiOrder') + '\n' + fn(sv, 'requireOwnTask')
+    + '\n' + fn(sv, 'tuGiaoTuLam'), ctx);
+  await vm.runInContext('(async () => {\n' + sv.slice(actionStart, actionEnd) + '\n})()', ctx);
+  assert.equal(response.status, 200);
+  assert.equal(written.status, 'Hoàn thành');
+  assert.equal(written.daGiaiQuyet, true);
+  assert.ok(written.ngayGiaiQuyet, 'giữ Ngày giải quyết để còn đếm trễ mấy ngày');
+});
 for (const method of ['complete', 'tra-ve']) {
   test('Quản lý nghiệm thu việc người khác giao: ' + method, async () => {
     const r = await action(true, false, method);

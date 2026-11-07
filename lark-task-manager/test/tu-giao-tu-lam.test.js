@@ -61,14 +61,20 @@ ca('việc liên phòng: người giao ở bên công ty, nghiệm thu là của
   viec({ lienPhong: true }), false);
 ca('việc liên phòng đã lưu về phòng cũng vậy', viec({ maLienPhong: 'GV-1' }), false);
 
-test('máy chủ chỉ bỏ bước chờ khi việc CHƯA trễ', () => {
+test('máy chủ bỏ bước chờ cho việc tự order, kể cả việc đã trễ', () => {
   const i = SV.indexOf('const tuChotDuoc =');
   assert.ok(i >= 0, 'không thấy chỗ máy chủ quyết định bỏ bước chờ');
   const dong = SV.slice(i, SV.indexOf('\n', i));
-  assert.ok(/tuGiaoTuLam\(task\)/.test(dong) && /!laTreTheoHan\(task\)/.test(dong),
-    'việc đã trễ thì vẫn đi đường nộp-chờ: "trễ thì nhân sự không tự đóng" là chuyện thời hạn, không phải chuyện nghiệm thu');
+  /* Anh Hùng 07/11/2026: việc tự order thì không có khâu tự nghiệm thu,
+   * dù đúng hạn hay trễ. */
+  assert.ok(/tuGiaoTuLam\(task\)/.test(dong) && !/laTreTheoHan/.test(dong),
+    'việc tự order đã trễ cũng không phải tự nghiệm thu');
   assert.ok(/if \(\(action === 'nop' \|\| action === 'giai-quyet'\) && !tuChotDuoc\) \{/.test(SV),
     'nhánh nộp-chờ phải nhường đường khi tự order tự làm');
+  assert.ok(/chanHoanThanhKhiTre && !tuChotDuoc/.test(SV),
+    'chặn "trễ thì không tự đóng" không áp cho việc tự order');
+  assert.ok(/if \(tuChotDuoc && \(laTreTheoHan\(task\) \|\| task\.daGiaiQuyet\)\) \{[\s\S]{0,200}?daGiaiQuyet = true/.test(SV),
+    'trễ thì vẫn ghi Ngày giải quyết để còn đếm trễ mấy ngày');
 });
 
 test('không nhắn cho chính mình rằng việc mình vừa đóng đã xong', () => {
@@ -81,7 +87,9 @@ test('không nhắn cho chính mình rằng việc mình vừa đóng đã xong'
 
 test('nút gọi đúng tên việc sắp xảy ra', () => {
   const w = layHam(FE, 'workCard', 'public/app.js');
-  assert.ok(/const tuChot = tuGiaoTuLam\(t\) && !laTreTheoHan\(t\);/.test(w));
+  assert.ok(/const tuChot = tuGiaoTuLam\(t\);/.test(w));
+  assert.ok(/daNop: \{ label: tuChot \? '✓ Hoàn thành'/.test(w),
+    'việc tự order đã lỡ gửi chờ nghiệm thu thì nút cũng là Hoàn thành');
   assert.ok(/tuChot \? '✓ Hoàn thành' : '↥ Gửi sản phẩm'/.test(w),
     'tự order cho mình thì nút phải nói Hoàn thành, không hứa một bước nghiệm thu không có thật');
   const d = layHam(FE, 'openDone', 'public/app.js');

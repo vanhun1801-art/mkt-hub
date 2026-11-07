@@ -2127,9 +2127,17 @@ async function api(req, res, url) {
      * 27/10/2026). Bấm một cái là Hoàn thành luôn.
      *
      * Không áp dụng cho việc LIÊN PHÒNG (người giao ở bên công ty, nghiệm thu
-     * thuộc về họ) và không áp dụng cho việc đã TRỄ — luật "trễ thì nhân sự
-     * không tự đóng" là chuyện thời hạn, không phải chuyện nghiệm thu. */
-    const tuChotDuoc = tuGiaoTuLam(task) && !laTreTheoHan(task);
+     * thuộc về họ).
+     *
+     * Việc ĐÃ TRỄ cũng vậy (anh Hùng 07/11/2026: "việc anh tự order thì không
+     * cần khâu tự nghiệm thu"). Trễ thì vẫn ghi lại: đánh dấu đã giải quyết và
+     * giữ Ngày giải quyết, như khi người order nghiệm thu một việc trễ, nên nhãn
+     * "trễ N ngày" và số liệu cuối tháng không mất. */
+    const tuChotDuoc = tuGiaoTuLam(task);
+    if (tuChotDuoc && (laTreTheoHan(task) || task.daGiaiQuyet)) {
+      patch.daGiaiQuyet = true;
+      if (!task.ngayGiaiQuyet) patch.ngayGiaiQuyet = new Date().toISOString();
+    }
 
     /* ---- Nộp sản phẩm · chờ nghiệm thu ----
      * Editor bấm "Đã gửi sản phẩm" (action 'nop') hoặc việc trễ bấm "Giải quyết"
@@ -2154,7 +2162,7 @@ async function api(req, res, url) {
     /* Việc đã quá hạn thì NHÂN SỰ không tự chuyển Hoàn thành — phải bấm "Giải
      * quyết". Quản lý vẫn đóng được, vì họ mới là người kết luận. Người order
      * nghiệm thu việc đã nộp cũng được chốt Hoàn thành kể cả việc trễ. */
-    if (cfg.chanHoanThanhKhiTre && !(await isManager(req)) && !nguoiOrderNghiemThu && laTreTheoHan(task)) {
+    if (cfg.chanHoanThanhKhiTre && !tuChotDuoc && !(await isManager(req)) && !nguoiOrderNghiemThu && laTreTheoHan(task)) {
       return json(res, {
         error: task.daGiaiQuyet
           ? 'Việc này đã nộp sản phẩm và đang chờ nghiệm thu — nhân sự không tự đóng được'

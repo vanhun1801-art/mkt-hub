@@ -2443,15 +2443,16 @@ function workCard(t, lane) {
 
   /* Việc đã trễ: nhân sự KHÔNG tự đặt Hoàn thành (trễ rồi thì phải chịu), nhưng
    * vẫn phải có chỗ nộp sản phẩm — nút "Giải quyết". Quản lý thì vẫn đóng được. */
-  const treCanGQ = !S.isManager && cfg0().chanTre && laTreTheoHan(t);
   /* Chủ việc GỬI sản phẩm chờ nghiệm thu, không tự chốt Hoàn thành nữa —
    * nghiệm thu là của người order (tab "Việc đã order") hoặc quản lý. */
   /* Tự order cho chính mình thì nộp xong là xong — gọi đúng tên việc sắp xảy
-   * ra, không hứa một bước nghiệm thu không có thật (anh Hùng 27/10/2026). */
-  const tuChot = tuGiaoTuLam(t) && !laTreTheoHan(t);
+   * ra, không hứa một bước nghiệm thu không có thật (anh Hùng 27/10/2026).
+   * Kể cả việc đã trễ (anh Hùng 07/11/2026): không có khâu tự nghiệm thu. */
+  const tuChot = tuGiaoTuLam(t);
+  const treCanGQ = !tuChot && !S.isManager && cfg0().chanTre && laTreTheoHan(t);
   /* Nút là việc SẮP làm, nên dùng động từ: "Gửi sản phẩm", không "Đã gửi"
    * (anh Hùng 29/10/2026: việc tự order → Hoàn thành, việc được giao → Gửi
-   * sản phẩm). Tự order mà đã trễ thì vẫn phải qua nghiệm thu, nên vẫn là gửi. */
+   * sản phẩm). */
   const nhanNop = tuChot ? '✓ Hoàn thành' : '↥ Gửi sản phẩm';
   const primary = {
     new:  { label: '▶ Bắt đầu làm', run: () => startTask(t) },
@@ -2464,7 +2465,7 @@ function workCard(t, lane) {
           run: () => openDone(t, 'giai-quyet') }
       : { label: nhanNop, run: () => openDone(t) },
     redo:  { label: tuChot ? '↻ Làm lại xong' : '↻ Gửi lại', run: () => openDone(t) },
-    daNop: { label: '↻ Gửi lại', run: () => openDone(t) },
+    daNop: { label: tuChot ? '✓ Hoàn thành' : '↻ Gửi lại', run: () => openDone(t) },
   }[lane];
 
   if (primary) {
@@ -2507,7 +2508,7 @@ function openDone(t, kieu) {
   const laNop = S.doneKieu !== 'complete';
   /* Tự order cho chính mình: nộp xong là đóng luôn, nên đừng nói "chờ nghiệm
    * thu" — chẳng ai chờ ai cả (anh Hùng 27/10/2026). */
-  const tuChot = laNop && tuGiaoTuLam(t) && !laTreTheoHan(t);
+  const tuChot = laNop && tuGiaoTuLam(t);
   S.modalTask = t;
   $('#doneEyebrow').textContent = !laNop ? 'Nghiệm thu · đóng việc'
     : (tuChot ? 'Hoàn thành · bạn tự order việc này' : 'Gửi sản phẩm · chờ nghiệm thu');
@@ -5722,7 +5723,9 @@ function buildStaffDrawer(b, t, o) {
   dau.appendChild(el('span', 'sg-han' + (tre ? ' tre' : con != null && con <= 1 ? ' gap' : ''),
     hanChu + (t.deadline ? ' · ' + fmtDate(t.deadline, true) : '')));
   hero.appendChild(dau);
-  if (st && st.hint) {
+  /* Việc tự order còn kẹt ở làn chờ nghiệm thu (gửi trước 07/11/2026): đừng nói
+   * "đợi nghiệm thu", chẳng ai nghiệm thu cả. Dòng nhỏ bên dưới chỉ bấm gì. */
+  if (st && st.hint && !(stage === 'daNop' && tuGiaoTuLam(t))) {
     hero.appendChild(el('div', 'sg-goi-y', t.lienPhong
       ? st.hint.replace(/gửi Yêu cầu điều chỉnh/g, 'nhắn người giao ở tab Trao đổi')
       : st.hint));
@@ -5741,16 +5744,21 @@ function buildStaffDrawer(b, t, o) {
     bt.onclick = async () => { closeDrawer(); await startTask(t); };
     datNut(bt);
   } else if (laChinh && (stage === 'doing' || stage === 'redo' || stage === 'late' || stage === 'daNop')) {
-    const treGQ = !S.isManager && cfg0().chanTre && laTreTheoHan(t);
-    const nhan = stage === 'daNop' ? '↥  Gửi lại sản phẩm'
+    /* Tự order: không có khâu tự nghiệm thu, đúng hạn hay trễ đều là Hoàn thành
+     * (anh Hùng 07/11/2026). */
+    const tuChot = tuGiaoTuLam(t);
+    const treGQ = !tuChot && !S.isManager && cfg0().chanTre && laTreTheoHan(t);
+    const nhan = tuChot ? '✓  Hoàn thành'
+      : stage === 'daNop' ? '↥  Gửi lại sản phẩm'
       : treGQ ? (daGiaiQuyet(t) ? '↥  Gửi lại sản phẩm' : '↥  Gửi sản phẩm · giải quyết việc trễ')
       : stage === 'redo' ? '↻  Gửi lại sản phẩm'
-      : (tuGiaoTuLam(t) && !laTreTheoHan(t)) ? '✓  Hoàn thành'
       : '↥  Gửi sản phẩm';
     const bt = el('button', 'btn btn-primary sg-nut', nhan);
     bt.onclick = () => { closeDrawer(); openDone(t, treGQ ? 'giai-quyet' : ''); };
     datNut(bt);
-    if (stage === 'daNop') {
+    if (stage === 'daNop' && tuChot) {
+      hero.appendChild(el('div', 'sg-nho', 'Bạn tự order việc này nên không cần nghiệm thu. Bấm Hoàn thành để đóng việc.'));
+    } else if (stage === 'daNop') {
       const hc = nhanHanChinhSua(t);
       hero.appendChild(el('div', 'sg-nho', 'Đã gửi sản phẩm, đang chờ người order nghiệm thu.'
         + (hc ? ' ' + hc.txt + '.' : '')));
