@@ -303,22 +303,16 @@
     try { localStorage.setItem('social.luuY', mo ? 'mo' : 'gap'); } catch (_) { /* bỏ qua */ }
   };
 
-  /* ĐỊNH MỨC BÀI/THÁNG — mỗi kênh một thanh tiến độ: đã đăng bao nhiêu trên mức
-   * tối thiểu, kèm vạch "nhịp tới hôm nay" (định mức rải đều theo ngày). Chỉ nhìn
-   * phần trăm thì ngày 7 kênh nào cũng thấp; so với vạch nhịp mới biết kênh nào tụt.
-   * Tháng lấy theo ngày cuối của khoảng lọc. */
-  const TT_DM = {
-    dat: ['good', 'Đủ định mức'],
-    kip: ['good', 'Kịp nhịp'],
-    cham: ['warn', 'Chậm nhịp'],
-    thieu: ['bad', 'Thiếu'],
-    'khong-so': ['', ''],
-  };
+  /* NGƯỠNG TỐI THIỂU số bài/tháng của từng kênh — mỗi kênh MỘT dòng gọn: thanh
+   * tiến độ, số đã đăng/ngưỡng, và một chữ trạng thái. Vạch dọc trên thanh là số
+   * bài cần có TỚI HÔM NAY nếu rải đều cả tháng: ngày 7 kênh nào cũng mới ~20%,
+   * so với vạch mới biết kênh nào tụt. Câu "còn bao nhiêu, mỗi ngày mấy bài" để ở
+   * chú thích khi rê chuột, không chiếm dòng. Tháng lấy theo ngày cuối khoảng lọc. */
   function theDinhMuc() {
     const dm = S.dinhMuc;
     if (!dm) return '';
     if (dm.loi) {
-      return S.quanLy ? '<div class="card dm-the"><div class="card-head"><h3>Định mức bài tháng</h3></div>'
+      return S.quanLy ? '<div class="card dm-the"><div class="card-head"><h3>Ngưỡng bài tối thiểu</h3></div>'
         + '<div class="card-body"><div class="empty">' + esc(dm.loi) + '</div></div></div>' : '';
     }
     if (!(dm.dong || []).length) return '';
@@ -326,53 +320,49 @@
     const coSo = dm.dong.filter((x) => x.dinhMuc);
     const cham = coSo.filter((x) => x.trangThai === 'cham' || x.trangThai === 'thieu').length;
     const tom = dm.daHet
-      ? (coSo.length - cham) + '/' + coSo.length + ' kênh đủ định mức'
+      ? (coSo.length - cham) + '/' + coSo.length + ' kênh đạt ngưỡng'
       : (cham ? cham + '/' + coSo.length + ' kênh chậm nhịp' : 'Mọi kênh đang kịp nhịp')
         + ' · ngày ' + dm.ngayQua + '/' + dm.soNgay;
 
     const dong = dm.dong.map((x) => {
       const ten = x.kenh ? x.kenh.name : x.ten;
       const nen = x.kenh ? x.kenh.platform : 'Chưa ghép được kênh';
+      const dau = '<div class="dm-ten">' + theTag(nen) + '<span data-no-i18n>' + esc(ten) + '</span></div>';
       if (!x.dinhMuc) {
-        return '<div class="dm-dong dm-khong">'
-          + '<div class="dm-ten">' + theTag(nen) + '<span data-no-i18n>' + esc(ten) + '</span></div>'
-          + (x.ghiChu ? '<div class="dm-ghi" data-no-i18n>' + esc(x.ghiChu) + '</div>' : '<div class="dm-ghi">Chưa có định mức</div>')
-          + '<div class="dm-so"><span class="dm-dem"><strong>' + n0(x.da) + ' bài</strong></span></div>'
-          + '</div>';
+        return '<div class="dm-dong dm-khong">' + dau
+          + (x.ghiChu ? '<div class="dm-ghi" data-no-i18n>' + esc(x.ghiChu) + '</div>'
+            : '<div class="dm-ghi">Chưa đặt ngưỡng</div>')
+          + '<div class="dm-dem"><strong>' + n0(x.da) + '</strong></div>'
+          + '<div class="dm-tt">bài</div></div>';
       }
-      const [lopTT, chu] = TT_DM[x.trangThai] || ['', ''];
+      let lop = 'good'; let chu;
+      if (x.trangThai === 'dat') chu = x.da > x.dinhMuc ? 'Vượt ' + n0(x.da - x.dinhMuc) : 'Đạt ngưỡng';
+      else if (x.trangThai === 'thieu') { lop = 'bad'; chu = 'Thiếu ' + n0(x.conThieu); }
+      else if (x.trangThai === 'cham') { lop = 'warn'; chu = 'Chậm ' + n0(x.canDat - x.da) + ' bài'; }
+      else chu = 'Kịp nhịp';
       const rong = Math.min(100, (x.da / x.dinhMuc) * 100);
       const nhip = Math.min(100, (x.canDat / x.dinhMuc) * 100);
-      let ghi;
-      if (x.trangThai === 'dat') ghi = x.da > x.dinhMuc ? 'Vượt ' + n0(x.da - x.dinhMuc) + ' bài' : chu;
-      else if (x.trangThai === 'thieu') ghi = 'Thiếu ' + n0(x.conThieu) + ' bài';
-      else if (x.trangThai === 'cham') ghi = 'Chậm ' + n0(x.canDat - x.da) + ' bài so với nhịp';
-      else ghi = chu;
-      const them = (x.trangThai === 'kip' || x.trangThai === 'cham') && x.moiNgay
+      const goiY = (x.trangThai === 'kip' || x.trangThai === 'cham') && x.moiNgay
         ? 'Còn ' + n0(x.conThieu) + ' bài, khoảng '
           + x.moiNgay.toLocaleString('vi-VN', { maximumFractionDigits: 1 }) + ' bài/ngày'
         : '';
-      return '<div class="dm-dong">'
-        + '<div class="dm-ten">' + theTag(nen) + '<span data-no-i18n>' + esc(ten) + '</span></div>'
-        + '<div class="dm-thanh ' + lopTT + '" role="progressbar" aria-valuemin="0" aria-valuemax="'
+      return '<div class="dm-dong"' + (goiY ? ' title="' + esc(goiY) + '"' : '') + '>' + dau
+        + '<div class="dm-thanh ' + lop + '" role="progressbar" aria-valuemin="0" aria-valuemax="'
         + x.dinhMuc + '" aria-valuenow="' + x.da + '" aria-label="' + esc(ten) + '">'
         + '<i style="width:' + rong.toFixed(1) + '%"></i>'
-        + (dm.daHet ? '' : '<b style="left:' + nhip.toFixed(1) + '%" title="Nhịp tới hôm nay: '
-          + n0(x.canDat) + ' bài"></b>')
+        + (dm.daHet ? '' : '<b style="left:' + nhip.toFixed(1) + '%"></b>')
         + '</div>'
-        + '<div class="dm-so"><span class="dm-dem"><strong>' + n0(x.da) + '</strong>/' + n0(x.dinhMuc) + '</span>'
-        + '<span class="dm-tt ' + lopTT + '">' + esc(ghi) + '</span>'
-        + (them ? '<span class="sub-line">' + esc(them) + '</span>' : '')
-        + '</div></div>';
+        + '<div class="dm-dem"><strong>' + n0(x.da) + '</strong>/' + n0(x.dinhMuc) + '</div>'
+        + '<div class="dm-tt ' + lop + '">' + esc(chu) + '</div></div>';
     }).join('');
 
-    return '<div class="card dm-the"><div class="card-head"><h3>Định mức bài tháng ' + Number(m) + '/' + y + '</h3>'
+    return '<div class="card dm-the"><div class="card-head"><h3>Ngưỡng bài tối thiểu · T' + Number(m) + '/' + y + '</h3>'
       + '<span class="sub">' + esc(tom) + '</span>'
       + (dm.url ? '<a class="btn small ios-an-dt" style="margin-left:auto" href="' + esc(dm.url)
-        + '" target="_blank" rel="noreferrer">Sửa định mức</a>' : '')
-      + '</div><div class="card-body">' + dong
-      + (dm.daHet ? '' : '<div class="dm-chu">Vạch dọc là số bài cần có tới hôm nay nếu rải đều cả tháng.</div>')
-      + '</div></div>';
+        + '" target="_blank" rel="noreferrer">Sửa ngưỡng</a>' : '')
+      + '</div><div class="card-body dm-luoi">' + dong + '</div>'
+      + (dm.daHet ? '' : '<div class="dm-chu">Vạch dọc: số bài cần có tới hôm nay.</div>')
+      + '</div>';
   }
 
   function veTongQuan() {

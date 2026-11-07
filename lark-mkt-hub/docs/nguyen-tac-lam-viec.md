@@ -177,6 +177,7 @@ Anh Hùng (10/10/2026): nhân sự xuất được báo cáo, nhưng **xuất đ
 - **KPI của Trường** (05/11/2026, anh Hùng): số video sản xuất (task Edit Video, như Khánh), số thiết kế (task Thiết kế), và chỉnh ảnh tính theo **đánh giá nghiệm thu** (% lô Đạt trên lô đã nghiệm thu), không theo số lượng. Lô chưa duyệt không tính. Trưởng phòng ghi tay được số cả tháng cho một chỉ số (ô `soTay` trong bộ luật); tháng 10/2026 tỷ lệ ảnh đạt của Trường ghi 92%, không duyệt từng lô, không gửi tin cho ai (anh Hùng 06/11/2026).
 - **Duyệt Đạt ở app Chỉnh ảnh không nhắn tin cho ai** (05/11/2026, anh Hùng: "nếu ấn duyệt trên ứng dụng thì không nhảy tin nhắn đi đâu"). Chỉ trả về sửa mới nhắn người làm.
 - **Không đặt trần điểm cho chỉ số** (05/11/2026, anh Hùng: "Không đặt trần 100 nha em"). Chỉ số vượt mục tiêu được tính đúng phần vượt.
+- **Số bài mỗi kênh phải đăng trong tháng gọi là "ngưỡng tối thiểu"**, không gọi "định mức" (07/11/2026, anh Hùng). Bảng "Ngưỡng bài tối thiểu" nằm trong Base Social, ô Kênh liên kết sang bảng Kênh. Trên app Social nó là một thẻ gọn ở Tổng quan: mỗi kênh một dòng (thanh tiến độ, vạch nhịp tới hôm nay, số đã đăng/ngưỡng, một chữ trạng thái), màn rộng xếp hai cột.
 - **Đổi tab thì giữ chiều cao cũ và đưa về đầu trang.** Để trang co lại là thanh cuộn biến mất, nội dung xê ngang, và vị trí cuộn bị kẹp về 0 một cách khó đoán.
 
 ## 12. Việc lớn, việc con và việc tạo từ tin (21/10/2026)

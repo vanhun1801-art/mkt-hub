@@ -111,4 +111,15 @@ t('tháng Hai và tháng 31 ngày', () => {
   assert.strictEqual(dm.soNgayThang('2026-12'), 31);
 });
 
+t('ô Kênh đã liên kết thì theo liên kết, không đoán theo tên', () => {
+  const kenh = KENH.map((k, i) => ({ ...k, id: 'rec' + i }));
+  const vv = kenh.find((k) => k.extId === 'tt6');
+  const kq = dm.tinh({
+    bang: [{ ten: 'FB Rooty Trip', kenhId: vv.id, so: 15, ghiChu: '' }],
+    channels: kenh, posts: [bai('tt6', '2026-11-02')], thang: '2026-11', homNay: '2026-11-07',
+  });
+  assert.strictEqual(kq.dong[0].kenh.extId, 'tt6');
+  assert.strictEqual(kq.dong[0].da, 1);
+});
+
 console.log('\n' + so + ' phép thử định mức đã qua');

@@ -2,10 +2,10 @@
 /**
  * ĐỊNH MỨC BÀI/THÁNG theo kênh — tiến độ "đã đăng bao nhiêu trên mức tối thiểu".
  *
- * Bảng định mức nằm ở một Base RIÊNG do anh Hùng tự giữ (xem cfg.dinhMuc). App
- * chỉ đọc. Hai cột đều là ô chữ:
- *   - Kênh: gõ tay kiểu "FB Tour đảo", "Tiktok Vi vu" — KHÔNG có ID kênh.
- *   - Số lượng bài/tháng: "120", hoặc câu như "Không thể đảm bảo số lượng".
+ * Bảng "Định mức bài" trong Base Social (cfg.tables.dinhMuc), anh Hùng tự sửa.
+ * App chỉ đọc. Ô Kênh liên kết sang bảng Kênh; dòng chưa gắn kênh thì đoán theo
+ * cột Tên ("FB Tour đảo"). Số trống thì cột Ghi chú nói vì sao ("Không thể đảm
+ * bảo số lượng").
  *
  * Số đã đăng đếm từ bảng Bài đăng của Social (mọi loại: video, reels, ảnh, bài
  * viết), theo NGÀY ĐĂNG trong tháng dương lịch — không lấy cột Bài của bảng số
@@ -91,17 +91,19 @@ function docSo(v) {
   return { so: null, ghiChu: s };
 }
 
-let cache = null;
-const TTL = 5 * 60 * 1000;
-
 async function docBang() {
-  if (cache && Date.now() - cache.luc < TTL) return cache.ds;
-  const D = cfg.dinhMuc;
-  const rows = await lark.listAll(D.tableId, D.baseToken);
-  const ds = rows.map((r) => ({ id: r.id, ten: store.clean(r.c[D.f.kenh]), ...docSo(r.c[D.f.so]) }))
-    .filter((x) => x.ten);
-  cache = { luc: Date.now(), ds };
-  return ds;
+  const T = cfg.tables.dinhMuc;
+  const rows = await lark.listAll(T.id);
+  return rows.map((r) => {
+    const so = docSo(r.c[T.f.so]);
+    return {
+      id: r.id,
+      ten: store.clean(r.c[T.f.ten]),
+      kenhId: store.links(r.c[T.f.kenh])[0] || '',
+      so: so.so,
+      ghiChu: store.clean(r.c[T.f.ghiChu]) || so.ghiChu,
+    };
+  }).filter((x) => x.ten || x.kenhId);
 }
 
 /* ---------------- tính tiến độ ---------------- */
@@ -134,10 +136,10 @@ function tinh({ bang, channels, posts, thang, homNay }) {
   });
 
   const dong = bang.map((x) => {
-    const c = ghepKenh(x.ten, channels);
+    const c = (x.kenhId && channels.find((k) => k.id === x.kenhId)) || ghepKenh(x.ten, channels);
     const da = c ? (dem.get(c.extId) || 0) : 0;
     const out = {
-      ten: x.ten,
+      ten: x.ten || (c ? c.name : ''),
       kenh: c ? { name: c.name, platform: c.platform, extId: c.extId, url: c.url } : null,
       dinhMuc: x.so,
       ghiChu: x.ghiChu,
@@ -171,6 +173,8 @@ function tinh({ bang, channels, posts, thang, homNay }) {
  * `platforms` lọc giống mọi số khác của app — người chỉ được xem hai kênh thì
  * chỉ thấy định mức của hai kênh đó; dòng chưa ghép được kênh chỉ quản lý thấy.
  */
+const urlBang = () => cfg.baseUrl + '?table=' + cfg.tables.dinhMuc.id;
+
 async function tienDo({ thang, platforms, channels, laQuanLy }) {
   const d = await store.tai();
   const homNay = store.homNay();
@@ -179,7 +183,7 @@ async function tienDo({ thang, platforms, channels, laQuanLy }) {
   try {
     bang = await docBang();
   } catch (e) {
-    return { thang: th, loi: 'Chưa đọc được bảng định mức: ' + e.message, dong: [], url: cfg.dinhMuc.url };
+    return { thang: th, loi: 'Chưa đọc được bảng định mức: ' + e.message, dong: [], url: urlBang() };
   }
   const kq = tinh({ bang, channels: d.channels, posts: d.posts, thang: th, homNay });
   const pset = platforms && platforms.length ? new Set(platforms) : null;
@@ -190,7 +194,7 @@ async function tienDo({ thang, platforms, channels, laQuanLy }) {
     if (cset && !cset.has(x.kenh.extId) && !cset.has(x.kenh.name)) return false;
     return true;
   });
-  kq.url = laQuanLy ? cfg.dinhMuc.url : '';
+  kq.url = laQuanLy ? urlBang() : '';
   return kq;
 }
 

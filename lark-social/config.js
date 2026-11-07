@@ -224,6 +224,20 @@ module.exports = {
      * phiên. Nhét một ngày vào một dòng phiên là nói dối về dữ liệu, và
      * tien-live.js gắn doanh thu theo khung giờ phiên sẽ vơ hết lead cả ngày
      * về cho LIVE. Xem live-ngay.js. */
+    /* ĐỊNH MỨC BÀI/THÁNG theo kênh — anh Hùng tự sửa trên Base. Chuyển vào Base
+     * Social ngày 07/11/2026 (trước đó nằm ở Base riêng, cột Kênh gõ chữ tay).
+     * Ô Kênh liên kết sang bảng Kênh; dòng nào chưa gắn thì dinh-muc.js đoán theo
+     * tên. Số trống + Ghi chú = kênh không đặt định mức. */
+    dinhMuc: {
+      id: 'tbl9H1KxnKmd1a7o',
+      name: 'Ngưỡng bài tối thiểu',
+      f: {
+        ten: 'fldEk0Pjs6',        // Tên (primary, chữ tay)
+        kenh: 'fldCnFVnY8',       // Kênh (link → Kênh)
+        so: 'fldFFNccBS',         // Số bài/tháng (number)
+        ghiChu: 'fldGsnO6eQ',     // Ghi chú
+      },
+    },
     liveNgay: {
       id: 'tblNR46RzBJ8BVhe',
       name: 'LIVE theo ngày',
@@ -355,18 +369,6 @@ module.exports = {
         note: 'fldRLWGBR2',
       },
     },
-  },
-
-  /* ĐỊNH MỨC BÀI/THÁNG — bảng anh Hùng tự giữ ở một Base RIÊNG, ngoài Base Social.
-   * App chỉ ĐỌC, không bao giờ ghi vào đó. Cột Kênh là chữ gõ tay ("FB Tour đảo"),
-   * dinh-muc.js ghép sang kênh thật theo nền tảng + tên. Cột số là ô chữ nên có
-   * dòng ghi "Không thể đảm bảo số lượng" — giữ nguyên câu đó làm ghi chú.
-   * Deploy chế độ api thì app Marketing Hub phải được mời vào Base này. */
-  dinhMuc: {
-    baseToken: process.env.SOCIAL_DINH_MUC_BASE || 'Ej2xbgWNIakMBus9M9ElJa3jgZe',
-    tableId: process.env.SOCIAL_DINH_MUC_TABLE || 'tblYRn62YXbUaumI',
-    f: { kenh: 'fldS6gvjkD', so: 'fldkSUo8d6' },
-    url: 'https://rootytrip2.sg.larksuite.com/base/Ej2xbgWNIakMBus9M9ElJa3jgZe?table=tblYRn62YXbUaumI',
   },
 
   /* Tên nền tảng dùng thống nhất từ adapter → Base → giao diện. Đúng option của
