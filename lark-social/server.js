@@ -560,6 +560,13 @@ async function api(req, res, u) {
 
   if (p === '/api/tong-quan') return ok(res, await M.tongQuan(thamSo(u, await hanMucKenh(req))));
 
+  if (p === '/api/dinh-muc' && method === 'GET') {
+    const ts = thamSo(u, await hanMucKenh(req));
+    return ok(res, await require('./dinh-muc').tienDo({
+      thang: u.searchParams.get('thang') || String(ts.to).slice(0, 7),
+      platforms: ts.platforms, channels: ts.channels, laQuanLy: laQuanLy(req),
+    }));
+  }
   if (p === '/api/kenh' && method === 'GET') {
     const d = await store.tai(u.searchParams.get('moi') === '1');
     const quanLy = laQuanLy(req);

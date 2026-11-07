@@ -244,11 +244,14 @@
     if (S.dangTai) return;
     S.dangTai = true;
     try {
-      const [du, kn] = await Promise.all([
+      const [du, kn, dm] = await Promise.all([
         goi('/api/tong-quan?' + truyVan()),
         goi('/api/kenh'),
+        /* Bảng định mức nằm ở Base khác; đọc hỏng thì Tổng quan vẫn phải lên. */
+        goi('/api/dinh-muc?' + truyVan()).catch((e) => ({ loi: e.message, dong: [] })),
       ]);
       S.du = du;
+      S.dinhMuc = dm;
       S.kenh = kn.kenh || [];
       $('#brandSub').textContent = S.kenh.length + ' kênh · ' + n0(du.soBai) + ' bài · '
         + 'cập nhật ' + new Date(du.capNhat).toLocaleString('vi-VN');
@@ -300,6 +303,78 @@
     try { localStorage.setItem('social.luuY', mo ? 'mo' : 'gap'); } catch (_) { /* bỏ qua */ }
   };
 
+  /* ĐỊNH MỨC BÀI/THÁNG — mỗi kênh một thanh tiến độ: đã đăng bao nhiêu trên mức
+   * tối thiểu, kèm vạch "nhịp tới hôm nay" (định mức rải đều theo ngày). Chỉ nhìn
+   * phần trăm thì ngày 7 kênh nào cũng thấp; so với vạch nhịp mới biết kênh nào tụt.
+   * Tháng lấy theo ngày cuối của khoảng lọc. */
+  const TT_DM = {
+    dat: ['good', 'Đủ định mức'],
+    kip: ['good', 'Kịp nhịp'],
+    cham: ['warn', 'Chậm nhịp'],
+    thieu: ['bad', 'Thiếu'],
+    'khong-so': ['', ''],
+  };
+  function theDinhMuc() {
+    const dm = S.dinhMuc;
+    if (!dm) return '';
+    if (dm.loi) {
+      return S.quanLy ? '<div class="card dm-the"><div class="card-head"><h3>Định mức bài tháng</h3></div>'
+        + '<div class="card-body"><div class="empty">' + esc(dm.loi) + '</div></div></div>' : '';
+    }
+    if (!(dm.dong || []).length) return '';
+    const [y, m] = String(dm.thang).split('-');
+    const coSo = dm.dong.filter((x) => x.dinhMuc);
+    const cham = coSo.filter((x) => x.trangThai === 'cham' || x.trangThai === 'thieu').length;
+    const tom = dm.daHet
+      ? (coSo.length - cham) + '/' + coSo.length + ' kênh đủ định mức'
+      : (cham ? cham + '/' + coSo.length + ' kênh chậm nhịp' : 'Mọi kênh đang kịp nhịp')
+        + ' · ngày ' + dm.ngayQua + '/' + dm.soNgay;
+
+    const dong = dm.dong.map((x) => {
+      const ten = x.kenh ? x.kenh.name : x.ten;
+      const nen = x.kenh ? x.kenh.platform : 'Chưa ghép được kênh';
+      if (!x.dinhMuc) {
+        return '<div class="dm-dong dm-khong">'
+          + '<div class="dm-ten">' + theTag(nen) + '<span data-no-i18n>' + esc(ten) + '</span></div>'
+          + (x.ghiChu ? '<div class="dm-ghi" data-no-i18n>' + esc(x.ghiChu) + '</div>' : '<div class="dm-ghi">Chưa có định mức</div>')
+          + '<div class="dm-so"><span class="dm-dem"><strong>' + n0(x.da) + ' bài</strong></span></div>'
+          + '</div>';
+      }
+      const [lopTT, chu] = TT_DM[x.trangThai] || ['', ''];
+      const rong = Math.min(100, (x.da / x.dinhMuc) * 100);
+      const nhip = Math.min(100, (x.canDat / x.dinhMuc) * 100);
+      let ghi;
+      if (x.trangThai === 'dat') ghi = x.da > x.dinhMuc ? 'Vượt ' + n0(x.da - x.dinhMuc) + ' bài' : chu;
+      else if (x.trangThai === 'thieu') ghi = 'Thiếu ' + n0(x.conThieu) + ' bài';
+      else if (x.trangThai === 'cham') ghi = 'Chậm ' + n0(x.canDat - x.da) + ' bài so với nhịp';
+      else ghi = chu;
+      const them = (x.trangThai === 'kip' || x.trangThai === 'cham') && x.moiNgay
+        ? 'Còn ' + n0(x.conThieu) + ' bài, khoảng '
+          + x.moiNgay.toLocaleString('vi-VN', { maximumFractionDigits: 1 }) + ' bài/ngày'
+        : '';
+      return '<div class="dm-dong">'
+        + '<div class="dm-ten">' + theTag(nen) + '<span data-no-i18n>' + esc(ten) + '</span></div>'
+        + '<div class="dm-thanh ' + lopTT + '" role="progressbar" aria-valuemin="0" aria-valuemax="'
+        + x.dinhMuc + '" aria-valuenow="' + x.da + '" aria-label="' + esc(ten) + '">'
+        + '<i style="width:' + rong.toFixed(1) + '%"></i>'
+        + (dm.daHet ? '' : '<b style="left:' + nhip.toFixed(1) + '%" title="Nhịp tới hôm nay: '
+          + n0(x.canDat) + ' bài"></b>')
+        + '</div>'
+        + '<div class="dm-so"><span class="dm-dem"><strong>' + n0(x.da) + '</strong>/' + n0(x.dinhMuc) + '</span>'
+        + '<span class="dm-tt ' + lopTT + '">' + esc(ghi) + '</span>'
+        + (them ? '<span class="sub-line">' + esc(them) + '</span>' : '')
+        + '</div></div>';
+    }).join('');
+
+    return '<div class="card dm-the"><div class="card-head"><h3>Định mức bài tháng ' + Number(m) + '/' + y + '</h3>'
+      + '<span class="sub">' + esc(tom) + '</span>'
+      + (dm.url ? '<a class="btn small ios-an-dt" style="margin-left:auto" href="' + esc(dm.url)
+        + '" target="_blank" rel="noreferrer">Sửa định mức</a>' : '')
+      + '</div><div class="card-body">' + dong
+      + (dm.daHet ? '' : '<div class="dm-chu">Vạch dọc là số bài cần có tới hôm nay nếu rải đều cả tháng.</div>')
+      + '</div></div>';
+  }
+
   function veTongQuan() {
     const d = S.du;
     const t = d.tong;
@@ -335,6 +410,8 @@
             + esc(x) + '</span></div>').join('')
           + '</div></details>'
         : '')
+
+      + theDinhMuc()
 
       + '<div class="grid g-2-1" style="margin-top:14px">'
       + '<div class="card"><div class="card-head"><h3>Lượt xem &amp; tiếp cận theo ngày</h3>'

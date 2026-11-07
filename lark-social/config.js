@@ -357,6 +357,18 @@ module.exports = {
     },
   },
 
+  /* ĐỊNH MỨC BÀI/THÁNG — bảng anh Hùng tự giữ ở một Base RIÊNG, ngoài Base Social.
+   * App chỉ ĐỌC, không bao giờ ghi vào đó. Cột Kênh là chữ gõ tay ("FB Tour đảo"),
+   * dinh-muc.js ghép sang kênh thật theo nền tảng + tên. Cột số là ô chữ nên có
+   * dòng ghi "Không thể đảm bảo số lượng" — giữ nguyên câu đó làm ghi chú.
+   * Deploy chế độ api thì app Marketing Hub phải được mời vào Base này. */
+  dinhMuc: {
+    baseToken: process.env.SOCIAL_DINH_MUC_BASE || 'Ej2xbgWNIakMBus9M9ElJa3jgZe',
+    tableId: process.env.SOCIAL_DINH_MUC_TABLE || 'tblYRn62YXbUaumI',
+    f: { kenh: 'fldS6gvjkD', so: 'fldkSUo8d6' },
+    url: 'https://rootytrip2.sg.larksuite.com/base/Ej2xbgWNIakMBus9M9ElJa3jgZe?table=tblYRn62YXbUaumI',
+  },
+
   /* Tên nền tảng dùng thống nhất từ adapter → Base → giao diện. Đúng option của
    * cột select "Nền tảng"; sai một chữ là Lark từ chối ghi. */
   platforms: ['TikTok', 'Facebook', 'Instagram', 'Zalo OA', 'Douyin', 'Xiaohongshu', 'YouTube'],

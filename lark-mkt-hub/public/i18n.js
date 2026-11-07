@@ -1500,12 +1500,32 @@
     'Áp cho lớp vỏ và cả các app con.': 'Applies to the shell and every app inside it.',
     'Chưa đọc được tài khoản.': 'Could not read the account.',
     '(bạn — không tự bỏ quyền được)': '(you — cannot remove your own access)',
+    /* --- Social: định mức bài/tháng --- */
+    'Định mức bài tháng': 'Monthly post quota',
+    'Sửa định mức': 'Edit quota',
+    'Đủ định mức': 'Quota met',
+    'Chưa có định mức': 'No quota set',
+    'Chưa ghép được kênh': 'Channel not matched',
+    'Vạch dọc là số bài cần có tới hôm nay nếu rải đều cả tháng.':
+      'The vertical line is how many posts you need by today if spread evenly over the month.',
   };
 
   /* ---------------- từ điển: khớp theo mẫu ----------------
    * Cho những câu ghép số/tên vào giữa. $1, $2… là nhóm bắt được.
    */
   const MAU_EN = [
+    /* --- Social: định mức bài/tháng --- */
+    [/^Định mức bài tháng (\d+)\/(\d{4})$/, 'Monthly post quota $1/$2'],
+    [/^(\d+)\/(\d+) kênh chậm nhịp · ngày (\d+)\/(\d+)$/, '$1/$2 channels behind pace · day $3/$4'],
+    [/^Mọi kênh đang kịp nhịp · ngày (\d+)\/(\d+)$/, 'All channels on pace · day $1/$2'],
+    [/^(\d+)\/(\d+) kênh đủ định mức$/, '$1/$2 channels met the quota'],
+    [/^Chậm ([\d.]+) bài so với nhịp$/, '$1 posts behind pace'],
+    [/^Vượt ([\d.]+) bài$/, '$1 posts over'],
+    [/^Thiếu ([\d.]+) bài$/, '$1 posts short'],
+    [/^Còn ([\d.]+) bài, khoảng ([\d,]+) bài\/ngày$/, '$1 posts to go, about $2 a day'],
+    [/^Nhịp tới hôm nay: ([\d.]+) bài$/, 'Pace by today: $1 posts'],
+    [/^1 bài$/, '1 post'],
+    [/^([\d.]+) bài$/, '$1 posts'],
     /* --- Hộp thư: câu có giờ, tên hộp, tiêu đề --- */
     [/^Đọc lúc (\d\d:\d\d)$/, 'Read at $1'],
     [/^Đã lưu trữ: (.+)$/, 'Archived: $1'],

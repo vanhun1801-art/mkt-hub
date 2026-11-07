@@ -52,7 +52,7 @@ function cliOnce(args, { timeout = 90000 } = {}) {
   });
 }
 
-const baseArgs = () => ['--base-token', cfg.baseToken, '--as', cfg.identity];
+const baseArgs = (base) => ['--base-token', base || cfg.baseToken, '--as', cfg.identity];
 
 /** Người đang đăng nhập lark-cli. */
 function whoami() {
@@ -81,11 +81,12 @@ function columnsToRecords(data) {
   });
 }
 
-async function listAll(tableId) {
+/** `base` bỏ trống = Base Social; truyền token khác để đọc Base ngoài (định mức). */
+async function listAll(tableId, base) {
   const out = [];
   let offset = 0;
   for (let page = 0; page < 60; page++) {
-    const data = await cli(['base', '+record-list', ...baseArgs(),
+    const data = await cli(['base', '+record-list', ...baseArgs(base),
       '--table-id', tableId, '--limit', '200', '--offset', String(offset), '--format', 'json']);
     out.push(...columnsToRecords(data));
     if (!data.has_more) break;

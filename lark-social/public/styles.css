@@ -615,3 +615,44 @@ table.tbl tfoot td { font-weight: 700; background: var(--panel-2); border-top: 2
   .gt-nhan .vs { font-size: 12.5px; }                            /* 11 */
   .notes-box > summary .ico { font-size: 12.5px; }               /* 11 */
 }
+
+/* ---------- Định mức bài/tháng (thẻ ở Tổng quan) ---------- */
+.dm-the { margin-top: 14px; }
+.dm-dong {
+  display: grid; grid-template-columns: minmax(0, 280px) minmax(120px, 1fr) 210px;
+  align-items: center; gap: 6px 16px; padding: 9px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+.dm-dong:last-of-type { border-bottom: 0; }
+.dm-ten { display: flex; align-items: center; gap: 8px; min-width: 0; font-weight: 600; font-size: 13px; }
+.dm-ten > .tag { flex-shrink: 0; }
+.dm-ten > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dm-thanh { position: relative; height: 10px; border-radius: 999px; background: var(--line-soft); }
+.dm-thanh > i {
+  display: block; height: 100%; border-radius: 999px; background: var(--brand);
+  transition: width .42s cubic-bezier(.2, .8, .2, 1);
+}
+.dm-thanh.good > i { background: var(--good); }
+.dm-thanh.warn > i { background: var(--warn); }
+.dm-thanh.bad > i { background: var(--bad); }
+.dm-thanh > b {
+  position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px;
+  border-radius: 999px; background: var(--ink-2);
+}
+.dm-so { font-size: 13px; color: var(--ink-3); text-align: right; font-variant-numeric: tabular-nums; }
+.dm-so strong { font-size: 15px; color: var(--ink); }
+.dm-tt { display: block; font-size: 12px; font-weight: 600; }
+.dm-tt.good { color: var(--good); }
+.dm-tt.warn { color: var(--warn); }
+.dm-tt.bad { color: var(--bad); }
+.dm-ghi { font-size: 12.5px; color: var(--ink-3); }
+.dm-chu { margin-top: 8px; font-size: 12px; color: var(--ink-3); }
+@media (max-width: 640px) {
+  .dm-dong { grid-template-columns: minmax(0, 1fr) auto; }
+  .dm-ten { grid-column: 1; grid-row: 1; }
+  .dm-so { display: contents; }
+  .dm-dem { grid-column: 2; grid-row: 1; text-align: right; }
+  .dm-tt { grid-column: 1 / -1; grid-row: 3; margin-top: -2px; }
+  .dm-thanh, .dm-ghi { grid-column: 1 / -1; grid-row: 2; }
+  .dm-so .sub-line { display: none; }
+}

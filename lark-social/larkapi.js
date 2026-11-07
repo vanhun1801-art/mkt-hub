@@ -131,8 +131,8 @@ async function callOnce(method, url, { body, raw } = {}) {
   return d.data || {};
 }
 
-const baseUrl = (tableId) =>
-  '/open-apis/base/v3/bases/' + cfg.baseToken + '/tables/' + tableId;
+const baseUrl = (tableId, base) =>
+  '/open-apis/base/v3/bases/' + (base || cfg.baseToken) + '/tables/' + tableId;
 
 /* ---------------- Base -> bản ghi ---------------- */
 function columnsToRecords(data) {
@@ -150,11 +150,11 @@ function columnsToRecords(data) {
 }
 
 /* ---------------- các thao tác (cùng chữ ký với lark.js của app này) ---------------- */
-async function listAll(tableId) {
+async function listAll(tableId, base) {
   const out = [];
   let offset = 0;
   for (let trang = 0; trang < 60; trang++) {
-    const d = await call('GET', baseUrl(tableId) + '/records?limit=200&offset=' + offset);
+    const d = await call('GET', baseUrl(tableId, base) + '/records?limit=200&offset=' + offset);
     out.push(...columnsToRecords(d));
     if (!d.has_more) break;
     offset += 200;
