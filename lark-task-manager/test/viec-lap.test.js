@@ -80,6 +80,31 @@ function khoGia(ds) {
     c.mau && c.mau.title === 'Đăng bài' && c.mau.thu.join() === '1' && c.mau.gioHan === '17:00' &&
     c.mau.owner.length === 1 && !('tuNhap' in c.mau) && !('status' in c.mau), JSON.stringify(c));
 
+  /* ---- 6. khoảng lặp (07/11/2026) ----
+   * Anh Hùng tạo việc hôm 06/11, deadline 07/11, lặp hằng ngày. Việc của 07/11
+   * đã có từ form; sáng 07/11 nhịp lặp không được tạo thêm bản thứ hai. */
+  const K3 = khoGia([{ id: 'c', title: 'Content bán hàng', chuKy: 'ngay', lanCuoi: '2026-11-07', batDau: '2026-11-07' }]);
+  const tao3 = [];
+  let now3 = luc('2026-11-07', 8);
+  const lich3 = VL.create({ kho: K3, taoViec: async (m, x) => { tao3.push(x.ngay); }, now: () => now3, log: () => {} });
+  await lich3.tick();
+  ok('ngày deadline của việc tạo bằng form không bị tạo lại', tao3.length === 0, JSON.stringify(tao3));
+  now3 = luc('2026-11-08', 8);
+  await lich3.tick();
+  ok('hôm sau deadline thì tạo kỳ tiếp', tao3.join() === '2026-11-08', JSON.stringify(tao3));
+
+  ok('trước ngày bắt đầu không tạo', !VL.denKy({ chuKy: 'ngay', batDau: '2026-11-10' }, v('2026-11-09')));
+  ok('đúng ngày bắt đầu thì tạo', VL.denKy({ chuKy: 'ngay', batDau: '2026-11-10' }, v('2026-11-10')));
+  ok('đúng ngày kết thúc vẫn tạo', VL.denKy({ chuKy: 'ngay', ketThuc: '2026-11-30' }, v('2026-11-30')));
+  ok('sau ngày kết thúc không tạo', !VL.denKy({ chuKy: 'ngay', ketThuc: '2026-11-30' }, v('2026-12-01')));
+  ok('daHet sau ngày kết thúc', VL.daHet({ ketThuc: '2026-11-30' }, luc('2026-12-01')) && !VL.daHet({ ketThuc: '2026-11-30' }, luc('2026-11-30')));
+  const mt = VL.moTa({ chuKy: 'ngay', gioHan: '17:00', batDau: '2026-11-07', ketThuc: '2026-11-30' });
+  ok('mô tả có khoảng lặp', mt === 'Hằng ngày · hạn 17:00 · từ 07/11/2026 đến 30/11/2026', mt);
+  const m6 = VL.chuanHoa({ title: 'x', chuKy: 'ngay', batDau: '2026-11-07', ketThuc: '30/11' }).mau;
+  ok('chuanHoa giữ ngày hợp lệ, bỏ ngày sai', m6.batDau === '2026-11-07' && m6.ketThuc === '', JSON.stringify(m6));
+  ok('chuanHoa từ chối kết thúc trước bắt đầu',
+    !!VL.chuanHoa({ title: 'x', chuKy: 'ngay', batDau: '2026-11-10', ketThuc: '2026-11-09' }).loi);
+
   console.log('\n' + pass + ' pass · ' + fail + ' fail');
   process.exit(fail ? 1 : 0);
 })();

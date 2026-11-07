@@ -3296,6 +3296,11 @@ html:not(#_):not(#__):not(#___) .lap-xoa { width: 34px !important; min-width: 34
 .lap-chu b { font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
 .lap-chu span { font-size: 12.5px; color: var(--text-2); }
 .lap-nut { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; }
+/* Khoảng lặp của từng mẫu: hai ô ngày gọn, xuống dòng khi màn hẹp (07/11/2026). */
+.lap-khoang { display: flex; flex-wrap: wrap; gap: 6px 12px; margin-top: 6px; }
+.lap-khoang-o { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--text-2); }
+.lap-khoang-o span { min-width: 2em; }
+.lap-khoang-o input { width: 150px; max-width: 100%; }
 #mLap .modal-foot { justify-content: flex-end; }
 
 /* ---- Tải việc theo nhân sự trên điện thoại (29/10/2026) ----

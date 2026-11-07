@@ -16,6 +16,16 @@
  * TRƯỚC khi tạo việc; tạo hỏng thì trả mốc về như cũ để lượt sau thử lại.
  * Chỉ bản trên Render chạy lịch (xem server.js), máy cá nhân không tạo, nên
  * không có hai nơi cùng tạo một việc.
+ *
+ * KHOẢNG LẶP (07/11/2026). Anh Hùng: "hôm qua anh tạo deadline hôm nay, hôm nay
+ * bạn nhận cả 2 task… chọn thời gian bắt đầu và kết thúc sự lặp lại; chu kỳ bắt
+ * đầu đôi khi nó là deadline". Lỗi cũ: việc tạo bằng form mang hạn ngày mai,
+ * nhưng mẫu ghi lanCuoi = ngày tạo, nên sáng hôm sau nhịp lặp tạo thêm bản thứ
+ * hai cho đúng ngày đó. Nay:
+ *   - lanCuoi = NGÀY CỦA DEADLINE việc vừa tạo (có thể là ngày tương lai), và
+ *     nhịp bỏ qua mọi ngày <= lanCuoi;
+ *   - batDau / ketThuc (YYYY-MM-DD, giờ VN): ngoài khoảng thì không tạo.
+ *     batDau mặc định là ngày deadline; ketThuc trống là lặp mãi.
  */
 
 const LECH = 7 * 3600000;                 // giờ Việt Nam, không đổi giờ mùa hè
@@ -43,6 +53,8 @@ function ngayVN(now) {
  */
 function denKy(mau, v) {
   if (!mau || mau.tat) return false;
+  if (mau.batDau && v.ngay < mau.batDau) return false;
+  if (mau.ketThuc && v.ngay > mau.ketThuc) return false;
   if (mau.chuKy === 'ngay') return !(mau.boCN && v.thu === 0);
   if (mau.chuKy === 'tuan') return (mau.thu || []).includes(v.thu);
   if (mau.chuKy === 'thang') {
@@ -57,9 +69,25 @@ function hanCua(mau, v) {
   return v.ngay + 'T' + p2(+h || 0) + ':' + p2(+m || 0) + ':00+07:00';
 }
 
+/** "2026-11-30" → "30/11/2026". */
+const ngayDoc = (s) => (NGAY_RE.test(String(s || '')) ? s.slice(8, 10) + '/' + s.slice(5, 7) + '/' + s.slice(0, 4) : '');
+const NGAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Khoảng lặp cho người đọc: "từ 07/11/2026 đến 30/11/2026". Rỗng nếu không đặt. */
+function khoang(mau) {
+  const tu = ngayDoc(mau.batDau), den = ngayDoc(mau.ketThuc);
+  return [tu && 'từ ' + tu, den && 'đến ' + den].filter(Boolean).join(' ');
+}
+
+/** Mẫu đã qua ngày kết thúc: không bao giờ tạo việc nữa. */
+function daHet(mau, now = Date.now()) {
+  return !!(mau && mau.ketThuc && ngayVN(now).ngay > mau.ketThuc);
+}
+
 /** Câu tả chu kỳ cho người đọc: "Hằng tuần · T2, T5 · hạn 17:00". */
 function moTa(mau) {
-  const han = 'hạn ' + (mau.gioHan || '17:00');
+  const k = khoang(mau);
+  const han = 'hạn ' + (mau.gioHan || '17:00') + (k ? ' · ' + k : '');
   if (mau.chuKy === 'ngay') return 'Hằng ngày' + (mau.boCN ? ' trừ CN' : '') + ' · ' + han;
   if (mau.chuKy === 'tuan') {
     const ds = [1, 2, 3, 4, 5, 6, 0].filter((x) => (mau.thu || []).includes(x)).map((x) => THU[x]);
@@ -91,13 +119,16 @@ function chuanHoa(vao) {
   if (chuKy === 'thang' && !ngay.length) return { loi: 'Chọn ít nhất một ngày trong tháng' };
   const gioHan = /^([01]?\d|2[0-3]):[0-5]\d$/.test(String(x.gioHan || '')) ? String(x.gioHan) : '17:00';
   const chu = (k, n) => (x[k] == null ? '' : String(x[k]).slice(0, n));
+  const batDau = NGAY_RE.test(String(x.batDau || '')) ? String(x.batDau) : '';
+  const ketThuc = NGAY_RE.test(String(x.ketThuc || '')) ? String(x.ketThuc) : '';
+  if (batDau && ketThuc && ketThuc < batDau) return { loi: 'Ngày kết thúc lặp phải sau ngày bắt đầu' };
   return {
     mau: {
       title: ten, detail: chu('detail', 4000), workType: chu('workType', 80),
       priority: chu('priority', 40), campaign: chu('campaign', 120),
       channel: (Array.isArray(x.channel) ? x.channel : []).map(String).slice(0, 10),
       owner: nguoi(x.owner), helper: nguoi(x.helper), requester: nguoi(x.requester),
-      chuKy, thu, ngay, gioHan, boCN: !!x.boCN, tat: !!x.tat,
+      chuKy, thu, ngay, gioHan, boCN: !!x.boCN, tat: !!x.tat, batDau, ketThuc,
     },
   };
 }
@@ -139,7 +170,9 @@ function create({ kho: K, taoViec, now = Date.now, log = console.error }) {
       const v = ngayVN(now());
       if (v.gio < GIO_TAO) return { tao };
       for (const mau of await K.list()) {
-        if (!denKy(mau, v) || mau.lanCuoi === v.ngay) continue;
+        /* <= chứ không ===: lanCuoi có thể là ngày deadline ở tương lai của việc
+         * tạo bằng form; mọi ngày tới mốc đó đã có việc. */
+        if (!denKy(mau, v) || (mau.lanCuoi && v.ngay <= mau.lanCuoi)) continue;
         const cu = mau.lanCuoi;
         mau.lanCuoi = v.ngay;
         await K.sua(mau);                         // giữ chỗ trước, chống tạo trùng
@@ -160,4 +193,4 @@ function create({ kho: K, taoViec, now = Date.now, log = console.error }) {
   return { tick };
 }
 
-module.exports = { PREFIX, GIO_TAO, ngayVN, denKy, hanCua, moTa, chuanHoa, kho, create };
+module.exports = { PREFIX, GIO_TAO, NGAY_RE, ngayVN, denKy, hanCua, moTa, khoang, daHet, chuanHoa, kho, create };

@@ -5141,7 +5141,8 @@ function buildCreateForm(b, t, o) {
   const fStart = field('Ngày bắt đầu', ngayInput(t.startAt, (v) => set('startAt', v)));
   fStart.appendChild(el('div', 'ro-note', 'Mặc định là thời điểm tạo việc.'));
   r2.appendChild(fStart);
-  r2.appendChild(field('Deadline *', ngayInput(t.deadline1, (v) => set('deadline1', v), {
+  /* Đổi deadline thì vẽ lại khối Lặp lại: ngày bắt đầu lặp mặc định theo nó. */
+  r2.appendChild(field('Deadline *', ngayInput(t.deadline1, (v) => { set('deadline1', v); if (t._lapVe) t._lapVe(); }, {
     dulieu: () => dulieuDaiNhiet(t),
   })));
   b.appendChild(r2);
@@ -5195,12 +5196,27 @@ function buildCreateForm(b, t, o) {
  */
 const THU_LAP = [[1, 'T2'], [2, 'T3'], [3, 'T4'], [4, 'T5'], [5, 'T6'], [6, 'T7'], [0, 'CN']];
 
+/** Ngày Việt Nam dạng YYYY-MM-DD (giá trị của <input type="date">). */
+function ngayOVN(v) {
+  const g = v ? vnParts(v) : null;
+  return g ? g.y + '-' + p2(g.m) + '-' + p2(g.d) : '';
+}
+
+/* Khoảng lặp (07/11/2026). Anh Hùng: "chọn thời gian bắt đầu và kết thúc sự lặp
+ * lại; chu kỳ bắt đầu đôi khi nó là deadline". Bắt đầu mặc định = ngày của ô
+ * Deadline và đi theo ô đó cho tới khi quản lý tự chọn ngày khác. */
+function batDauLap(t) {
+  const L = t._lap || {};
+  return L.batDauTay ? (L.batDau || '') : ngayOVN(t.deadline1);
+}
+
 function khoiLapLai(t) {
   if (!t._lap) t._lap = { chuKy: '', thu: [], ngay: [], boCN: false };
   const L = t._lap;
   const khoi = el('div', 'lap-khoi');
   const ve = () => {
     khoi.innerHTML = '';
+    t._lapVe = ve;
     const seg = el('div', 'seg lap-seg');
     /* Nhãn ngắn để bốn ô vừa một hàng kể cả màn 320px, không phải vuốt ngang. */
     for (const [k, nhan] of [['', 'Không'], ['ngay', 'Ngày'], ['tuan', 'Tuần'], ['thang', 'Tháng']]) {
@@ -5254,8 +5270,21 @@ function khoiLapLai(t) {
       khoi.appendChild(nhan);
     }
     if (L.chuKy) {
+      const hang = el('div', 'row2');
+      const oTu = el('input');
+      oTu.type = 'date';
+      oTu.value = batDauLap(t);
+      oTu.onchange = () => { L.batDauTay = true; L.batDau = oTu.value; };
+      const oDen = el('input');
+      oDen.type = 'date';
+      oDen.value = L.ketThuc || '';
+      oDen.onchange = () => { L.ketThuc = oDen.value; };
+      hang.appendChild(field('Bắt đầu lặp', oTu));
+      hang.appendChild(field('Kết thúc lặp', oDen));
+      khoi.appendChild(hang);
       khoi.appendChild(el('div', 'ro-note',
-        'Tạo việc hôm nay, các kỳ sau tự tạo lúc 07:00. Hạn theo giờ ô Deadline.'));
+        'Việc này là kỳ đầu, tạo ngay. Các kỳ sau tự tạo lúc 07:00, hạn theo giờ ô Deadline. ' +
+        'Bỏ trống ngày kết thúc thì lặp mãi.'));
     }
     const xem = el('button', 'lap-xem', 'Xem các việc lặp lại');
     xem.type = 'button';
@@ -5276,10 +5305,41 @@ function gioPhutVN(iso) {
 async function luuMauLap(payload, L) {
   const mau = Object.assign({}, payload, {
     chuKy: L.chuKy, thu: L.thu, ngay: L.ngay, boCN: L.boCN,
-    gioHan: gioPhutVN(payload.deadline1), daTaoHomNay: true,
+    gioHan: gioPhutVN(payload.deadline1),
+    /* Việc vừa tạo đã lo ngày deadline của nó: máy chủ không tạo lại ngày đó. */
+    ngayDaTao: ngayOVN(payload.deadline1),
+    batDau: L.batDauTay ? (L.batDau || '') : ngayOVN(payload.deadline1),
+    ketThuc: L.ketThuc || '',
   });
   delete mau.tuNhap;
   return req('/api/viec-lap', { method: 'POST', body: JSON.stringify(mau) });
+}
+
+/** Hai ô ngày sửa khoảng lặp của một mẫu đã có; đổi là lưu luôn. */
+function khoangLap(m, ds) {
+  const hang = el('div', 'lap-khoang');
+  const o = (k, nhan) => {
+    const nh = el('label', 'lap-khoang-o');
+    nh.appendChild(el('span', '', nhan));
+    const inp = el('input');
+    inp.type = 'date';
+    inp.value = m[k] || '';
+    inp.setAttribute('aria-label', nhan + ' lặp: ' + m.title);
+    inp.onchange = async () => {
+      inp.disabled = true;
+      try {
+        const kq = await req('/api/viec-lap/' + m.id, { method: 'PATCH', body: JSON.stringify({ [k]: inp.value }) });
+        Object.assign(m, kq.mau);
+        veDanhSachLap(ds);
+        toast('Đã lưu khoảng lặp');
+      } catch (e) { toast('Lỗi: ' + e.message, true); inp.value = m[k] || ''; inp.disabled = false; }
+    };
+    nh.appendChild(inp);
+    return nh;
+  };
+  hang.appendChild(o('batDau', 'Từ'));
+  hang.appendChild(o('ketThuc', 'Đến'));
+  return hang;
 }
 
 async function moDanhSachLap() {
@@ -5304,12 +5364,13 @@ function veDanhSachLap(ds) {
     return;
   }
   for (const m of ds) {
-    const dong = el('div', 'lap-dong' + (m.tat ? ' tat' : ''));
+    const dong = el('div', 'lap-dong' + (m.tat || m.daHet ? ' tat' : ''));
     const chu = el('div', 'lap-chu');
     chu.appendChild(el('b', '', m.title));
-    chu.appendChild(el('span', '', (m.tat ? 'Tạm dừng · ' : '') + m.moTa));
+    chu.appendChild(el('span', '', (m.daHet ? 'Đã hết khoảng lặp · ' : m.tat ? 'Tạm dừng · ' : '') + m.moTa));
     const ai = (m.owner || []).map((u) => u.name).filter(Boolean).join(', ');
     chu.appendChild(el('span', 'lap-ai', ai || 'Chưa giao ai'));
+    chu.appendChild(khoangLap(m, ds));
     dong.appendChild(chu);
     /* Một dòng một mẫu: công tắc bật/tắt kiểu iOS và thùng rác nhỏ, thay hai nút
      * chữ to rớt xuống dòng riêng (anh Hùng 29/10/2026: "chú ý giao diện"). */
@@ -6902,6 +6963,11 @@ async function saveDrawer() {
       const L = S.isManager && !payload.parent && t._lap && t._lap.chuKy ? t._lap : null;
       if (L && L.chuKy === 'tuan' && !L.thu.length) throw new Error('Chọn ít nhất một thứ để lặp lại hằng tuần');
       if (L && L.chuKy === 'thang' && !L.ngay.length) throw new Error('Nhập ít nhất một ngày để lặp lại hằng tháng');
+      if (L && L.ketThuc) {
+        const tu = batDauLap(t);
+        if (tu && L.ketThuc < tu) throw new Error('Ngày kết thúc lặp phải sau ngày bắt đầu');
+        if (L.ketThuc <= ngayOVN(payload.deadline1)) throw new Error('Ngày kết thúc lặp đang trước deadline, sẽ không có kỳ nào sau việc này');
+      }
 
       const kq = await req('/api/tasks', { method: 'POST', body: JSON.stringify(payload) });
 

@@ -1719,16 +1719,19 @@ async function api(req, res, url) {
   if (mVL) {
     if (!(await isManager(req))) return json(res, { error: 'Chỉ quản lý thiết lập việc lặp lại.', code: 'MANAGER_ONLY' }, 403);
     if (req.method === 'GET' && !mVL[1]) {
-      const ds = (await khoViecLap.list()).map((m) => Object.assign({}, m, { moTa: VL.moTa(m) }));
+      const ds = (await khoViecLap.list()).map((m) => Object.assign({}, m, { moTa: VL.moTa(m), daHet: VL.daHet(m) }));
       return json(res, { ds, chayLich: CHAY_LICH_LAP });
     }
     if (req.method === 'POST' && !mVL[1]) {
       const body = await readBody(req);
       const { mau, loi } = VL.chuanHoa(body);
       if (loi) return json(res, { error: loi }, 400);
-      /* Việc của hôm nay vừa được tạo bằng form (daTaoHomNay) thì đánh dấu sẵn,
-       * kẻo nhịp lặp tạo thêm một bản nữa ngay trong ngày. */
-      if (body.daTaoHomNay) mau.lanCuoi = VL.ngayVN(Date.now()).ngay;
+      /* Việc vừa tạo bằng form đã phủ ngày deadline của nó (ngayDaTao, có thể là
+       * ngày mai): đánh dấu sẵn tới đúng ngày đó, kẻo sáng hôm ấy nhịp lặp tạo
+       * thêm một bản nữa (anh Hùng 07/11/2026: "nhận được cả 2 task"). */
+      const homNay = VL.ngayVN(Date.now()).ngay;
+      if (VL.NGAY_RE.test(String(body.ngayDaTao || ''))) mau.lanCuoi = body.ngayDaTao > homNay ? body.ngayDaTao : homNay;
+      else if (body.daTaoHomNay) mau.lanCuoi = homNay;
       const moi = await khoViecLap.them(mau);
       return json(res, { ok: true, mau: Object.assign(moi, { moTa: VL.moTa(moi) }) });
     }
@@ -1738,8 +1741,19 @@ async function api(req, res, url) {
       if (req.method === 'DELETE') { await khoViecLap.xoa(mau.rowId); return json(res, { ok: true }); }
       const body = await readBody(req);
       if (typeof body.tat === 'boolean') mau.tat = body.tat;
+      /* Sửa khoảng lặp: chuỗi rỗng = bỏ mốc. */
+      for (const k of ['batDau', 'ketThuc']) {
+        if (body[k] === '' || body[k] === null) mau[k] = '';
+        else if (body[k] !== undefined) {
+          if (!VL.NGAY_RE.test(String(body[k]))) return json(res, { error: 'Ngày không hợp lệ' }, 400);
+          mau[k] = String(body[k]);
+        }
+      }
+      if (mau.batDau && mau.ketThuc && mau.ketThuc < mau.batDau) {
+        return json(res, { error: 'Ngày kết thúc lặp phải sau ngày bắt đầu' }, 400);
+      }
       await khoViecLap.sua(mau);
-      return json(res, { ok: true, mau: Object.assign({}, mau, { moTa: VL.moTa(mau) }) });
+      return json(res, { ok: true, mau: Object.assign({}, mau, { moTa: VL.moTa(mau), daHet: VL.daHet(mau) }) });
     }
     return json(res, { error: 'Không hỗ trợ' }, 405);
   }
