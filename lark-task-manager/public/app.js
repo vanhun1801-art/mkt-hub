@@ -5279,12 +5279,17 @@ function khoiLapLai(t) {
       oDen.type = 'date';
       oDen.value = L.ketThuc || '';
       oDen.onchange = () => { L.ketThuc = oDen.value; };
-      hang.appendChild(field('Bắt đầu lặp', oTu));
-      hang.appendChild(field('Kết thúc lặp', oDen));
+      /* Anh Hùng 07/11/2026: "chọn lặp lại xong cho chọn mốc thời gian lặp liền,
+       * không chọn thì lặp vô hạn". Mỗi ô tự nói giá trị khi để trống. */
+      const fTu = field('Lặp từ ngày', oTu);
+      fTu.appendChild(el('div', 'ro-note', 'Trống: lấy ngày của Deadline.'));
+      const fDen = field('Lặp đến ngày', oDen);
+      fDen.appendChild(el('div', 'ro-note', 'Trống: lặp mãi.'));
+      hang.appendChild(fTu);
+      hang.appendChild(fDen);
       khoi.appendChild(hang);
       khoi.appendChild(el('div', 'ro-note',
-        'Việc này là kỳ đầu, tạo ngay. Các kỳ sau tự tạo lúc 07:00, hạn theo giờ ô Deadline. ' +
-        'Bỏ trống ngày kết thúc thì lặp mãi.'));
+        'Việc này là kỳ đầu, tạo ngay. Các kỳ sau tự tạo lúc 07:00, hạn theo giờ ô Deadline.'));
     }
     const xem = el('button', 'lap-xem', 'Xem các việc lặp lại');
     xem.type = 'button';
