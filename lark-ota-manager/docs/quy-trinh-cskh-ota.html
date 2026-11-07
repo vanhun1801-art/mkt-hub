@@ -145,8 +145,8 @@
   .ai { background: var(--xanh); color: #fff; }
   .ng { background: #fff; color: var(--xanh-dam); border: 0.5pt solid var(--xanh); }
   .buoc4 col.c1 { width: 41mm; }
-  .buoc4 col.c2 { width: 35mm; }
-  .buoc4 col.c3 { width: 18mm; }
+  .buoc4 col.c2 { width: 33mm; }
+  .buoc4 col.c3 { width: 22mm; }
   .buoc4 td.b { font-weight: 600; }
   .buoc4 td.k { color: var(--phu); }
   .buoc4 td.k b { color: var(--chu); }
@@ -170,7 +170,7 @@
     <h1>Quy trình chăm sóc khách booking OTA</h1>
     <div class="mo">
       <span>Áp dụng: <b>Bộ phận CSKH</b></span>
-      <span>Phiên bản: <b>Đề xuất lần 2</b></span>
+      <span>Phiên bản: <b>Đề xuất lần 3</b></span>
       <span>Ngày: <b>07/11/2026</b></span>
     </div>
   </header>
@@ -206,12 +206,12 @@
       <colgroup><col class="c1"><col class="c2"><col class="c3"><col></colgroup>
       <thead><tr><th>Bước</th><th>Khi nào</th><th>Ai làm</th><th>Việc cần làm</th></tr></thead>
       <tbody>
-        <tr><td class="b">1. Báo booking mới</td><td class="k">Trong 1 phút</td><td><span class="ai">AI</span></td><td>Bot báo vào nhóm Booking KS và nhắc người trực. Sau 3 phút chưa ai nhận thì nhắc lại và báo quản lý.</td></tr>
-        <tr><td class="b">2. Nhận đơn, tư vấn</td><td class="k"><b>Trong 5 phút</b> từ lúc có tin</td><td><span class="ng">Người</span></td><td>Trả lời "Em nhận", đối chiếu GoHost. Xác nhận với khách, tư vấn theo phương châm mục 1. AI soạn sẵn lời chào theo ngôn ngữ khách.</td></tr>
-        <tr><td class="b">3. Nhắc trước ngày đến</td><td class="k">1 ngày trước nhận phòng</td><td><span class="ai">AI</span></td><td>AI gửi hướng dẫn đi Hòn Thơm (cáp treo, giờ chạy, tàu), giờ nhận, trả phòng. Khách hỏi thêm thì chuyển người trực.</td></tr>
-        <tr><td class="b">4. Hỏi thăm khi ở</td><td class="k">Tối ngày nhận phòng</td><td><span class="ai">AI</span><span class="ng">Người</span></td><td>AI gửi tin hỏi thăm. Khách chưa hài lòng thì báo ngay người trực xử lý tại chỗ.</td></tr>
-        <tr><td class="b">5. Cảm ơn, xin đánh giá</td><td class="k">24 giờ sau trả phòng</td><td><span class="ai">AI</span></td><td>AI cảm ơn, mời đánh giá trên đúng OTA khách đặt. Bỏ qua khách còn phàn nàn chưa xử lý.</td></tr>
-        <tr><td class="b">6. Trả lời đánh giá</td><td class="k">Tốt: 3 ngày<br>Xấu: 24 giờ</td><td><span class="ai">AI</span><span class="ng">Người</span></td><td>AI soạn nháp câu trả lời. Người duyệt rồi đăng; đánh giá xấu báo quản lý trước.</td></tr>
+        <tr><td class="b">1. Báo booking mới</td><td class="k">Trong 1 phút</td><td><span class="ai">AI</span></td><td>Bot báo vào nhóm Booking KS kèm mẫu tin chào. Sau 3 phút chưa ai nhận thì nhắc cả nhóm; 10 phút sau nữa báo quản lý.</td></tr>
+        <tr><td class="b">2. Nhận đơn, tư vấn</td><td class="k"><b>Trong 5 phút</b> từ lúc có tin</td><td><span class="ng">Người</span></td><td>Trả lời "Em nhận", đối chiếu GoHost. Xác nhận với khách, tư vấn theo phương châm mục 1. Dùng mẫu tin chào AI soạn sẵn theo ngôn ngữ khách.</td></tr>
+        <tr><td class="b">3. Nhắc trước ngày đến</td><td class="k">9h ngày trước ngày nhận phòng</td><td><span class="ai">AI nhắc</span><span class="ng">Người gửi</span></td><td>AI nhắc trong luồng kèm mẫu tin. Người trực nhắn khách hỏi giờ đến, hướng dẫn đi Hòn Thơm (cáp treo, tàu).</td></tr>
+        <tr><td class="b">4. Hỏi thăm khi ở</td><td class="k">19h ngày nhận phòng</td><td><span class="ai">AI nhắc</span><span class="ng">Người gửi</span></td><td>AI nhắc kèm mẫu tin. Người trực hỏi thăm khách; chưa hài lòng thì xử lý ngay tại chỗ.</td></tr>
+        <tr><td class="b">5. Cảm ơn, xin đánh giá</td><td class="k">14h ngày trả phòng</td><td><span class="ai">AI nhắc</span><span class="ng">Người gửi</span></td><td>AI nhắc kèm mẫu tin. Người trực cảm ơn, mời đánh giá trên đúng OTA khách đặt. Bỏ qua khách còn phàn nàn.</td></tr>
+        <tr><td class="b">6. Trả lời đánh giá</td><td class="k">Tốt: 3 ngày<br>Xấu: 24 giờ</td><td><span class="ng">Người</span></td><td>Người trực viết và đăng câu trả lời; đánh giá xấu báo quản lý trước.</td></tr>
       </tbody>
     </table>
     <p class="ghi">Đơn đến ngoài giờ hành chính: nhận trước 8h sáng hôm sau. Khách nhận phòng ngay trong ngày thì nhận đơn luôn.</p>
@@ -236,7 +236,7 @@
         </ul></td></tr>
         <tr><td>Khách không đến</td><td>Liên hệ trước 18h ngày nhận phòng. Khách vẫn đến thì giữ phòng; không đến thì báo lễ tân xử lý theo chính sách OTA.</td></tr>
         <tr><td>OTA sửa đơn, đổi phòng</td><td>Xác nhận lại thông tin mới với khách và kiểm tra lễ tân đã cập nhật.</td></tr>
-        <tr><td>Khách nước ngoài</td><td>AI soạn tin tiếng Anh, tiếng Hàn. Tin khách nhắn vào luồng nhóm đã có bản dịch tiếng Việt.</td></tr>
+        <tr><td>Khách nước ngoài</td><td>Mẫu tin AI soạn có sẵn tiếng Anh, tiếng Hàn. Tin khách nhắn vào luồng nhóm đã có bản dịch tiếng Việt.</td></tr>
         <tr><td>Khiếu nại</td><td>Báo quản lý trong luồng của đơn đó, không xử lý riêng qua tin nhắn cá nhân.</td></tr>
       </tbody>
     </table>
@@ -246,26 +246,24 @@
     <h2><span class="so">5</span>Phân việc giữa AI và người</h2>
     <table class="pv">
       <colgroup><col class="c1"><col></colgroup>
-      <thead><tr><th>AI làm thay (thủ tục lặp lại)</th><th>Người làm (khâu cần thiết, quan trọng)</th></tr></thead>
+      <thead><tr><th>AI làm thay (nhắc việc, soạn sẵn)</th><th>Người làm (khâu cần thiết, quan trọng)</th></tr></thead>
       <tbody><tr>
         <td><ul>
           <li>Báo booking mới, nhắc người trực khi chưa ai nhận đơn</li>
-          <li>Nhắc khách trước ngày đến</li>
-          <li>Hỏi thăm khách tối ngày nhận phòng</li>
-          <li>Cảm ơn, mời đánh giá sau khi trả phòng</li>
-          <li>Soạn nháp tin nhắn, câu trả lời đánh giá; dịch tin khách</li>
+          <li>Nhắc người trực đúng lúc: trước ngày đến, hỏi thăm, xin đánh giá, hỏi lý do huỷ</li>
+          <li>Soạn sẵn mẫu tin theo ngôn ngữ khách; dịch tin khách nhắn</li>
           <li>Thống kê tuần, tháng gửi vào nhóm</li>
         </ul></td>
         <td><ul>
+          <li>Nhắn tin cho khách (AI không tự nhắn khách)</li>
           <li>Tư vấn và chốt đơn, quyết định ưu đãi cho khách</li>
           <li>Gọi khách huỷ đơn, tìm phương án đặt lại</li>
           <li>Xử lý phàn nàn, khiếu nại</li>
-          <li>Duyệt câu trả lời đánh giá trước khi đăng</li>
-          <li>Trả lời câu hỏi ngoài kịch bản của AI</li>
-        </ul></td>
+          <li>Trả lời đánh giá trên OTA</li>
+                  </ul></td>
       </tr></tbody>
     </table>
-    <p class="ghi">Phần AI làm thay sẽ bật dần trên Marketing Hub. Việc nào chưa bật thì người trực làm như cũ.</p>
+    <p class="ghi">Lời nhắc của AI nằm trong luồng tin của từng đơn, chỉ trong giờ trực 8h đến 22h. Nhận đơn bằng cách trả lời trong luồng hoặc đổi cột Chăm sóc trên app.</p>
   </section>
 
   <section class="hai">
