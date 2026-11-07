@@ -32,6 +32,7 @@ const NGUON = {
 /* ---------------- cache ngắn ---------------- */
 let cache = null;          // { key, at, data }
 const TTL = Number(process.env.LARK_LIVE_TTL || 180000);   // 3 phút
+const CHO_GOI_LAI = Number(process.env.LARK_LIVE_CHO_GOI_LAI || 2000);
 
 const now = () => Date.now();
 
@@ -91,13 +92,25 @@ async function layRows(from, to) {
   const loi = [];
   for (const k of keys) {
     const { mod, platform } = NGUON[k];
-    try {
-      const r = await mod.fetchRange(c[k], from, to);
-      rows.push(...r.rows);
-      nenTang.push(platform);
-    } catch (e) {
-      loi.push({ kenh: k, platform, loi: e.message });
+    /* Gọi lại một lần trước khi báo lỗi (07/11/2026): ngay sau deploy, lượt
+     * đồng bộ lúc khởi động và lượt mở trang gọi TikTok cùng lúc, TikTok trả
+     * lỗi thoáng qua, chip hiện "TikTok lỗi" suốt 3 phút dù token vẫn tốt. */
+    let lanCuoi = null;
+    for (let lan = 0; lan < 2; lan += 1) {
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        const r = await mod.fetchRange(c[k], from, to);
+        rows.push(...r.rows);
+        nenTang.push(platform);
+        lanCuoi = null;
+        break;
+      } catch (e) {
+        lanCuoi = e;
+        // eslint-disable-next-line no-await-in-loop
+        if (lan === 0) await new Promise((ok) => setTimeout(ok, CHO_GOI_LAI));
+      }
     }
+    if (lanCuoi) loi.push({ kenh: k, platform, loi: lanCuoi.message });
   }
   return { rows, nenTang, loi };
 }
@@ -253,7 +266,9 @@ async function duLieu(opts = {}) {
       },
     },
   };
-  cache = { key, at: now(), data };
+  /* Có kênh lỗi thì chỉ nhớ 20 giây: nhớ đủ 3 phút là lỗi thoáng qua cũng
+   * nằm lì trên chip. `at` lùi về trước để hết hạn sớm. */
+  cache = { key, at: loi.length ? now() - TTL + 20000 : now(), data };
   return data;
 }
 
