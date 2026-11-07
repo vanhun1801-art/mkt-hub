@@ -103,7 +103,7 @@ function soanTraLoi(b, dongs, banDich = {}) {
   for (const d of dongs) {
     const luc = d.slice(11, 16) + ' ' + d.slice(8, 10) + '/' + d.slice(5, 7);
     const loai = loaiDong(d);
-    if (loai === 'huy') cau.push('Khách đã huỷ đặt phòng (' + (b.kenh || 'OTA') + ' báo lúc ' + luc + ').');
+    if (loai === 'huy') cau.push('Khách đã huỷ đặt phòng (' + (b.kenh || 'OTA') + ' báo lúc ' + luc + '). Người nhận đơn gọi khách trong 30 phút: hỏi lý do, đưa phương án đặt lại, rồi ghi Lý do huỷ trên app.');
     else if (loai === 'sua') {
       cau.push('OTA sửa đơn lúc ' + luc + '. Hiện tại: ' + dmy(b.nhanPhong) + ' - ' + dmy(b.traPhong)
         + (b.soDem ? ' (' + b.soDem + ' đêm)' : '') + (b.soTien != null ? ', ' + vnd(b.soTien) : '') + '.');
@@ -190,7 +190,10 @@ async function chay({ guiTin = tin() } = {}) {
       if (viec.loai === 'moi') {
         const r = await guiTin.gui({ chatId: R.nhomChatId, post: soanBai(b), khoa: 'rt-moi-' + b.ma });
         if (!r.ok) { kq.loi.push(b.ma + ': ' + r.loi); continue; }
-        await bang.ghi(b.id, { tinNhom: r.msgId, daBaoNhom: viec.dongs.join('\n') });
+        /* Dòng "tin <giờ>" cho nhac.js biết lúc tin vào nhóm, để nhắc khi chưa ai nhận đơn. */
+        const tinLuc = new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 16).replace('T', ' ');
+        const nhacCskh = ['tin ' + tinLuc].concat(String(b.nhacCskh || '').split('\n').filter(Boolean)).join('\n');
+        await bang.ghi(b.id, { tinNhom: r.msgId, daBaoNhom: viec.dongs.join('\n'), nhacCskh });
         kq.gui++;
       } else {
         if (viec.canNoi.length) {

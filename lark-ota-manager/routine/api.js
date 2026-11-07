@@ -15,10 +15,11 @@ const bang = require('./bang');
 const baoNhom = require('./bao-nhom');
 const canhBao = require('./canh-bao');
 const tuan = require('./tuan');
+const nhac = require('./nhac');
 
 const R = cfg.routine;
 
-const tinhTrang = { dangChay: false, lan: null, loi: '', luc: null, baoNhom: null };
+const tinhTrang = { dangChay: false, lan: null, loi: '', luc: null, baoNhom: null, nhac: null };
 const TIEN = ['soTien', 'hoaHong', 'giaBan', 'daThanhToan'];
 const docBooking = (o) => bang.doc(o);
 
@@ -61,7 +62,20 @@ async function chayDongBo() {
     tinhTrang.loi = (tinhTrang.lan.hong || []).length ? 'Không ghi được vào Base: ' + tinhTrang.lan.hong.join(' | ') : '';
     if (tinhTrang.lan.them || tinhTrang.lan.sua) bang.xoaCache();
     /* Báo nhóm Booking KS sau khi Base đã có đơn mới. Lỗi báo nhóm không làm hỏng lượt đọc thư. */
-    if (baoNhom.batBao()) tinhTrang.baoNhom = { ...(await baoNhom.chay()), luc: new Date().toISOString() };
+    if (baoNhom.batBao()) {
+      /* Hai cột Lý do huỷ, Nhắc CSKH: tạo nếu Base chưa có. Hỏng thì bang.ghi tự bỏ qua hai cột đó. */
+      await bang.damBaoCot().catch((e) => { tinhTrang.nhac = { loi: ['Tạo cột Base: ' + e.message] }; });
+      tinhTrang.baoNhom = { ...(await baoNhom.chay()), luc: new Date().toISOString() };
+      /* Nhắc nhân sự trong luồng tin (nhac.js). AI không tự nhắn khách. */
+      tinhTrang.nhac = await nhac.chay({
+        rows: await bang.doc({ force: true }),
+        bang,
+        guiTin: baoNhom.tin(),
+        guiQuanLy: (the, khoa) => require('../../lark-chung/gui-anh-hung').gui({ card: the, khoa }),
+        docLuong: (id) => nhac.nguoiTraLoi(id, { tin: baoNhom.tin() }),
+      });
+      tinhTrang.nhac.docLuong = nhac.tinhTrang.docLuong;
+    }
   } catch (e) {
     tinhTrang.loi = e.message || String(e);
     console.error('[routine] đồng bộ hỏng:', tinhTrang.loi);
@@ -71,7 +85,7 @@ async function chayDongBo() {
   }
   /* Bản tự đọc (Render) hỏng liên tục 10 phút thì nhắn riêng anh Hùng (canh-bao.js). */
   if (R.chuKyMs) {
-    const loiNhom = ((tinhTrang.baoNhom && tinhTrang.baoNhom.loi) || []).join(' | ');
+    const loiNhom = ((tinhTrang.baoNhom && tinhTrang.baoNhom.loi) || []).concat((tinhTrang.nhac && tinhTrang.nhac.loi) || []).join(' | ');
     const loi = [tinhTrang.loi, loiNhom && 'Gửi tin nhóm: ' + loiNhom].filter(Boolean).join(' · ');
     await canhBao.sauLuot(loi, { hop: R.hop });
   }
@@ -119,7 +133,7 @@ async function xuLy(req, res, u, { ok, fail, send, quyenCua, readBody, nguoiDung
       vanHanh: vh,
       thongKe: tk,
       homNay: nay,
-      danhMuc: { kenh: TK.KENH, trangThai: TK.TRANG_THAI, chamSoc: TK.CHAM_SOC },
+      danhMuc: { kenh: TK.KENH, trangThai: TK.TRANG_THAI, chamSoc: TK.CHAM_SOC, lyDoHuy: nhac.LY_DO_HUY },
       perm: { chiPhi: perm.chiPhi, duocSua: perm.duocSua },
       dongBo: { ...tinhTrang, chuKyMs: R.chuKyMs, hop: R.hop },
       baseUrl: R.baseUrl,
@@ -194,6 +208,10 @@ async function xuLy(req, res, u, { ok, fail, send, quyenCua, readBody, nguoiDung
       doi.chamSoc = body.chamSoc || null;
     }
     if (body.ghiChuChamSoc !== undefined) doi.ghiChuChamSoc = String(body.ghiChuChamSoc || '').slice(0, 2000);
+    if (body.lyDoHuy !== undefined) {
+      if (body.lyDoHuy && !nhac.LY_DO_HUY.includes(body.lyDoHuy)) { fail(res, 400, 'Lý do huỷ không hợp lệ'); return true; }
+      doi.lyDoHuy = body.lyDoHuy || '';
+    }
     if (!Object.keys(doi).length) { fail(res, 400, 'Không có gì để lưu'); return true; }
     const ai = await nguoiDung(req).catch(() => null);
     doi.nguoiChamSoc = (ai && ai.name) || '';
@@ -213,7 +231,7 @@ async function xuLy(req, res, u, { ok, fail, send, quyenCua, readBody, nguoiDung
       ['Quốc gia', 'quocGia'], ['Số khách', 'soKhach'], ['Ngày đặt', 'ngayDat'], ['Nhận phòng', 'nhanPhong'],
       ['Trả phòng', 'traPhong'], ['Số đêm', 'soDem'], ['Phòng', 'phong'], ['Hạng phòng', 'hangPhong'],
       ...(perm.chiPhi ? [['Số tiền', 'soTien'], ['Hoa hồng OTA', 'hoaHong'], ['Giá bán OTA', 'giaBan'], ['Đã thanh toán', 'daThanhToan']] : []),
-      ['Trạng thái', 'trangThai'], ['Chăm sóc', 'chamSoc'], ['Ghi chú chăm sóc', 'ghiChuChamSoc'],
+      ['Trạng thái', 'trangThai'], ['Chăm sóc', 'chamSoc'], ['Lý do huỷ', 'lyDoHuy'], ['Ghi chú chăm sóc', 'ghiChuChamSoc'],
       ['Người chăm sóc', 'nguoiChamSoc'], ['Cần xử lý', 'canXuLyChuoi'], ['Yêu cầu / ghi chú', 'ghiChu'],
     ];
     const esc = (v) => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';

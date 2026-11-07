@@ -212,7 +212,7 @@ console.log('— báo nhóm Booking KS');
   const huy = { ...daGui, trangThai: 'Đã huỷ', lichSu: b.lichSu + '\n2026-11-03 19:00 · Agoda báo huỷ\n2026-11-03 19:00 · Huỷ' };
   const v = BN.canBao(huy, nay);
   t('huỷ → trả lời trong luồng, chỉ một câu dù có hai thư huỷ', v && v.loai === 'traLoi' && v.canNoi.length === 1 && v.dongs.length === 2, JSON.stringify(v));
-  t('câu trả lời huỷ', /^Khách đã huỷ đặt phòng \(Agoda báo lúc 19:00 03\/11\)\.$/.test(BN.soanTraLoi(huy, v.canNoi)), BN.soanTraLoi(huy, v.canNoi));
+  t('câu trả lời huỷ, kèm nhắc gọi khách trong 30 phút', /^Khách đã huỷ đặt phòng \(Agoda báo lúc 19:00 03\/11\)\. Người nhận đơn gọi khách trong 30 phút: .+Lý do huỷ trên app\.$/.test(BN.soanTraLoi(huy, v.canNoi)), BN.soanTraLoi(huy, v.canNoi));
   const huy2 = { ...huy, daBaoNhom: b.lichSu + '\n2026-11-03 19:00 · Agoda báo huỷ' };
   const v2 = BN.canBao(huy2, nay);
   t('đã báo huỷ rồi → thư huỷ thứ hai chỉ đánh dấu', v2 && v2.canNoi.length === 0 && v2.dongs.length === 1);

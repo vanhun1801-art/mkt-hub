@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Quy trình chăm sóc khách booking OTA</title>
+<style>
+  @page { size: A4 portrait; margin: 0; }
+  :root {
+    --xanh: #289683; --xanh-dam: #17675a; --xanh-nhat: #eaf5f2; --xanh-vien: #cfe5df;
+    --chu: #1f2a2e; --phu: #5b6b70; --ke: #dfe8e5;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: "Segoe UI", Arial, sans-serif; color: var(--chu);
+    font-size: 9.6pt; line-height: 1.45;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  p { margin: 0; }
+  b { font-weight: 600; }
+
+  /* Trang */
+  .trang {
+    width: 210mm; height: 297mm; padding: 16mm 18mm 12mm; overflow: hidden;
+    display: flex; flex-direction: column; break-after: page;
+  }
+  .trang:last-of-type { break-after: auto; }
+  .noi { flex: 1; }
+  .chan {
+    display: flex; justify-content: space-between;
+    font-size: 8pt; color: var(--phu);
+    border-top: 0.5pt solid var(--ke); padding-top: 2.5mm;
+  }
+
+  /* Đầu tài liệu */
+  .dau { padding-bottom: 4mm; border-bottom: 1.2mm solid var(--xanh); margin-bottom: 5mm; }
+  .dau .nho { font-size: 8.5pt; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--xanh); }
+  .dau h1 { font-size: 20pt; line-height: 1.25; margin: 1.5mm 0 1.5mm; }
+  .dau .mo { display: flex; gap: 6mm; font-size: 9pt; color: var(--phu); }
+  .dau .mo span b { color: var(--chu); }
+
+  /* Mục */
+  section { margin-bottom: 5mm; }
+  section:last-child { margin-bottom: 0; }
+  h2 {
+    display: flex; align-items: baseline; gap: 2.5mm;
+    font-size: 12pt; line-height: 1.3; color: var(--xanh-dam);
+    margin: 0 0 3mm; break-after: avoid;
+  }
+  h2 .so {
+    flex: none; width: 6mm; height: 6mm; border-radius: 1.5mm;
+    background: var(--xanh); color: #fff; font-size: 9pt;
+    display: inline-flex; align-items: center; justify-content: center;
+    transform: translateY(-0.4mm);
+  }
+  .dan { margin-bottom: 2.5mm; }
+
+  /* Bảng chung */
+  table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  th, td { padding: 1.6mm 3mm; text-align: left; vertical-align: top; }
+  th { background: var(--xanh); color: #fff; font-size: 9pt; font-weight: 600; }
+  th:first-child { border-top-left-radius: 1.5mm; }
+  th:last-child { border-top-right-radius: 1.5mm; }
+  td { border-bottom: 0.5pt solid var(--ke); }
+  tbody tr:nth-child(even) td { background: #f6faf9; }
+  tr { break-inside: avoid; }
+
+  /* Nguồn */
+  .nguon { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3mm; }
+  .nguon div { border: 0.5pt solid var(--ke); border-radius: 1.5mm; padding: 2.5mm 3mm; font-size: 9pt; line-height: 1.4; }
+  .nguon b { display: block; color: var(--chu); margin-bottom: 0.8mm; }
+
+  /* Nguyên tắc */
+  .tac { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3mm; }
+  .tac div {
+    background: var(--xanh-nhat); border: 0.5pt solid var(--xanh-vien);
+    border-top: 1mm solid var(--xanh); border-radius: 1.5mm;
+    padding: 2.5mm 3mm; font-size: 9pt; line-height: 1.4;
+  }
+  .tac b { display: block; font-size: 9.5pt; color: var(--xanh-dam); margin-bottom: 1mm; }
+
+  /* Các bước */
+  .buoc col.c1 { width: 47mm; }
+  .buoc col.c2 { width: 37mm; }
+  .buoc td.b { font-weight: 600; }
+  .buoc td.k { color: var(--phu); }
+  .them {
+    display: inline-block; margin-top: 1mm;
+    font-size: 7.5pt; font-weight: 600; line-height: 1.6;
+    color: var(--xanh-dam); background: var(--xanh-nhat);
+    border: 0.5pt solid var(--xanh-vien); border-radius: 1mm; padding: 0 1.5mm;
+  }
+  .ghi + .ghi { margin-top: 1.2mm; }
+  .ghi { margin-top: 2.5mm; font-size: 8.5pt; color: var(--phu); }
+  .ghi .them { margin: 0 1mm 0 0; }
+
+  /* Tình huống */
+  .th col.c1 { width: 47mm; }
+  .th td:first-child { font-weight: 600; }
+  .th ul { margin: 0; padding-left: 4mm; }
+  .th li { margin: 0 0 1mm; }
+  .th li:last-child { margin-bottom: 0; }
+
+  /* Ký duyệt */
+  .ky th { text-align: center; }
+  .ky td { border: 0.5pt solid var(--ke); border-top: 0; text-align: center; }
+  .ky td + td { border-left: 0; }
+  .ky .o { height: 26mm; }
+  .ky span { font-size: 8.5pt; color: var(--phu); }
+
+  /* Đo kết quả + Hub */
+  .hai { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; }
+  .hai > div { display: flex; flex-direction: column; }
+  .hai .the { flex: 1; }
+  .the {
+    border: 0.5pt solid var(--ke); border-radius: 1.5mm; padding: 3mm 3.5mm;
+  }
+  .the ol { margin: 0; padding-left: 4.5mm; }
+  .the li { margin: 0 0 1.5mm; }
+  .the li:last-child { margin-bottom: 0; }
+  /* Phương châm */
+  .chau { border: 0.8mm solid var(--xanh); border-radius: 2mm; overflow: hidden; }
+  .chau .dong {
+    background: var(--xanh); color: #fff; padding: 2.5mm 4mm;
+    display: flex; justify-content: space-between; align-items: baseline;
+  }
+  .chau .dong b { font-size: 12.5pt; letter-spacing: .02em; }
+  .chau .dong span { font-size: 8.5pt; opacity: .9; }
+  .chau .rut { padding: 3mm 4mm; display: grid; grid-template-columns: 0.9fr 1.1fr; gap: 4mm; }
+  .chau ul { margin: 0; padding-left: 4mm; }
+  .chau li { margin: 0 0 1mm; }
+  .chau li:last-child { margin-bottom: 0; }
+  .chau .vd { background: var(--xanh-nhat); border-radius: 1.5mm; padding: 2.5mm 3mm; font-size: 9pt; }
+  .chau .vd b { display: block; color: var(--xanh-dam); margin-bottom: 0.8mm; }
+
+  /* Nguồn một dòng */
+  .nguon1 { font-size: 9pt; color: var(--phu); margin-bottom: 3mm; }
+  .nguon1 b { color: var(--chu); }
+
+  /* Ai làm */
+  .ai, .ng {
+    display: inline-block; font-size: 7.8pt; font-weight: 600; line-height: 1.7;
+    border-radius: 1mm; padding: 0 1.6mm; white-space: nowrap; margin: 0 0.8mm 0.8mm 0;
+  }
+  .ai { background: var(--xanh); color: #fff; }
+  .ng { background: #fff; color: var(--xanh-dam); border: 0.5pt solid var(--xanh); }
+  .buoc4 col.c1 { width: 41mm; }
+  .buoc4 col.c2 { width: 35mm; }
+  .buoc4 col.c3 { width: 18mm; }
+  .buoc4 td.b { font-weight: 600; }
+  .buoc4 td.k { color: var(--phu); }
+  .buoc4 td.k b { color: var(--chu); }
+
+  /* Phân việc */
+  .pv col.c1 { width: 50%; }
+  .pv ul { margin: 0; padding-left: 4mm; }
+  .pv li { margin: 0 0 1mm; }
+  .pv li:last-child { margin-bottom: 0; }
+  .pv td { background: #fff !important; }
+  .pv td + td { border-left: 0.5pt solid var(--ke); }
+</style>
+</head>
+<body>
+
+<!-- TRANG 1 -->
+<div class="trang">
+  <div class="noi">
+  <header class="dau">
+    <div class="nho">Pito Hotel Hòn Thơm · Routine Hospitality</div>
+    <h1>Quy trình chăm sóc khách booking OTA</h1>
+    <div class="mo">
+      <span>Áp dụng: <b>Bộ phận CSKH</b></span>
+      <span>Phiên bản: <b>Đề xuất lần 2</b></span>
+      <span>Ngày: <b>07/11/2026</b></span>
+    </div>
+  </header>
+
+  <section>
+    <h2><span class="so">1</span>Phương châm tư vấn</h2>
+    <div class="chau">
+      <div class="dong"><b>LINH HOẠT · BÁN BẰNG ĐƯỢC · LUÔN NGHĨ GIẢI PHÁP</b><span>Anh em ghi nhớ, học thuộc</span></div>
+      <div class="rut">
+        <ul>
+          <li>Không cứng nhắc nguyên tắc mà từ chối khách.</li>
+          <li>Khách vướng đâu, gỡ đó để khách chốt.</li>
+          <li>Khách huỷ, chê đắt, lưỡng lự: luôn có phương án khác.</li>
+        </ul>
+        <div class="vd"><b>Ví dụ</b>Khách hỏi phụ thu trẻ em. Nếu giai đoạn đó còn phòng trống thì miễn phụ thu cho khách luôn để khách chốt. Ghi lại vào Ghi chú chăm sóc.</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="so">2</span>Nguồn booking và nguyên tắc chung</h2>
+    <p class="nguon1">Booking mới báo về 3 nơi: <b>GoHost</b> · <b>email pito@routinehospitality.vn</b> · <b>nhóm Lark "Booking KS"</b> (Marketing Hub).</p>
+    <div class="tac">
+      <div><b>Mỗi booking một người lo</b>Lấy tin trong nhóm Booking KS làm gốc. Ai nhận đơn thì trả lời "Em nhận" trong luồng tin đó.</div>
+      <div><b>Liên hệ nào cũng ghi lại</b>Ghi vào tab Đơn &amp; chăm sóc trên Marketing Hub để người khác biết đơn đang ở bước nào.</div>
+      <div><b>Nhắn qua kênh của OTA trước</b>Chỉ giới thiệu gói, dịch vụ thêm. Không mời khách huỷ để đặt thẳng: Agoda, Booking.com cấm.</div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="so">3</span>Các bước chăm sóc</h2>
+    <table class="buoc4">
+      <colgroup><col class="c1"><col class="c2"><col class="c3"><col></colgroup>
+      <thead><tr><th>Bước</th><th>Khi nào</th><th>Ai làm</th><th>Việc cần làm</th></tr></thead>
+      <tbody>
+        <tr><td class="b">1. Báo booking mới</td><td class="k">Trong 1 phút</td><td><span class="ai">AI</span></td><td>Bot báo vào nhóm Booking KS và nhắc người trực. Sau 3 phút chưa ai nhận thì nhắc lại và báo quản lý.</td></tr>
+        <tr><td class="b">2. Nhận đơn, tư vấn</td><td class="k"><b>Trong 5 phút</b> từ lúc có tin</td><td><span class="ng">Người</span></td><td>Trả lời "Em nhận", đối chiếu GoHost. Xác nhận với khách, tư vấn theo phương châm mục 1. AI soạn sẵn lời chào theo ngôn ngữ khách.</td></tr>
+        <tr><td class="b">3. Nhắc trước ngày đến</td><td class="k">1 ngày trước nhận phòng</td><td><span class="ai">AI</span></td><td>AI gửi hướng dẫn đi Hòn Thơm (cáp treo, giờ chạy, tàu), giờ nhận, trả phòng. Khách hỏi thêm thì chuyển người trực.</td></tr>
+        <tr><td class="b">4. Hỏi thăm khi ở</td><td class="k">Tối ngày nhận phòng</td><td><span class="ai">AI</span><span class="ng">Người</span></td><td>AI gửi tin hỏi thăm. Khách chưa hài lòng thì báo ngay người trực xử lý tại chỗ.</td></tr>
+        <tr><td class="b">5. Cảm ơn, xin đánh giá</td><td class="k">24 giờ sau trả phòng</td><td><span class="ai">AI</span></td><td>AI cảm ơn, mời đánh giá trên đúng OTA khách đặt. Bỏ qua khách còn phàn nàn chưa xử lý.</td></tr>
+        <tr><td class="b">6. Trả lời đánh giá</td><td class="k">Tốt: 3 ngày<br>Xấu: 24 giờ</td><td><span class="ai">AI</span><span class="ng">Người</span></td><td>AI soạn nháp câu trả lời. Người duyệt rồi đăng; đánh giá xấu báo quản lý trước.</td></tr>
+      </tbody>
+    </table>
+    <p class="ghi">Đơn đến ngoài giờ hành chính: nhận trước 8h sáng hôm sau. Khách nhận phòng ngay trong ngày thì nhận đơn luôn.</p>
+  </section>
+  </div>
+  <footer class="chan"><span>Quy trình chăm sóc khách booking OTA · Pito Hotel Hòn Thơm</span><span>Trang 1/2</span></footer>
+</div>
+
+<!-- TRANG 2 -->
+<div class="trang">
+  <div class="noi">
+  <section>
+    <h2><span class="so">4</span>Các tình huống riêng</h2>
+    <table class="th">
+      <colgroup><col class="c1"><col></colgroup>
+      <thead><tr><th>Tình huống</th><th>Cách xử lý</th></tr></thead>
+      <tbody>
+        <tr><td>Huỷ đơn</td><td><ul>
+          <li>Liên hệ khách <b>trong 30 phút</b> để hỏi nguyên nhân. Ghi theo danh sách: giá, đổi kế hoạch, tìm được chỗ khác, thẻ lỗi hoặc OTA tự huỷ, đặt trùng, thời tiết, khác.</li>
+          <li>Áp dụng phương châm mục 1: đưa phương án để khách đặt lại (đổi ngày, đổi hạng phòng, gói tiết kiệm hơn, ưu đãi thêm). Kênh đặt lại theo hợp đồng với từng OTA.</li>
+          <li>Thẻ lỗi hoặc OTA tự huỷ: khách thường vẫn muốn ở, cần gọi sớm nhất.</li>
+        </ul></td></tr>
+        <tr><td>Khách không đến</td><td>Liên hệ trước 18h ngày nhận phòng. Khách vẫn đến thì giữ phòng; không đến thì báo lễ tân xử lý theo chính sách OTA.</td></tr>
+        <tr><td>OTA sửa đơn, đổi phòng</td><td>Xác nhận lại thông tin mới với khách và kiểm tra lễ tân đã cập nhật.</td></tr>
+        <tr><td>Khách nước ngoài</td><td>AI soạn tin tiếng Anh, tiếng Hàn. Tin khách nhắn vào luồng nhóm đã có bản dịch tiếng Việt.</td></tr>
+        <tr><td>Khiếu nại</td><td>Báo quản lý trong luồng của đơn đó, không xử lý riêng qua tin nhắn cá nhân.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2><span class="so">5</span>Phân việc giữa AI và người</h2>
+    <table class="pv">
+      <colgroup><col class="c1"><col></colgroup>
+      <thead><tr><th>AI làm thay (thủ tục lặp lại)</th><th>Người làm (khâu cần thiết, quan trọng)</th></tr></thead>
+      <tbody><tr>
+        <td><ul>
+          <li>Báo booking mới, nhắc người trực khi chưa ai nhận đơn</li>
+          <li>Nhắc khách trước ngày đến</li>
+          <li>Hỏi thăm khách tối ngày nhận phòng</li>
+          <li>Cảm ơn, mời đánh giá sau khi trả phòng</li>
+          <li>Soạn nháp tin nhắn, câu trả lời đánh giá; dịch tin khách</li>
+          <li>Thống kê tuần, tháng gửi vào nhóm</li>
+        </ul></td>
+        <td><ul>
+          <li>Tư vấn và chốt đơn, quyết định ưu đãi cho khách</li>
+          <li>Gọi khách huỷ đơn, tìm phương án đặt lại</li>
+          <li>Xử lý phàn nàn, khiếu nại</li>
+          <li>Duyệt câu trả lời đánh giá trước khi đăng</li>
+          <li>Trả lời câu hỏi ngoài kịch bản của AI</li>
+        </ul></td>
+      </tr></tbody>
+    </table>
+    <p class="ghi">Phần AI làm thay sẽ bật dần trên Marketing Hub. Việc nào chưa bật thì người trực làm như cũ.</p>
+  </section>
+
+  <section class="hai">
+    <div>
+      <h2><span class="so">6</span>Đo kết quả</h2>
+      <div class="the"><ol>
+        <li>Thời gian nhận đơn (mục tiêu dưới 5 phút)</li>
+        <li>Tỷ lệ chốt sau tư vấn, số khách mua thêm gói</li>
+        <li>Tỷ lệ đơn huỷ mà khách đặt lại được</li>
+        <li>Tỷ lệ khách đánh giá, điểm trung bình từng OTA</li>
+      </ol></div>
+    </div>
+    <div>
+      <h2><span class="so">7</span>Ký duyệt</h2>
+      <table class="ky">
+        <thead><tr><th>Người lập</th><th>Quản lý CSKH</th><th>BGĐ duyệt</th></tr></thead>
+        <tbody><tr><td><div class="o"></div><span>Họ tên, ngày</span></td><td><div class="o"></div><span>Họ tên, ngày</span></td><td><div class="o"></div><span>Họ tên, ngày</span></td></tr></tbody>
+      </table>
+    </div>
+  </section>
+  </div>
+  <footer class="chan"><span>Quy trình chăm sóc khách booking OTA · Pito Hotel Hòn Thơm</span><span>Trang 2/2</span></footer>
+</div>
+
+</body>
+</html>

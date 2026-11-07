@@ -177,6 +177,10 @@ const Routine = (() => {
     const lichSu = String(b.lichSu || '').split('\n').filter(Boolean)
       .map((x) => `<li>${esc(x.slice(11, 16) + ' ' + ngayNgan(x.slice(0, 10)) + x.slice(16))}</li>`).join('');
     const ds = (d.danhMuc && d.danhMuc.chamSoc) || [];
+    const lyDo = (d.danhMuc && d.danhMuc.lyDoHuy) || [];
+    const huy = b.trangThai === 'Đã huỷ';
+    const TEN_NHAC = { chao: 'mẫu tin chào', 'chua-nhan': 'chưa ai nhận', 'chua-nhan-ql': 'báo quản lý', 'truoc-den': 'trước ngày đến', 'hoi-tham': 'hỏi thăm', 'xin-danh-gia': 'xin đánh giá', 'huy-ly-do': 'hỏi lý do huỷ' };
+    const daNhac = String(b.nhacCskh || '').split('\n').map((x) => x.split(' ')[0]).filter((k) => TEN_NHAC[k]).map((k) => TEN_NHAC[k]).join(', ');
     moModal(`
       <h3>${esc(b.kenh || '')} · ${esc(b.ma)}</h3>
       <div class="modal-than">
@@ -203,8 +207,11 @@ const Routine = (() => {
         ${d.perm.duocSua ? `<div class="suaform">
           <label>Trạng thái chăm sóc<select id="rtChamSoc">${ds.map((c) =>
             `<option ${c === (b.chamSoc || 'Chưa liên hệ') ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select></label>
+          ${huy ? `<label>Lý do huỷ<select id="rtLyDoHuy"><option value="">Chưa hỏi được</option>${lyDo.map((c) =>
+            `<option ${c === b.lyDoHuy ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select></label>` : ''}
           <label style="grid-column:1/-1">Ghi chú chăm sóc<textarea id="rtGhiChu" rows="3" placeholder="Đã nhắn Zalo, khách đến khoảng 15h…">${esc(b.ghiChuChamSoc)}</textarea></label>
-        </div>` : `<dl class="dl">${dong('Trạng thái', veChamSoc(b))}${dong('Ghi chú', esc(b.ghiChuChamSoc || '—'))}</dl>`}
+        </div>` : `<dl class="dl">${dong('Trạng thái', veChamSoc(b))}${huy ? dong('Lý do huỷ', esc(b.lyDoHuy || 'Chưa hỏi được')) : ''}${dong('Ghi chú', esc(b.ghiChuChamSoc || '—'))}</dl>`}
+        ${daNhac ? `<p class="manh">Đã nhắc trong nhóm: ${esc(daNhac)}</p>` : ''}
         ${b.nguoiChamSoc || b.chamSocLuc ? `<p class="manh">Cập nhật ${esc(b.nguoiChamSoc ? 'bởi ' + b.nguoiChamSoc : '')}${b.chamSocLuc ? ' lúc ' + esc(gioNgan(b.chamSocLuc)) : ''}</p>` : ''}
         ${lichSu ? `<h4>Thư đã đọc</h4><ul class="rt-lich-su">${lichSu}</ul>` : ''}
       </div>
@@ -219,7 +226,11 @@ const Routine = (() => {
         await goi('/api/routine/don/' + encodeURIComponent(b.id), {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ chamSoc: $('#rtChamSoc').value, ghiChuChamSoc: $('#rtGhiChu').value }),
+          body: JSON.stringify({
+            chamSoc: $('#rtChamSoc').value,
+            ghiChuChamSoc: $('#rtGhiChu').value,
+            ...($('#rtLyDoHuy') ? { lyDoHuy: $('#rtLyDoHuy').value } : {}),
+          }),
         });
         toast('Đã lưu chăm sóc đơn ' + b.ma, 'tot');
         dongModal();

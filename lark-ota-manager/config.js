@@ -95,6 +95,8 @@ module.exports = {
     /* Chỉ báo đơn đặt từ lúc bật tính năng (giờ VN). Đơn trước đó anh Hùng đã gửi
      * tay vào nhóm; báo lại là trùng. */
     baoTu: process.env.ROUTINE_BAO_TU || '2026-11-04 11:00',
+    /* Giờ trực CSKH (giờ VN): ngoài khung này routine/nhac.js không nhắc, dồn sang đầu giờ trực. */
+    gioTruc: process.env.ROUTINE_GIO_TRUC || '08:00-22:00',
     get baseUrl() { return 'https://rootytrip2.sg.larksuite.com/base/' + this.baseToken + '?table=' + this.tableId; },
   },
 

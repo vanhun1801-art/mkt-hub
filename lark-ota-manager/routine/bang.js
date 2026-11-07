@@ -20,6 +20,12 @@ const COT = {
   daSua: 'OTA đã sửa', ghiChu: 'Yêu cầu / ghi chú', lichSu: 'Lịch sử', capNhat: 'Thư mới nhất',
   chamSoc: 'Chăm sóc', ghiChuChamSoc: 'Ghi chú chăm sóc', nguoiChamSoc: 'Người chăm sóc', chamSocLuc: 'Chăm sóc lúc',
   tinNhom: 'Tin nhóm', daBaoNhom: 'Đã báo nhóm',
+  lyDoHuy: 'Lý do huỷ', nhacCskh: 'Nhắc CSKH',
+};
+/* Cột chữ app tự tạo nếu Base chưa có (nhac.js, 07/11/2026). */
+const COT_TU_TAO = {
+  lyDoHuy: 'Lý do khách huỷ, CSKH ghi sau khi gọi khách (chọn trên app OTA Manager).',
+  nhacCskh: 'App ghi những lần đã nhắc CSKH trong luồng tin Booking KS, mỗi dòng một lần. Đừng sửa tay.',
 };
 const KIEU_GIO = new Set(['ngayDat', 'nhanPhong', 'traPhong', 'capNhat', 'chamSocLuc']);
 const KIEU_SO = new Set(['soDem', 'soKhach', 'nguoiLon', 'treEm', 'soTien', 'hoaHong', 'giaBan', 'daThanhToan']);
@@ -33,6 +39,9 @@ const chu = (v) => (Array.isArray(v) ? v.map((x) => (x && (x.text || x.name)) ||
 const so = (v) => (v == null || v === '' || !Number.isFinite(Number(v)) ? null : Number(v));
 
 let cache = { luc: 0, rows: null };
+/* Cột tự tạo mà Base chưa có (null = chưa đọc lần nào): ghi() bỏ qua, để một cột
+ * thiếu không làm hỏng việc ghi "Tin nhóm" (hỏng là tin booking gửi trùng). */
+let coCot = null;
 
 /** Mọi đơn trong Base, mới đặt trước. */
 async function doc({ force = false } = {}) {
@@ -40,6 +49,7 @@ async function doc({ force = false } = {}) {
   const rows = await lark.voiBase(R.baseToken, async () => {
     const ds = await lark.listFields(R.tableId);
     const idCot = Object.fromEntries(Object.entries(COT).map(([k, ten]) => [k, (ds.find((c) => c.name === ten) || {}).id]));
+    coCot = new Set(Object.keys(idCot).filter((k) => idCot[k]));
     return (await lark.listAll(R.tableId)).map((r) => {
       const b = { id: r.id };
       for (const [k, fid] of Object.entries(idCot)) {
@@ -58,12 +68,34 @@ async function doc({ force = false } = {}) {
 
 const xoaCache = () => { cache.rows = null; };
 
+let daKiemCot = false;
+/** Tạo các cột trong COT_TU_TAO nếu Base chưa có. Trả tên cột vừa tạo. Chạy một lần mỗi lần khởi động. */
+async function damBaoCot() {
+  if (daKiemCot) return [];
+  const tao = [];
+  await lark.voiBase(R.baseToken, async () => {
+    const ds = await lark.listFields(R.tableId);
+    for (const [k, moTa] of Object.entries(COT_TU_TAO)) {
+      if (ds.some((c) => c.name === COT[k])) continue;
+      await lark.createField(R.tableId, { name: COT[k], type: 'text', description: moTa });
+      tao.push(COT[k]);
+    }
+  });
+  daKiemCot = true;
+  if (tao.length) { xoaCache(); coCot = null; }
+  return tao;
+}
+
 /** Ghi một dòng; `doi` theo khoá của COT. */
 async function ghi(id, doi) {
   const theoTen = {};
-  for (const [k, v] of Object.entries(doi)) theoTen[COT[k]] = v;
+  for (const [k, v] of Object.entries(doi)) {
+    if (COT_TU_TAO[k] && !(coCot && coCot.has(k))) continue;
+    theoTen[COT[k]] = v;
+  }
+  if (!Object.keys(theoTen).length) return;
   await lark.voiBase(R.baseToken, () => lark.updateRecord(R.tableId, id, theoTen));
   xoaCache();
 }
 
-module.exports = { COT, doc, ghi, xoaCache };
+module.exports = { COT, doc, ghi, xoaCache, damBaoCot };
