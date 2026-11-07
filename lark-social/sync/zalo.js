@@ -187,12 +187,11 @@ async function baiViet(token, tran, from, to, canhBao) {
     for (let offset = 0; offset < tran; offset += 10) {
     let r;
     try {
-      /* `type` phải nằm NGOÀI `data`, làm tham số riêng. Nhét vào trong data thì
-       * Zalo trả "(-201) type accept only 2 value normal and video" — đúng cái
-       * giá trị mình vừa gửi — nên rất dễ đi sửa giá trị thay vì sửa chỗ đặt.
-       * Đã thử tay cả bốn cách xếp tham số, chỉ cách này chạy. */
-      r = await getJson(API + '/article/getslice?type=' + loai + '&data='
-        + encodeURIComponent(JSON.stringify({ offset, limit: 10 })),
+      /* `type`, `offset`, `limit` đều là tham số trần trên đường dẫn. Nhét offset/limit
+       * vào `data=` thì Zalo LẶNG LẼ bỏ qua và luôn trả 3 bài mới nhất (thử 07/11/2026:
+       * offset 0, 3, 170 đều ra đúng 3 bài 30/09), nên bảng chỉ có 6 trên 179 bài.
+       * Nhét `type` vào data thì Zalo báo "(-201) type accept only 2 value normal and video". */
+      r = await getJson(API + '/article/getslice?type=' + loai + '&offset=' + offset + '&limit=10',
         { headers: dau(token), label: 'Zalo article/getslice ' + loai, retries: 1 });
       neuLoi(r, 'Zalo article/getslice');
     } catch (e) {
