@@ -98,13 +98,33 @@ function gomMot(ds) {
  *   rows: [{ platform, channel, soHoiThoai, soTinNhan, lead, tuQuangCao, tuNhien, coSdt }]
  */
 async function gomTinNhan(conf, tu, den, log = () => {}) {
-  if (!conf || !conf.userToken) throw new Error('Chưa khai Pancake trong Cài đặt app Quảng cáo');
+  const daKhaiDs = ((conf && conf.pages) || []).filter((p) => p && p.pageId);
+  if (!conf || (!conf.userToken && !daKhaiDs.length)) {
+    throw new Error('Chưa khai Pancake trong Cài đặt app Quảng cáo');
+  }
   const khoa = tu + '|' + den;
   const cu = DEM.get(khoa);
   if (cu && Date.now() - cu.luc < HAN_DEM) return cu;
 
-  const dsPage = await pancake.danhSachPage(conf);
-  const daKhai = new Map((conf.pages || []).map((p) => [String(p.pageId), p]));
+  const daKhai = new Map(daKhaiDs.map((p) => [String(p.pageId), p]));
+  /* 07/11/2026: token tài khoản hết hạn 01/11 làm lead của MỌI kênh báo
+   * "access_token expired", dù page nào cũng đã có token page riêng (không
+   * hết hạn). Token tài khoản chỉ để liệt kê page, nên hỏng thì dùng danh
+   * sách page đã khai trong Cài đặt thay vì bỏ cả lượt. */
+  let dsPage;
+  let loiTaiKhoan = '';
+  try {
+    if (!conf.userToken) throw new Error('Chưa có token cấp tài khoản');
+    dsPage = await pancake.danhSachPage(conf);
+  } catch (e) {
+    if (!daKhaiDs.length) throw e;
+    loiTaiKhoan = String(e.message).slice(0, 120);
+    dsPage = daKhaiDs.map((p) => ({
+      pageId: String(p.pageId),
+      label: p.label || String(p.pageId),
+      platform: pancake.doanNenTang(String(p.pageId), p.platform),
+    }));
+  }
 
   const rows = [];
   const chuaNoi = [];
@@ -125,7 +145,7 @@ async function gomTinNhan(conf, tu, den, log = () => {}) {
         loi: String(e.message).slice(0, 120) });
     }
   }
-  const ra = { rows, chuaNoi, hanToken: hanToken(conf.userToken), luc: Date.now(), tu, den };
+  const ra = { rows, chuaNoi, hanToken: hanToken(conf.userToken), loiTaiKhoan, luc: Date.now(), tu, den };
   DEM.set(khoa, ra);
   return ra;
 }
